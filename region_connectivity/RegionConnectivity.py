@@ -15,7 +15,7 @@ def getRoiMapping(neuprint_client):
 
     # could include: BU(L), ATL(L)
 
-    # remove: 'PRW', 'GNG', 'FLA'
+    # remove: 'PRW', 'GNG', 'FLA(R), SAD'
 
     rois_to_remove = ('LO(R)', 'LOP(R)', 'ME(R)', 'AME(R)',
                       "b'L(R)", 'bL(R)', 'gL(R)', "a'L(R)",
