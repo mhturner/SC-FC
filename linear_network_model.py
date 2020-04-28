@@ -5,191 +5,298 @@ import os
 import seaborn as sns
 from scipy.stats import pearsonr
 from sklearn.metrics import explained_variance_score
+import pickle
+
+"""
+
+Galan 2008 (PLoS One)
+"""
 
 analysis_dir = '/home/mhturner/Dropbox/ClandininLab/Analysis/hemibrain_analysis/roi_connectivity'
 
-# Conn_df = pd.read_pickle(os.path.join(analysis_dir, 'ConnectivityMatrix_computed_20200415.pkl'))
-Conn_df = pd.read_pickle(os.path.join(analysis_dir, 'NeuronCount_computed_20200415.pkl'))
+CorrelationMatrix_Functional = pd.read_pickle(os.path.join(analysis_dir, 'data', 'CorrelationMatrix_Functional.pkl'))
+# with open(os.path.join(analysis_dir, 'data', 'NeuronCount_computed_20200422.pkl'), 'rb') as f:
+#     Conn = pickle.load(f)[0].to_numpy()
 
-Corr_df = pd.read_pickle(os.path.join(analysis_dir, 'CorrMat_fxnal.pkl'))
+Conn = pd.read_pickle(os.path.join(analysis_dir,'data', 'ConnectivityMatrix_computed_20200422.pkl')).to_numpy()
 
-dt = 0.01
-
-C = Conn_df.to_numpy()
+C = Conn / Conn.max()
+self_couplings = -C.diagonal()
 np.fill_diagonal(C, 0)
-C = C / C.ravel().max()
-nodes = C.shape[0]
-timevector = np.arange(0, 1000, dt)
-
-c_scale = np.sum(C)
-
-# alpha = 1.05
-
-alphas = np.arange(0.045, 0.055, 0.005)
-scales = np.arange(0, 1, 0.1)
-corrs = pd.DataFrame(np.zeros(shape=(len(scales), len(alphas))), index=scales, columns=alphas)
-corrs[:] = np.nan
-for alpha in alphas:
-    for scale in scales:
-        U = np.zeros(shape=(nodes, len(timevector)))
-        for t in range(1, len(timevector)):
-            A = (1-alpha*c_scale*dt)*np.eye(nodes) + dt * C
-            U[:, t] = A @ U[:, t-1] +  c_scale*np.random.normal(loc=0.0, scale=scale, size=nodes)
+C += np.diag(self_couplings)
 
 
-        # fh1, ax = plt.subplots(1, 1, figsize=(12, 4))
-        # ax.plot(timevector, U.T);
+dt = 0.1
+timevector = np.arange(0, 5000, dt)
 
-        # correlation matrix of model nodes
-        if np.abs(U).max() > 10000:
-            continue
+def getV(C, timevector, dt, alpha, scale=1):
+    nodes = C.shape[0]
+    V = np.zeros(shape=(nodes, len(timevector)))
+    V[:, 0] = np.random.normal(loc=0.0, scale=scale, size=nodes)
 
-        pred_corr = np.corrcoef(U)
+    for t in range(1, len(timevector)):
+        # V[:, t] = (1 - (alpha * dt)) * V[:, t-1] + (C @ V[:, t-1]) * dt + np.random.normal(loc=0.0, scale=scale, size=nodes) * dt
+        V[:, t] = dt * (-alpha * V[:, t-1] + (C @ V[:, t-1]) + np.random.normal(loc=0.0, scale=scale, size=nodes))
+    return V
 
-        if np.any(np.isnan(pred_corr)):
-            continue
 
+# def getV(C, timevector, dt, alpha, tau, scale=1):
+#     nodes = C.shape[0]
+#     V = np.zeros(shape=(nodes, len(timevector)))
+#     V[:, 0] = np.random.normal(loc=0.0, scale=scale, size=nodes)
+#
+#     for t in range(1, len(timevector)):
+#         V[:, t] = dt * (-alpha + (C @ V[:, t-1]) + np.random.normal(loc=0.0, scale=scale, size=nodes)) / tau
+#         # (1 - (alpha * dt)) * V[:, t-1] + (C @ V[:, t-1]) * dt + np.random.normal(loc=0.0, scale=scale, size=nodes) * dt
+#     return V
 
-        np.fill_diagonal(pred_corr, 0)
-        # apply fischer transform
-        pred_corr = np.arctanh(pred_corr)
+# %%
+# alphas = np.arange(1, 4, 0.1) # count connectivity
+alphas = np.arange(0, 0.5, 0.01) # weight connectivity
+corrs = np.zeros(len(alphas))
 
-        pred_corr_df = pd.DataFrame(data=pred_corr, index=Corr_df.index, columns=Corr_df.columns)
+for a_ind, alpha in enumerate(alphas):
+    V = getV(C, timevector, dt, alpha)
 
-        # compare measured functional and predicted functional correlation matrices
-        upper_inds = np.triu_indices(Corr_df.shape[0], k=1) #k=1 excludes main diagonal
-        functional_adjacency = Corr_df.to_numpy()[upper_inds]
-        pred_functional_adjacency = pred_corr_df.to_numpy()[upper_inds]
+    pred_corr = np.corrcoef(V)
+    np.fill_diagonal(pred_corr, 0)
+    # apply fischer transform
+    pred_corr = np.arctanh(pred_corr)
 
+    # compare measured functional and predicted functional correlation matrices
+    upper_inds = np.triu_indices(CorrelationMatrix_Functional.shape[0], k=1) #k=1 excludes main diagonal
+    functional_adjacency = CorrelationMatrix_Functional.to_numpy()[upper_inds]
+    pred_functional_adjacency = pred_corr[upper_inds]
+
+    if np.any(np.isinf(pred_functional_adjacency)):
+        continue
+    elif np.any(np.isnan(pred_functional_adjacency)):
+        continue
+    else:
         # r, p = pearsonr(pred_functional_adjacency, functional_adjacency)
         r2 = explained_variance_score(functional_adjacency, pred_functional_adjacency)
-        corrs.loc[scale, alpha] = r2
 
-# fh2, ax = plt.subplots(1, 2, figsize=(12, 6))
-# sns.heatmap(pred_corr_df, ax=ax[0], xticklabels=True, cbar_kws={'label': 'computed'}, cmap="viridis", rasterized=True)
-# ax[0].set_aspect('equal')
-#
-# sns.heatmap(Corr_df, ax=ax[1], xticklabels=True, cbar_kws={'label': 'computed'}, cmap="viridis", rasterized=True)
-# ax[1].set_aspect('equal')
+        corrs[a_ind] = r2
+
+
 
 # %%
-corrs
+corrs[np.where(corrs<0)] = 0
+fh, ax = plt.subplots(1, 1, figsize=(6, 6))
+ax.plot(alphas, corrs, 'k-o')
+ax.set_xlabel('Alpha')
+ax.set_ylabel('Frac. var explained');
 
-fh, ax = plt.subplots(1, 1, figsize=(16, 8))
-ax.plot(scales, np.nanmean(corrs.to_numpy(), axis=1))
-# ax.set_ylim([0, 0.5])
+
+
+# %%
+# with open(os.path.join(analysis_dir, 'data', 'NeuronCount_computed_20200422.pkl'), 'rb') as f:
+#     Conn = pickle.load(f)[0].to_numpy()
+
+Conn = pd.read_pickle(os.path.join(analysis_dir,'data', 'ConnectivityMatrix_computed_20200422.pkl')).to_numpy()
+
+C = Conn / Conn.max()
+# self_couplings = -C.diagonal()
+np.fill_diagonal(C, 0)
+# C += np.diag(self_couplings)
+C = C * 35
+
+dt = 0.1
+timevector = np.arange(0, 10000, dt)
+alpha = 2
+
+
+
+V = getV(C, timevector, dt, alpha, scale=1)
+
+# plt.plot(timevector, V.T);
+
+pred_corr = np.corrcoef(V)
+np.fill_diagonal(pred_corr, 0)
+# apply fischer transform
+pred_corr = np.arctanh(pred_corr)
+
+pred_corr_df = pd.DataFrame(data=pred_corr, index=CorrelationMatrix_Functional.index, columns=CorrelationMatrix_Functional.columns)
+
+# compare measured functional and predicted functional correlation matrices
+upper_inds = np.triu_indices(CorrelationMatrix_Functional.shape[0], k=1) #k=1 excludes main diagonal
+functional_adjacency = CorrelationMatrix_Functional.to_numpy()[upper_inds]
+pred_functional_adjacency = pred_corr_df.to_numpy()[upper_inds]
+
+
+r, p = pearsonr(pred_functional_adjacency, functional_adjacency)
+r2 = explained_variance_score(functional_adjacency, pred_functional_adjacency)
+
+
+fh, ax = plt.subplots(1, 3, figsize=(18, 6))
+sns.heatmap(pred_corr_df, ax=ax[0], xticklabels=True, cbar_kws={'label': 'Corr (z)'}, cmap="cividis", rasterized=True)
+ax[0].set_aspect('equal')
+ax[0].set_title('R = {}'.format(r2))
+
+sns.heatmap(CorrelationMatrix_Functional, ax=ax[1], xticklabels=True, cbar_kws={'label': 'Corr (z)'}, cmap="cividis", rasterized=True)
+ax[1].set_aspect('equal')
+
+
+ax[2].plot(pred_functional_adjacency, functional_adjacency, 'ko')
+ax[2].plot([-0.2, 1.4], [-0.2, 1.4], 'k--')
+ax[2].set_xlabel('Predicted corr (z)')
+ax[2].set_ylabel('Measured corr (z)');
+
 
  #%%
-fh2, ax = plt.subplots(1, 1, figsize=(8, 8))
-sns.heatmap(corrs, ax=ax, xticklabels=True, cbar_kws={'label': 'correlation'}, cmap="viridis", rasterized=True, vmin=0)
-ax.set_aspect('equal')
-ax.set_xlabel('alpha')
-ax.set_ylabel('noise scale');
+# %% try analytical thing from Galan 2008
+CorrelationMatrix_Functional = pd.read_pickle(os.path.join(analysis_dir, 'data', 'CorrelationMatrix_Functional.pkl'))
+with open(os.path.join(analysis_dir, 'data', 'NeuronCount_computed_20200422.pkl'), 'rb') as f:
+    Conn = pickle.load(f)[0].to_numpy()
 
+C = Conn / Conn.max()
+np.fill_diagonal(C, 0) #replace diagonal nan with 0
+
+sigma = 1
+alpha = 0.9
+dt = 0.01
+
+A = -alpha * np.eye(C.shape[0]) + C
+
+val, L = np.linalg.eig(A)
+Q = sigma * np.eye(C.shape[0])
+Q_hat = np.linalg.inv(L) @ Q @ np.linalg.inv(L).conj().T
+P = Q_hat / (1 - np.outer(val, val.conj()))
+
+Cov = L @ P @ L.conj().T
+
+Cov
+D = np.outer(np.sqrt(np.diagonal(Cov)), np.sqrt(np.diagonal(Cov)))
+Corr = Cov / D
+
+Corr[Cov==0] = 0
+
+
+np.fill_diagonal(Corr, 0)
+# apply fischer transform
+Corr = np.arctanh(Corr)
+pred_corr_df = pd.DataFrame(data=Corr, index=CorrelationMatrix_Functional.index, columns=CorrelationMatrix_Functional.columns)
+
+
+upper_inds = np.triu_indices(CorrelationMatrix_Functional.shape[0], k=1) #k=1 excludes main diagonal
+functional_adjacency = CorrelationMatrix_Functional.to_numpy()[upper_inds]
+pred_functional_adjacency = pred_corr_df.to_numpy()[upper_inds]
+pred_functional_adjacency
+keep_inds = np.where(~np.isnan(pred_functional_adjacency))
+r, p = pearsonr(pred_functional_adjacency[keep_inds], functional_adjacency[keep_inds])
+# r2 = explained_variance_score(functional_adjacency, pred_functional_adjacency)
+
+fh, ax = plt.subplots(1, 2, figsize=(18, 9))
+sns.heatmap(pred_corr_df, ax=ax[0], xticklabels=True, cbar_kws={'label': 'computed'}, cmap="viridis", rasterized=True)
+ax[0].set_aspect('equal')
+ax[0].set_title('R = {}'.format(r))
+
+sns.heatmap(CorrelationMatrix_Functional, ax=ax[1], xticklabels=True, cbar_kws={'label': 'computed'}, cmap="viridis", rasterized=True)
+ax[1].set_aspect('equal')
+
+fh, ax = plt.subplots(1, 1, figsize=(6, 6))
+ax.plot(functional_adjacency[keep_inds], pred_functional_adjacency[keep_inds], 'ko')
 
 
 # %%
+from scipy.signal import butter, lfilter
 
-peak_alpha = 0.052
-scale = 1
+import nest
+nest.ResetKernel()
 
-# Conn_df = pd.read_pickle(os.path.join(analysis_dir, 'ConnectivityMatrix_computed_20200415.pkl'))
-Conn_df = pd.read_pickle(os.path.join(analysis_dir, 'NeuronCount_computed_20200415.pkl'))
-Corr_df = pd.read_pickle(os.path.join(analysis_dir, 'CorrMat_fxnal.pkl'))
+dt = 1.0 # msec
+dt_rec = 50.0 # msec
+time_stop = 50000  #msec
+gi = 100
+ge = 500
 
-dt = 0.01
+nest.SetKernelStatus({'resolution': dt})
 
-C = Conn_df.to_numpy()
-np.fill_diagonal(C, 0)
-C = C / C.ravel().max()
+# Conn = pd.read_pickle(os.path.join(analysis_dir,'data', 'ConnectivityMatrix_computed_20200422.pkl')).to_numpy()
+with open(os.path.join(analysis_dir, 'data', 'NeuronCount_computed_20200422.pkl'), 'rb') as f:
+    Conn = pickle.load(f)[0].to_numpy()
+
+C = Conn / Conn.max()
+
 nodes = C.shape[0]
-timevector = np.arange(0, 1000, dt)
 
-c_scale = np.sum(C)
+node_pops = nest.Create("gif_pop_psc_exp", nodes, {"tau_m": 20.0, "len_kernel": -1})
 
-U = np.zeros(shape=(nodes, len(timevector)))
-for t in range(1, len(timevector)):
-    A = (1-peak_alpha*c_scale*dt)*np.eye(nodes) + dt * C
-    U[:, t] = A @ U[:, t-1] +  c_scale*np.random.normal(loc=0.0, scale=scale, size=nodes)
+voltmeter = nest.Create('voltmeter')
+nez = nest.Create('noise_generator', nodes)
 
-fh1, ax = plt.subplots(1, 1, figsize=(12, 4))
-ax.plot(timevector, U.T);
+for n_ind, nod in enumerate(node_pops):
+    nest.SetStatus([nez[n_ind]], {'mean': 0.0, 'std': 1.0, 'dt': 100.0})
+    nest.Connect([nez[n_ind]], [nod])
 
-# correlation matrix of model nodes
+
+for i, nest_i in enumerate(node_pops):
+    for j, nest_j in enumerate(node_pops):
+        # nest.SetDefaults('static_synapse', {
+        #     # 'weight': 700*C[i, j],
+        #     'weight': J_syn[i, j] * g_syn[i, j] * C[i, j],
+        #     'delay': 1.0})
+        if i == j:
+            nest.Connect([nest_i], [nest_j], conn_spec='all_to_all', syn_spec={'model': 'static_synapse', 'weight': -gi*C[i, j], 'delay': 6.0})
+        else:
+            nest.Connect([nest_i], [nest_j], conn_spec='all_to_all', syn_spec={'model': 'static_synapse', 'weight': ge*C[i, j], 'delay': 3.0})
+
+nest.Connect(voltmeter, node_pops)
+
+nest.Simulate(time_stop)
+
+ev = nest.GetStatus(voltmeter)[0]['events']
+
+def lpfilter(signal, cut):
+    b, a = butter(3, cut, btype='low')
+    y = lfilter(b, a, signal)
+    return y
+
+cut_freq = 20 # hz
+fs = (1 / cut_freq) * 1e3 #msec
+cut_frac = dt / fs # number of dts in the cutoff sample period
+
+tt = np.arange(0, time_stop, dt)[:-1] / 1e3 #sec
+U = np.zeros((nodes, len(tt)))
+for n_ind, nod in enumerate(node_pops):
+    new_resp = ev['V_m'][ev['senders'] == nod]
+    U[n_ind, :] = lpfilter(new_resp, cut=cut_frac)
+
+
+fh, ax = plt.subplots(1, 1, figsize=(12, 4))
+ax.plot(tt, U.T);
+ax.set_xlabel('Time (s)')
+ax.set_ylabel('Mean node response (a.u.)')
+# ax.set_ylim([0, 10])
+
+# %%
 pred_corr = np.corrcoef(U)
 np.fill_diagonal(pred_corr, 0)
 # apply fischer transform
 pred_corr = np.arctanh(pred_corr)
 
-pred_corr_df = pd.DataFrame(data=pred_corr, index=Corr_df.index, columns=Corr_df.columns)
+pred_corr_df = pd.DataFrame(data=pred_corr, index=CorrelationMatrix_Functional.index, columns=CorrelationMatrix_Functional.columns)
 
 # compare measured functional and predicted functional correlation matrices
-upper_inds = np.triu_indices(Corr_df.shape[0], k=1) #k=1 excludes main diagonal
-functional_adjacency = Corr_df.to_numpy()[upper_inds]
+upper_inds = np.triu_indices(CorrelationMatrix_Functional.shape[0], k=1) #k=1 excludes main diagonal
+functional_adjacency = CorrelationMatrix_Functional.to_numpy()[upper_inds]
 pred_functional_adjacency = pred_corr_df.to_numpy()[upper_inds]
 
-# r, p = pearsonr(pred_functional_adjacency, functional_adjacency)
+
+r, p = pearsonr(pred_functional_adjacency, functional_adjacency)
 r2 = explained_variance_score(functional_adjacency, pred_functional_adjacency)
 
-fh2, ax = plt.subplots(1, 2, figsize=(12, 6))
-sns.heatmap(pred_corr_df, ax=ax[0], xticklabels=True, cbar_kws={'label': 'Predicted correlation'}, cmap="viridis", rasterized=True)
-ax[0].set_aspect('equal')
-ax[0].set_title(r2)
 
-sns.heatmap(Corr_df, ax=ax[1], xticklabels=True, cbar_kws={'label': 'Measured correlation'}, cmap="viridis", rasterized=True)
+fh, ax = plt.subplots(1, 3, figsize=(27, 9))
+sns.heatmap(pred_corr_df, ax=ax[0], xticklabels=True, cbar_kws={'label': 'Corr (z)'}, cmap="cividis", rasterized=True)
+ax[0].set_aspect('equal')
+ax[0].set_title('R = {:.2f}'.format(r))
+
+sns.heatmap(CorrelationMatrix_Functional, ax=ax[1], xticklabels=True, cbar_kws={'label': 'Corr (z)'}, cmap="cividis", rasterized=True)
 ax[1].set_aspect('equal')
 
 
-# %%
-from scipy.stats import zscore
-
-adj_mat = Conn_df.to_numpy().copy()
-adj_mat_sym = adj_mat + adj_mat.T
-upper_inds = np.triu_indices(adj_mat_sym.shape[0], k=1)  # k=1 excludes main diagonal
-em_adjacency = adj_mat_sym[upper_inds]
-functional_adjacency = Corr_df.to_numpy()[upper_inds]
-functional_adjacency_pred = pred_corr_df.to_numpy()[upper_inds]
-
-# cut out zeros
-keep_inds = np.where(em_adjacency > 0)[0]
-em_adjacency_log = np.log10(em_adjacency[keep_inds])
-
-functional_adjacency = functional_adjacency[keep_inds]
-functional_adjacency_pred = functional_adjacency_pred[keep_inds]
-
-functional_adjacency.shape
-functional_adjacency_pred.shape
-
-A_zscore = zscore(em_adjacency_log)
-F_zscore = zscore(functional_adjacency)
-F_zscore_pred = zscore(functional_adjacency_pred)
-
-diff = A_zscore - F_zscore
-diff_pred = A_zscore - F_zscore_pred
-
-
-lim = np.nanmax(np.abs(diff))
-
-fh3, ax = plt.subplots(1, 2, figsize=(12, 6))
-ax[0].scatter(A_zscore, F_zscore, alpha=1, c=diff, cmap="RdBu",  vmin=-lim, vmax=lim, edgecolors='k', linewidths=0.5)
-ax[0].plot([-3, 3], [-3, 3], 'k-')
-ax[0].set_xlabel('Anatomical connectivity count (log10, zscore)')
-ax[0].set_ylabel('Functional correlation (zscore)');
-ax[0].set_title('Measured correlation')
-
-ax[1].scatter(A_zscore, F_zscore_pred, alpha=1, c=diff_pred, cmap="RdBu",  vmin=-lim, vmax=lim, edgecolors='k', linewidths=0.5)
-ax[1].plot([-3, 3], [-3, 3], 'k-')
-ax[1].set_xlabel('Anatomical connectivity count (log10, zscore)')
-ax[1].set_ylabel('Functional correlation (zscore)');
-ax[1].set_title('Model predicted correlation')
-
-
-# %%
-
-r2 = explained_variance_score(functional_adjacency, functional_adjacency_pred)
-fh, ax = plt.subplots(1, 1, figsize=(6,6))
-ax.scatter(functional_adjacency, functional_adjacency_pred, alpha=1, color='k')
-ax.plot([0, 1.4], [0, 1.4], 'k-')
-ax.set_xlabel('Measured correlation')
-ax.set_ylabel('Predicted correlation');
-ax.set_title(r2);
+ax[2].plot(pred_functional_adjacency, functional_adjacency, 'ko')
+ax[2].plot([-0.2, 1.4], [-0.2, 1.4], 'k--')
+ax[2].set_xlabel('Predicted corr (z)')
+ax[2].set_ylabel('Measured corr (z)');

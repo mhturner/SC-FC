@@ -11,6 +11,8 @@ from scipy.spatial.distance import pdist
 from scipy.stats import zscore
 from scipy.ndimage.measurements import center_of_mass
 from sklearn.cluster import SpectralClustering
+from matplotlib.backends.backend_pdf import PdfPages
+import datetime
 
 from region_connectivity import RegionConnectivity
 
@@ -117,6 +119,7 @@ elif usemat == 'count_precomputed':
 if correct_for_completeness:
     conn_mat = conn_mat / roi_completeness['completeness'][:, None]
 
+
 # drop '(R)' from roi names
 roi_names = conn_mat.index
 roi_names = [x.split('(')[0] for x in rois]
@@ -138,9 +141,11 @@ sns.heatmap(ConnectivityMatrix, ax=ax[0], xticklabels=True, cbar_kws={'label': '
 ax[0].set_xlabel('Target');
 ax[0].set_ylabel('Source');
 ax[0].set_aspect('equal')
+ax[0].set_title('Anatomical');
 
 sns.heatmap(CorrelationMatrix_Functional, ax=ax[1], xticklabels=True, cbar_kws={'label': 'Correlation (z)','shrink': .8}, cmap="cividis", rasterized=True)
 ax[1].set_aspect('equal')
+ax[1].set_title('Functional');
 
 
 upper_inds = np.triu_indices(ConnectivityMatrix.shape[0], k=1) # k=1 excludes main diagonal
@@ -154,6 +159,8 @@ r, p = pearsonr(anatomical_adjacency, functional_adjacency)
 coef = np.polyfit(anatomical_adjacency, functional_adjacency, 1)
 linfit = np.poly1d(coef)
 
+
+# fig1_1 = plt.figure(figsize=(8,8));
 g = sns.JointGrid(x="Anatomical", y="Functional", data=adj_DF)
 g = g.set_axis_labels('Connection strength (cells)', 'Functional correlation (z)')
 g = g.plot_joint(sns.scatterplot, color='k', alpha=0.5)
@@ -162,7 +169,14 @@ g.ax_marg_y.set_axis_off()
 g.ax_marg_x.set_axis_off()
 xx = [adj_DF['Anatomical'].min(), adj_DF['Anatomical'].max()]
 g.ax_joint.plot(xx, linfit(xx), 'k-')
+g.ax_joint.annotate('r = {:.3f}'.format(r), xy=(2000, 1.5))
 
+# fig1_1.axes.append(g.ax_joint)
+# fig1_1.axes.append(g.ax_marg_x)
+# fig1_1.axes.append(g.ax_marg_y)
+# plt.show()
+
+fig1_1 = plt.gcf()
 
 # log transform anatomical connectivity values
 keep_inds = np.where(anatomical_adjacency > 0)[0] # toss zero connection values
@@ -175,60 +189,81 @@ r_log, p_log = pearsonr(anatomical_adjacency_log, functional_adjacency_no0)
 coef = np.polyfit(anatomical_adjacency_log, functional_adjacency_no0, 1)
 linfit_log = np.poly1d(coef)
 
-fig1_1, ax = plt.subplots(1, 2, figsize=(12, 6))
+# fig1_1, ax = plt.subplots(1, 2, figsize=(12, 6))
 
-ax[0].plot(adj_DF['Anatomical'], adj_DF['Functional'], 'ko', alpha=0.6)
-xx = [adj_DF['Anatomical'].min(), adj_DF['Anatomical'].max()]
-ax[0].plot(xx, linfit(xx), 'k-')
-ax[0].set_title('r = {:.3f}'.format(r));
-ax[0].set_ylabel('Functional correlation (z)');
-ax[0].set_xlabel('Connection strength (cells)')
+# ax[0].plot(adj_DF['Anatomical'], adj_DF['Functional'], 'ko', alpha=0.6)
+# xx = [adj_DF['Anatomical'].min(), adj_DF['Anatomical'].max()]
+# ax[0].plot(xx, linfit(xx), 'k-')
+# ax[0].set_title('r = {:.3f}'.format(r));
+# ax[0].set_ylabel('Functional correlation (z)');
+# ax[0].set_xlabel('Connection strength (cells)')
 
-ax[1].plot(10**adj_log_DF['Anatomical'], adj_log_DF['Functional'], 'ko', alpha=0.5)
-ax[1].set_xscale('log')
-xx = np.linspace(adj_log_DF['Anatomical'].min(), adj_log_DF['Anatomical'].max(), 20)
-ax[1].plot(10**xx, linfit_log(xx), LineWidth=3, color='k', marker=None)
-ax[1].set_title('r = {:.3f}'.format(r_log));
-ax[1].set_ylabel('Functional correlation (z)');
-ax[1].set_xlabel('Connection strength (cells)');
+# ax[1].plot(10**adj_log_DF['Anatomical'], adj_log_DF['Functional'], 'ko', alpha=0.5)
+# ax[1].set_xscale('log')
+# xx = np.linspace(adj_log_DF['Anatomical'].min(), adj_log_DF['Anatomical'].max(), 20)
+# ax[1].plot(10**xx, linfit_log(xx), LineWidth=3, color='k', marker=None)
+# ax[1].set_title('r = {:.3f}'.format(r_log));
+# ax[1].set_ylabel('Functional correlation (z)');
+# ax[1].set_xlabel('Connection strength (cells)');
 
 # %% FIGURE 2
 
 
 upper_inds = np.triu_indices(DistanceMatrix.to_numpy().shape[0], k=1) #k=1 excludes main diagonal
 
-fig2_0, ax = plt.subplots(1, 2, figsize=(12,6))
-fc = zscore(CorrelationMatrix_Functional.to_numpy()[upper_inds])
-dist = zscore(DistanceMatrix.to_numpy()[upper_inds])
+fig2_0, ax = plt.subplots(1, 3, figsize=(18,6))
+
+dist = DistanceMatrix.to_numpy()[upper_inds]
+anat = ConnectivityMatrix_Symmetrized.to_numpy()[upper_inds]
+
+# keep_inds = np.where(anat > 0)[0]
+# dist = dist[keep_inds]
+# anat = np.log10(anat[keep_inds])
+
+r, p = pearsonr(dist, anat)
+coef = np.polyfit(dist, anat, 1)
+poly1d_fn = np.poly1d(coef)
+xx = [dist.min(), dist.max()]
+ax[0].scatter(dist, anat, color='k', alpha=0.5)
+ax[0].plot(xx, poly1d_fn(xx), LineWidth=2, color='k', marker=None)
+ax[0].set_xlabel('Distance between ROIs')
+ax[0].set_ylabel('Anatomical connectivity')
+ax[0].set_title('r = {:.3f}'.format(r))
+
+
+fc = CorrelationMatrix_Functional.to_numpy()[upper_inds]
+dist = DistanceMatrix.to_numpy()[upper_inds]
 
 r, p = pearsonr(dist, fc)
 coef = np.polyfit(dist, fc, 1)
 poly1d_fn = np.poly1d(coef)
 xx = [dist.min(), dist.max()]
-ax[0].scatter(dist, fc, color='k', alpha=0.5)
-ax[0].plot(xx, poly1d_fn(xx), LineWidth=2, color='k', marker=None)
-ax[0].set_xlabel('Distance between ROIs (zscore)')
-ax[0].set_ylabel('Functional correlation (zscore)')
-ax[0].set_title('r = {}'.format(r))
+ax[1].scatter(dist, fc, color='k', alpha=0.5)
+ax[1].plot(xx, poly1d_fn(xx), LineWidth=2, color='k', marker=None)
+ax[1].set_xlabel('Distance between ROIs')
+ax[1].set_ylabel('Functional correlation (z)')
+ax[1].set_title('r = {:.3f}'.format(r))
 
 
-residuals = fc - dist
+residuals = zscore(fc) - zscore(dist)
 anat = ConnectivityMatrix_Symmetrized.to_numpy()[upper_inds]
-
-keep_inds = np.where(anat > 0)[0]
-residuals = residuals[keep_inds]
-anat = np.log10(anat[keep_inds])
+# keep_inds = np.where(anat > 0)[0]
+# residuals = residuals[keep_inds]
+# anat = np.log10(anat[keep_inds])
 
 r, p = pearsonr(anat, residuals)
 coef = np.polyfit(anat, residuals, 1)
 poly1d_fn = np.poly1d(coef)
 xx = np.linspace(anat.min(), anat.max(), 20)
-ax[1].scatter(10**anat, residuals, color='k', alpha=0.5)
-ax[1].plot(10**xx, poly1d_fn(xx), LineWidth=2, color='k', marker=None)
-ax[1].set_xscale('log')
-ax[1].set_xlabel('Anatomical connectivity (log10)')
-ax[1].set_ylabel('Residual (zscore)')
-ax[1].set_title('r = {}'.format(r));
+# ax[2].scatter(10**anat, residuals, color='k', alpha=0.5)
+# ax[2].plot(10**xx, poly1d_fn(xx), LineWidth=2, color='k', marker=None)
+# ax[2].set_xscale('log')
+
+ax[2].scatter(anat, residuals, color='k', alpha=0.5)
+ax[2].plot(xx, poly1d_fn(xx), LineWidth=2, color='k', marker=None)
+ax[2].set_xlabel('Anatomical connectivity')
+ax[2].set_ylabel('Residual (zscore)')
+ax[2].set_title('r = {:.3f}'.format(r));
 
 
 # %% FIGURE 3
@@ -251,6 +286,38 @@ diff_m = np.zeros_like(ConnectivityMatrix.to_numpy())
 diff = A_zscore - F_zscore
 diff_m[keep_inds] = diff
 DifferenceMatrix = pd.DataFrame(data=diff_m, index=ConnectivityMatrix.index, columns=ConnectivityMatrix.index)
+
+# %% SUPP FIG: does completeness of reconstruction impact
+
+CompletenessMatrix = pd.DataFrame(data=np.outer(roi_completeness['frac_post'], roi_completeness['frac_pre']), index=ConnectivityMatrix.index, columns=ConnectivityMatrix.index)
+
+
+comp_score = CompletenessMatrix.to_numpy().ravel()
+diff_score = np.abs(DifferenceMatrix.to_numpy().ravel())
+# diff_score = DifferenceMatrix.to_numpy().ravel()
+
+include_inds = np.where(diff_score != 0)[0]
+comp_score  = comp_score[include_inds]
+diff_score = diff_score[include_inds]
+anat_conn = ConnectivityMatrix.to_numpy().ravel()[include_inds]
+
+
+r, p = pearsonr(comp_score, diff_score)
+r
+p
+
+figS1, ax = plt.subplots(1, 2, figsize=(12,6))
+ax[0].scatter(comp_score, diff_score, marker='o', color='k', alpha=0.5)
+
+ax[0].set_xlabel('Completeness of reconstruction')
+ax[0].set_ylabel('abs(Anat. - Fxnal (z-score))')
+
+ax[1].scatter(comp_score, anat_conn, marker='o', color='k', alpha=0.5)
+
+ax[1].set_xlabel('Completeness of reconstruction')
+ax[1].set_ylabel('Anat connectivity')
+
+
 
 # %%
 # spectral clustering of anatomical matrix
@@ -302,7 +369,7 @@ ax[0, 1].set_title('Functional');
 lim = np.nanmax(np.abs(DifferenceMatrix.to_numpy().ravel()))
 ax[1, 0].scatter(A_zscore, F_zscore, alpha=1, c=diff, cmap="RdBu",  vmin=-lim, vmax=lim, edgecolors='k', linewidths=0.5)
 ax[1, 0].plot([-3, 3], [-3, 3], 'k-')
-ax[1, 0].set_xlabel('Anatomical connectivity (zscore)')
+ax[1, 0].set_xlabel('Anatomical connectivity (log10, zscore)')
 ax[1, 0].set_ylabel('Functional correlation (zscore)');
 
 sns.heatmap(sorted_diff, ax=ax[1, 1], xticklabels=True, cbar_kws={'label': 'Anat - Fxnal connectivity','shrink': .75}, cmap="RdBu", rasterized=True, vmin=-lim, vmax=lim)
@@ -312,47 +379,57 @@ for cl in cluster_lines:
 ax[1, 1].set_aspect('equal')
 ax[1, 1].set_title('Difference');
 
-#%%
-# within cluster Correlation
-fig3_1, ax = plt.subplots(n_clusters, n_clusters, figsize=(8,8))
-[x.set_axis_off() for x in ax.ravel()]
-corr_mat = np.zeros((n_clusters, n_clusters))
-corr_mat[:] = np.nan
-for row in range(n_clusters):
-    for col in range(n_clusters):
-        if row >= col:
-            cluster_mat_anat = anatomical.iloc[np.where(sc.labels_==row)[0], np.where(sc.labels_==col)[0]].to_numpy()
-            cluster_mat_fxn = functional.iloc[np.where(sc.labels_==row)[0], np.where(sc.labels_==col)[0]].to_numpy()
-
-        if row == col: # on the diagonal. only take the upper triangle since these are symmetric
-            upper_inds = np.triu_indices(cluster_mat_anat.shape[0], k=1, m=cluster_mat_anat.shape[1]) #k=1 excludes main diagonal
-            functional_adjacency = cluster_mat_fxn[upper_inds]
-            em_adjacency = cluster_mat_anat[upper_inds]
-        else:
-            functional_adjacency = cluster_mat_fxn.ravel()
-            em_adjacency = cluster_mat_anat.ravel()
-
-        keep_inds = np.where(em_adjacency > 0)[0]
-        em_adjacency = np.log10(em_adjacency[keep_inds])
-        functional_adjacency = functional_adjacency[keep_inds]
-
-        r, p = pearsonr(em_adjacency, functional_adjacency)
-        coef = np.polyfit(em_adjacency, functional_adjacency,1)
-        poly1d_fn = np.poly1d(coef)
-        if row >= col:
-            corr_mat[row, col] = r
-
-            xx = np.linspace(em_adjacency.min(), em_adjacency.max(), 20)
-            ax[row, col].plot(10**em_adjacency, functional_adjacency, 'ko', alpha=0.6)
-            ax[row, col].plot(10**xx, poly1d_fn(xx), 'k-')
-            ax[row, col].set_xscale('log')
-            ax[row, col].set_axis_on()
+# %%
+diff_by_region = DifferenceMatrix.mean()
+diff_brain = np.zeros(shape=mask_brain.shape)
+diff_brain[:] = np.nan
 
 
+for r_ind, r in enumerate(roi_mask):
+    diff_brain[r] = diff_by_region[r_ind]
 
-fig3_2, ax = plt.subplots(1, 1, figsize=(6,6))
-sns.heatmap(corr_mat, ax=ax, xticklabels=True, cbar_kws={'label': 'corr(anat, fxn)', 'shrink': .8}, cmap="viridis", rasterized=True, vmax=1)
-ax.set_xlabel('Cluster_r')
-ax.set_ylabel('Cluster_c')
+# %%
+lim = np.nanmax(np.abs(diff_brain))
+fh, ax = plt.subplots(1, 1, figsize=(8,8))
+ax.imshow(np.nanmean(diff_brain, axis=2).T, cmap="RdBu", rasterized=True, vmin=-lim, vmax=lim)
+ax.set_axis_off()
 ax.set_aspect('equal')
-ax.set_title('Correlation for each cluster');
+
+# %%
+
+zslices = np.arange(30, 200, 20)
+lim = np.nanmax(np.abs(diff_brain.ravel()))
+
+
+fig4_0 = plt.figure(figsize=(12,12))
+for z_ind, z in enumerate(zslices):
+    ax = fig4_0.add_subplot(3, 3, z_ind+1)
+    img = ax.imshow(diff_brain[:, :, z].T, cmap="RdBu", rasterized=True, vmin=-lim, vmax=lim)
+    ax.set_axis_off()
+    ax.set_aspect('equal')
+
+cb = fig4_0.colorbar(img, ax=ax)
+cb.set_label(label='Anat - Fxnal connectivity', weight='bold', color='k')
+cb.ax.tick_params(labelsize=12, color='k')
+# for l in cb.ax.yaxis.get_ticklabels():
+#     l.set_weight("bold")
+#     l.set_color("white")
+#     l.set_fontsize(12)
+
+
+
+# %%
+
+with PdfPages(os.path.join(analysis_dir, 'Lab_mtg_figs_v1.pdf')) as pdf:
+    pdf.savefig(fig1_0)
+    pdf.savefig(fig1_1)
+    pdf.savefig(fig2_0)
+    pdf.savefig(fig3_0)
+    pdf.savefig(fig4_0)
+
+    d = pdf.infodict()
+    d['Title'] = 'SC-FC early figs'
+    d['Author'] = 'Max Turner'
+    d['ModDate'] = datetime.datetime.today()
+
+plt.close('all')
