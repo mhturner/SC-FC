@@ -206,9 +206,9 @@ nest.ResetKernel()
 
 dt = 1.0 # msec
 dt_rec = 50.0 # msec
-time_stop = 50000  #msec
-gi = 100
-ge = 500
+time_stop = 10000  #msec
+gi = 0
+ge = 750
 
 nest.SetKernelStatus({'resolution': dt})
 
@@ -232,10 +232,6 @@ for n_ind, nod in enumerate(node_pops):
 
 for i, nest_i in enumerate(node_pops):
     for j, nest_j in enumerate(node_pops):
-        # nest.SetDefaults('static_synapse', {
-        #     # 'weight': 700*C[i, j],
-        #     'weight': J_syn[i, j] * g_syn[i, j] * C[i, j],
-        #     'delay': 1.0})
         if i == j:
             nest.Connect([nest_i], [nest_j], conn_spec='all_to_all', syn_spec={'model': 'static_synapse', 'weight': -gi*C[i, j], 'delay': 6.0})
         else:

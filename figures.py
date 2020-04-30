@@ -259,11 +259,16 @@ xx = np.linspace(anat.min(), anat.max(), 20)
 # ax[2].plot(10**xx, poly1d_fn(xx), LineWidth=2, color='k', marker=None)
 # ax[2].set_xscale('log')
 
-ax[2].scatter(anat, residuals, color='k', alpha=0.5)
-ax[2].plot(xx, poly1d_fn(xx), LineWidth=2, color='k', marker=None)
+CompletenessMatrix = pd.DataFrame(data=np.outer(roi_completeness['frac_post'], roi_completeness['frac_pre']), index=ConnectivityMatrix.index, columns=ConnectivityMatrix.index)
+comp_score = CompletenessMatrix.to_numpy()[upper_inds]
+
+sc = ax[2].scatter(anat, residuals, alpha=1.0, c=comp_score, cmap="Blues",  vmin=comp_score.min(), vmax=comp_score.max())
+ax[2].plot(xx, poly1d_fn(xx), LineWidth=2, marker=None)
 ax[2].set_xlabel('Anatomical connectivity')
 ax[2].set_ylabel('Residual (zscore)')
 ax[2].set_title('r = {:.3f}'.format(r));
+
+cb = fig2_0.colorbar(sc, ax=ax[2])
 
 
 # %% FIGURE 3
