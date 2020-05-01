@@ -103,27 +103,19 @@ def computeConnectivityMatrix(neuprint_client, mapping):
     rois = list(mapping.keys())
     rois.sort()
 
-    completeness_df = neuprint_client.fetch_roi_completeness()
-
-
-    Weak_Connections = pd.DataFrame(data=np.zeros((len(rois), len(rois))), index=rois, columns=rois)
-    Medium_Connections = pd.DataFrame(data=np.zeros((len(rois), len(rois))), index=rois, columns=rois)
-    Strong_Connections = pd.DataFrame(data=np.zeros((len(rois), len(rois))), index=rois, columns=rois)
-
-    ConnectivityMatrix = pd.DataFrame(data=np.zeros((len(rois), len(rois))), index=rois, columns=rois)
-
-    SynapseCount = pd.DataFrame(data=np.zeros((len(rois), 2)), index=rois, columns=['total_synapses','assigned_synapses'])
-
+    WeakConnections = pd.DataFrame(data=np.zeros((len(rois), len(rois))), index=rois, columns=rois)
+    MediumConnections = pd.DataFrame(data=np.zeros((len(rois), len(rois))), index=rois, columns=rois)
+    StrongConnections = pd.DataFrame(data=np.zeros((len(rois), len(rois))), index=rois, columns=rois)
+    Connectivity = pd.DataFrame(data=np.zeros((len(rois), len(rois))), index=rois, columns=rois)
     for roi_source in rois:
         for roi_target in rois:
             sources = mapping[roi_source]
             targets = mapping[roi_target]
-            total_conn_score = 0
+
             weak_neurons = 0
             medium_neurons = 0
             strong_neurons = 0
-            total_synapses = 0
-            assigned_synapses = 0
+            summed_connectivity = 0
             for s_ind, sour in enumerate(sources): # this multiple sources/targets is necessary for collapsing rois based on mapping
                 for targ in targets:
                     Neur, Syn = fetch_neurons(NeuronCriteria(inputRois=sour, outputRois=targ, status='Traced'))
@@ -131,38 +123,24 @@ def computeConnectivityMatrix(neuprint_client, mapping):
                     outputs_in_targ = np.array([x[targ]['pre'] for x in Neur.roiInfo]) # neurons with Tbar output in target
                     inputs_in_sour = np.array([x[sour]['post'] for x in Neur.roiInfo]) # neuron with PSD input in source
 
-                    n_weak = np.sum(np.logical_and(outputs_in_targ>0, inputs_in_sour<=3))
-                    n_medium = np.sum(np.logical_and(outputs_in_targ>0, np.logical_and(inputs_in_sour>3, inputs_in_sour<10)))
+                    n_weak = np.sum(np.logical_and(outputs_in_targ>0, inputs_in_sour<3))
+                    n_medium = np.sum(np.logical_and(outputs_in_targ>0, np.logical_and(inputs_in_sour>=3, inputs_in_sour<10)))
                     n_strong = np.sum(np.logical_and(outputs_in_targ>0, inputs_in_sour>=10))
 
-                    scaled_output = []
-                    for n in range(Neur.shape[0]):
-                        # For each cell that connects source -> target. Compute the scaled_output:
-                        # scaled_output = (Number of output synapses in target) x (number of input synapses in source / total input synapses)
-                        scaled_output.append(Neur.roiInfo[n][targ]['pre'] * (Neur.roiInfo[n][sour]['post']/Neur.post[n]))
+                    # Connection strength for each cell := sqrt(input PSDs in source x output tbars in target)
+                    conn_strengths = [np.sqrt(x[targ]['pre'] * x[sour]['post']) for x in Neur.roiInfo]
 
-                    if len(scaled_output) > 0:
-                        new_score = np.sum(scaled_output)
-                        total_conn_score += new_score
+                    if Neur.roiInfo.shape[0] > 0:
+                        summed_connectivity += np.sum(conn_strengths)
                         weak_neurons += n_weak
                         medium_neurons += n_medium
                         strong_neurons += n_strong
 
-                    if s_ind==0:
-                        # get the presynapses in target
-                        new_total_synapses = completeness_df[completeness_df.roi==targ]['totalpre'].to_numpy()
-                        new_assigned_synapses = completeness_df[completeness_df.roi==targ]['roipre'].to_numpy()
-                        total_synapses += new_total_synapses
-                        assigned_synapses += new_assigned_synapses
+            WeakConnections.loc[[roi_source], [roi_target]] = weak_neurons
+            MediumConnections.loc[[roi_source], [roi_target]] = medium_neurons
+            StrongConnections.loc[[roi_source], [roi_target]] = strong_neurons
+
+            Connectivity.loc[[roi_source], [roi_target]] = summed_connectivity
 
 
-            Weak_Connections.loc[[roi_source], [roi_target]] = weak_neurons
-            Medium_Connections.loc[[roi_source], [roi_target]] = medium_neurons
-            Strong_Connections.loc[[roi_source], [roi_target]] = strong_neurons
-
-            ConnectivityMatrix.loc[[roi_source], [roi_target]] = total_conn_score
-            SynapseCount.loc[[roi_target], ['total_synapses']] = total_synapses
-            SynapseCount.loc[[roi_target], ['assigned_synapses']] = assigned_synapses
-
-
-    return ConnectivityMatrix, SynapseCount, Weak_Connections, Medium_Connections, Strong_Connections
+    return WeakConnections, MediumConnections, StrongConnections, Connectivity

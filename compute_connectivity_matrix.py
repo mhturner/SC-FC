@@ -22,17 +22,16 @@ neuprint_client = Client('neuprint.janelia.org', dataset='hemibrain:v1.0.1', tok
 # get rois of interest
 mapping = RegionConnectivity.getRoiMapping(neuprint_client)
 
-ConnectivityMatrix, SynapseCount, Weak_Connections, Medium_Connections, Strong_Connections = RegionConnectivity.computeConnectivityMatrix(neuprint_client, mapping)
+WeakConnections, MediumConnections, StrongConnections, Connectivity = RegionConnectivity.computeConnectivityMatrix(neuprint_client, mapping)
 
 print('Finished computing connectivity matrix (total time = {:.1f} sec)'.format(time.time()-t0))
-
 
 # %%
 d = datetime.datetime.today()
 datestring ='{:02d}'.format(d.year)+'{:02d}'.format(d.month)+'{:02d}'.format(d.day)
 
-ConnectivityMatrix.to_pickle(os.path.join(analysis_dir, 'ConnectivityMatrix_computed_{}.pkl'.format(datestring)))
-SynapseCount.to_pickle(os.path.join(analysis_dir, 'SynapseCount_computed_{}.pkl'.format(datestring)))
-Weak_Connections.to_pickle(os.path.join(analysis_dir, 'Weak_Connections_computed_{}.pkl'.format(datestring)))
-Medium_Connections.to_pickle(os.path.join(analysis_dir, 'Medium_Connections_computed_{}.pkl'.format(datestring)))
-Strong_Connections.to_pickle(os.path.join(analysis_dir, 'Strong_Connections_computed_{}.pkl'.format(datestring)))
+
+WeakConnections.to_pickle(os.path.join(analysis_dir, 'WeakConnections_computed_{}.pkl'.format(datestring)))
+MediumConnections.to_pickle(os.path.join(analysis_dir, 'MediumConnections_computed_{}.pkl'.format(datestring)))
+StrongConnections.to_pickle(os.path.join(analysis_dir, 'StrongConnections_computed_{}.pkl'.format(datestring)))
+Connectivity.to_pickle(os.path.join(analysis_dir, 'Connectivity_computed_{}.pkl'.format(datestring)))

@@ -101,13 +101,15 @@ Anatomical connectivity matrix
     :ConnectivityMatrix
     :ConnectivityMatrix_Symmetrized
 """
-usemat = 'count_computed'
+usemat = 'count_all'
 correct_for_completeness = False
 
-if usemat == 'count_computed':
-    # Load neuron count matrices
-    with open(os.path.join(analysis_dir, 'data', 'NeuronCount_computed_20200422.pkl'), 'rb') as f:
-        conn_mat = pickle.load(f)[0]
+WeakConnections = pd.read_pickle(os.path.join(analysis_dir,'data', 'Weak_Connections_computed_20200501.pkl'))
+MediumConnections = pd.read_pickle(os.path.join(analysis_dir,'data', 'Medium_Connections_computed_20200501.pkl'))
+StrongConnections = pd.read_pickle(os.path.join(analysis_dir,'data', 'Strong_Connections_computed_20200501.pkl'))
+
+if usemat == 'count_all':
+    conn_mat = WeakConnections + MediumConnections + StrongConnections
 
 elif usemat == 'weight_computed':
     conn_mat = pd.read_pickle(os.path.join(analysis_dir,'data', 'ConnectivityMatrix_computed_20200422.pkl'))
@@ -170,11 +172,6 @@ g.ax_marg_x.set_axis_off()
 xx = [adj_DF['Anatomical'].min(), adj_DF['Anatomical'].max()]
 g.ax_joint.plot(xx, linfit(xx), 'k-')
 g.ax_joint.annotate('r = {:.3f}'.format(r), xy=(2000, 1.5))
-
-# fig1_1.axes.append(g.ax_joint)
-# fig1_1.axes.append(g.ax_marg_x)
-# fig1_1.axes.append(g.ax_marg_y)
-# plt.show()
 
 fig1_1 = plt.gcf()
 
