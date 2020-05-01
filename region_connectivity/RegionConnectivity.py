@@ -96,41 +96,44 @@ def getPrecomputedConnectivityMatrix(neuprint_client, mapping, metric='count', d
 
     return ConnectivityMatrix
 
-def computeConnectivityMatrix(neuprint_client, mapping, neuron_count_threshold=[1]):
+def computeConnectivityMatrix(neuprint_client, mapping):
     """
     This takes like 20 minutes
-    :neuron_count_threshold: list of thresholds - minumum number of pre & post synapses on a cell to count it as a connection
-        NeuronCount will be have the same length as threshold list, one df for each count threshold
     """
     rois = list(mapping.keys())
     rois.sort()
 
     completeness_df = neuprint_client.fetch_roi_completeness()
 
+
+    Weak_Connections = pd.DataFrame(data=np.zeros((len(rois), len(rois))), index=rois, columns=rois)
+    Medium_Connections = pd.DataFrame(data=np.zeros((len(rois), len(rois))), index=rois, columns=rois)
+    Strong_Connections = pd.DataFrame(data=np.zeros((len(rois), len(rois))), index=rois, columns=rois)
+
     ConnectivityMatrix = pd.DataFrame(data=np.zeros((len(rois), len(rois))), index=rois, columns=rois)
+
     SynapseCount = pd.DataFrame(data=np.zeros((len(rois), 2)), index=rois, columns=['total_synapses','assigned_synapses'])
-    NeuronCount = []
-    for thresh in neuron_count_threshold:
-        NeuronCount.append(pd.DataFrame(data=np.zeros((len(rois), len(rois))), index=rois, columns=rois))
 
     for roi_source in rois:
         for roi_target in rois:
             sources = mapping[roi_source]
             targets = mapping[roi_target]
             total_conn_score = 0
-            total_neurons = np.zeros(len(neuron_count_threshold))
+            weak_neurons = 0
+            medium_neurons = 0
+            strong_neurons = 0
             total_synapses = 0
             assigned_synapses = 0
             for s_ind, sour in enumerate(sources): # this multiple sources/targets is necessary for collapsing rois based on mapping
                 for targ in targets:
-                    Neur, Syn = fetch_neurons(NeuronCriteria(inputRois=sour, outputRois=targ, regex=True, status='Traced'))
+                    Neur, Syn = fetch_neurons(NeuronCriteria(inputRois=sour, outputRois=targ, status='Traced'))
 
-                    # get the number of neurons from source to target with over :neuron_count_threshold: input & output synapses in rois"
-                    n_neurons = np.zeros(len(neuron_count_threshold))
-                    for t_ind, thresh in enumerate(neuron_count_threshold):
-                        outputs_in_targ = np.array([x[targ]['pre'] for x in Neur.roiInfo])
-                        inputs_in_sour = np.array([x[sour]['post'] for x in Neur.roiInfo])
-                        n_neurons[t_ind] = np.sum(np.logical_and(outputs_in_targ>thresh, inputs_in_sour>thresh))
+                    outputs_in_targ = np.array([x[targ]['pre'] for x in Neur.roiInfo]) # neurons with Tbar output in target
+                    inputs_in_sour = np.array([x[sour]['post'] for x in Neur.roiInfo]) # neuron with PSD input in source
+
+                    n_weak = np.sum(np.logical_and(outputs_in_targ>0, inputs_in_sour<=3))
+                    n_medium = np.sum(np.logical_and(outputs_in_targ>0, np.logical_and(inputs_in_sour>3, inputs_in_sour<10)))
+                    n_strong = np.sum(np.logical_and(outputs_in_targ>0, inputs_in_sour>=10))
 
                     scaled_output = []
                     for n in range(Neur.shape[0]):
@@ -141,7 +144,9 @@ def computeConnectivityMatrix(neuprint_client, mapping, neuron_count_threshold=[
                     if len(scaled_output) > 0:
                         new_score = np.sum(scaled_output)
                         total_conn_score += new_score
-                        total_neurons += n_neurons # list of counts for each threshold value
+                        weak_neurons += n_weak
+                        medium_neurons += n_medium
+                        strong_neurons += n_strong
 
                     if s_ind==0:
                         # get the presynapses in target
@@ -150,13 +155,14 @@ def computeConnectivityMatrix(neuprint_client, mapping, neuron_count_threshold=[
                         total_synapses += new_total_synapses
                         assigned_synapses += new_assigned_synapses
 
+
+            Weak_Connections.loc[[roi_source], [roi_target]] = weak_neurons
+            Medium_Connections.loc[[roi_source], [roi_target]] = medium_neurons
+            Strong_Connections.loc[[roi_source], [roi_target]] = strong_neurons
+
             ConnectivityMatrix.loc[[roi_source], [roi_target]] = total_conn_score
-
-            for t_ind, thresh in enumerate(neuron_count_threshold):
-                NeuronCount[t_ind].loc[[roi_source], [roi_target]] = total_neurons[t_ind]
-
             SynapseCount.loc[[roi_target], ['total_synapses']] = total_synapses
             SynapseCount.loc[[roi_target], ['assigned_synapses']] = assigned_synapses
 
 
-    return ConnectivityMatrix, NeuronCount, SynapseCount
+    return ConnectivityMatrix, SynapseCount, Weak_Connections, Medium_Connections, Strong_Connections

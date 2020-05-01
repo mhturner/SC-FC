@@ -1,5 +1,5 @@
 
-from neuprint import Client
+from neuprint import (Client, fetch_neurons, NeuronCriteria)
 import numpy as np
 import pandas as pd
 import os
@@ -22,10 +22,10 @@ neuprint_client = Client('neuprint.janelia.org', dataset='hemibrain:v1.0.1', tok
 # get rois of interest
 mapping = RegionConnectivity.getRoiMapping(neuprint_client)
 
-neuron_count_threshold=np.array([1, 5, 10, 20, 40, 80, 100, 200, 400, 800])
-ConnectivityMatrix, NeuronCount, SynapseCount = RegionConnectivity.computeConnectivityMatrix(neuprint_client, mapping, neuron_count_threshold=neuron_count_threshold)
+ConnectivityMatrix, SynapseCount, Weak_Connections, Medium_Connections, Strong_Connections = RegionConnectivity.computeConnectivityMatrix(neuprint_client, mapping)
 
 print('Finished computing connectivity matrix (total time = {:.1f} sec)'.format(time.time()-t0))
+
 
 # %%
 d = datetime.datetime.today()
@@ -33,9 +33,6 @@ datestring ='{:02d}'.format(d.year)+'{:02d}'.format(d.month)+'{:02d}'.format(d.d
 
 ConnectivityMatrix.to_pickle(os.path.join(analysis_dir, 'ConnectivityMatrix_computed_{}.pkl'.format(datestring)))
 SynapseCount.to_pickle(os.path.join(analysis_dir, 'SynapseCount_computed_{}.pkl'.format(datestring)))
-
-np.save(os.path.join(analysis_dir, 'neuron_count_threshold_{}.npy'.format(datestring)), neuron_count_threshold, allow_pickle=True)
-
-with open(os.path.join(analysis_dir, 'NeuronCount_computed_{}.pkl'.format(datestring)), 'wb') as f:
-    # Pickle the 'data' dictionary using the highest protocol available.
-    pickle.dump(NeuronCount, f, pickle.HIGHEST_PROTOCOL)
+Weak_Connections.to_pickle(os.path.join(analysis_dir, 'Weak_Connections_computed_{}.pkl'.format(datestring)))
+Medium_Connections.to_pickle(os.path.join(analysis_dir, 'Medium_Connections_computed_{}.pkl'.format(datestring)))
+Strong_Connections.to_pickle(os.path.join(analysis_dir, 'Strong_Connections_computed_{}.pkl'.format(datestring)))
