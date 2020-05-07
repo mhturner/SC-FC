@@ -101,21 +101,18 @@ Anatomical connectivity matrix
     :ConnectivityMatrix
     :ConnectivityMatrix_Symmetrized
 """
-usemat = 'count_all'
+usemat = 'weight_computed'
 correct_for_completeness = False
 
-WeakConnections = pd.read_pickle(os.path.join(analysis_dir,'data', 'Weak_Connections_computed_20200501.pkl'))
-MediumConnections = pd.read_pickle(os.path.join(analysis_dir,'data', 'Medium_Connections_computed_20200501.pkl'))
-StrongConnections = pd.read_pickle(os.path.join(analysis_dir,'data', 'Strong_Connections_computed_20200501.pkl'))
+WeakConnections = pd.read_pickle(os.path.join(analysis_dir,'data', 'WeakConnections_computed_20200501.pkl'))
+MediumConnections = pd.read_pickle(os.path.join(analysis_dir,'data', 'MediumConnections_computed_20200501.pkl'))
+StrongConnections = pd.read_pickle(os.path.join(analysis_dir,'data', 'StrongConnections_computed_20200501.pkl'))
 
 if usemat == 'count_all':
     conn_mat = WeakConnections + MediumConnections + StrongConnections
 
 elif usemat == 'weight_computed':
-    conn_mat = pd.read_pickle(os.path.join(analysis_dir,'data', 'ConnectivityMatrix_computed_20200422.pkl'))
-
-elif usemat == 'count_precomputed':
-    conn_mat = RegionConnectivity.getPrecomputedConnectivityMatrix(neuprint_client, mapping, metric='count', diagonal='nan')
+    conn_mat = pd.read_pickle(os.path.join(analysis_dir,'data', 'Connectivity_computed_20200501.pkl'))
 
 
 if correct_for_completeness:
@@ -295,8 +292,8 @@ CompletenessMatrix = pd.DataFrame(data=np.outer(roi_completeness['frac_post'], r
 
 
 comp_score = CompletenessMatrix.to_numpy().ravel()
-diff_score = np.abs(DifferenceMatrix.to_numpy().ravel())
-# diff_score = DifferenceMatrix.to_numpy().ravel()
+# diff_score = np.abs(DifferenceMatrix.to_numpy().ravel())
+diff_score = DifferenceMatrix.to_numpy().ravel()
 
 include_inds = np.where(diff_score != 0)[0]
 comp_score  = comp_score[include_inds]
@@ -319,11 +316,61 @@ ax[1].scatter(comp_score, anat_conn, marker='o', color='k', alpha=0.5)
 ax[1].set_xlabel('Completeness of reconstruction')
 ax[1].set_ylabel('Anat connectivity')
 
+# %% compare clustering of anat and fxnal matrices
 
+# spectral clustering of anatomical matrix
+n_clusters = 6
+
+roi_names = ConnectivityMatrix.index
+
+# get anatomical matrix and set diagonal nans to 0
+anat_mat = ConnectivityMatrix_Symmetrized.to_numpy().copy()
+np.fill_diagonal(anat_mat, 0)
+anatomical = pd.DataFrame(data=anat_mat, columns=roi_names, index=roi_names)
+
+# get fxnal matrix and set diagonal nans to 0
+fxn_mat = CorrelationMatrix_Functional.to_numpy().copy()
+np.fill_diagonal(fxn_mat, 0)
+functional = pd.DataFrame(data=fxn_mat, columns=roi_names, index=roi_names)
+
+# cluster anatomical matrix
+sc_anatomical = SpectralClustering(n_clusters, affinity='precomputed', n_init=100)
+sc_anatomical.fit(anatomical.to_numpy());
+
+# cluster fxnal matrix
+sc_functional = SpectralClustering(n_clusters, affinity='precomputed', n_init=100)
+sc_functional.fit(functional.to_numpy());
+
+
+cluster_brain_anat = np.zeros(shape=mask_brain.shape)
+cluster_brain_anat[:] = np.nan
+cluster_brain_fxn = np.zeros(shape=mask_brain.shape)
+cluster_brain_fxn[:] = np.nan
+for r_ind, r in enumerate(roi_mask):
+    cluster_brain_anat[r] = sc_anatomical.labels_[r_ind]
+    cluster_brain_fxn[r] = sc_functional.labels_[r_ind]
+
+# %%
+zslices = np.arange(30, 200, 40)
+lim = sc.labels_.max()
+
+
+
+fh, axes = plt.subplots(5, 2, figsize=(4,8))
+for z_ind, z in enumerate(zslices):
+    ax = axes[z_ind, 0]
+    img = ax.imshow(cluster_brain_anat[:, :, z].T, cmap="tab20", rasterized=True, vmin=0, vmax=lim)
+    ax.set_axis_off()
+    ax.set_aspect('equal')
+
+    ax = axes[z_ind, 1]
+    img = ax.imshow(cluster_brain_fxn[:, :, z].T, cmap="tab20", rasterized=True, vmin=0, vmax=lim)
+    ax.set_axis_off()
+    ax.set_aspect('equal')
 
 # %%
 # spectral clustering of anatomical matrix
-n_clusters = 4
+n_clusters = 5
 
 roi_names = ConnectivityMatrix.index
 
@@ -381,6 +428,33 @@ for cl in cluster_lines:
 ax[1, 1].set_aspect('equal')
 ax[1, 1].set_title('Difference');
 
+# %% make brain region map based on clustering results
+
+cmaps = [plt.get_cmap('Greys'), plt.get_cmap('Purples'), plt.get_cmap('Blues'), plt.get_cmap('Greens'), plt.get_cmap('Reds'), plt.get_cmap('Oranges')]
+cmaps = cmaps[:n_clusters]
+cluster_brain = np.zeros(shape=(mask_brain.shape[0], mask_brain.shape[1], mask_brain.shape[2], 4))
+cluster_brain[:] = np.nan
+for r_ind, r in enumerate(roi_mask):
+    current_cluster = sc.labels_[r_ind]
+    place_in_cluster = np.where(np.where(sc.labels_ == current_cluster)[0]==r_ind)[0][0]
+    cluster_len = np.sum(sc.labels_ == current_cluster)
+    cluster_cmap = cmaps[current_cluster]
+    color = cluster_cmap((place_in_cluster+1)/(cluster_len+1))
+    cluster_brain[r, :] = color
+
+# %%
+zslices = np.arange(30, 200, 20)
+
+fig4_0 = plt.figure(figsize=(12,12))
+for z_ind, z in enumerate(zslices):
+    ax = fig4_0.add_subplot(3, 3, z_ind+1)
+    np.moveaxis(cluster_brain[:, :, z, :], [0, 1, 2], [1, 0, 2])
+
+    img = ax.imshow(np.moveaxis(cluster_brain[:, :, z, :], [0, 1, 2], [1, 0, 2]), rasterized=True)
+    ax.set_axis_off()
+    ax.set_aspect('equal')
+
+
 # %%
 diff_by_region = DifferenceMatrix.mean()
 diff_brain = np.zeros(shape=mask_brain.shape)
@@ -401,7 +475,6 @@ ax.set_aspect('equal')
 
 zslices = np.arange(30, 200, 20)
 lim = np.nanmax(np.abs(diff_brain.ravel()))
-
 
 fig4_0 = plt.figure(figsize=(12,12))
 for z_ind, z in enumerate(zslices):
