@@ -104,18 +104,18 @@ Anatomical connectivity matrix
     :ConnectivityMatrix
     :ConnectivityMatrix_Symmetrized
 """
-usemat = 'ct_precomputed'
+usemat = 'count_all'
 correct_for_completeness = False
 
-WeakConnections = pd.read_pickle(os.path.join(analysis_dir,'data', 'WeakConnections_computed_20200501.pkl'))
-MediumConnections = pd.read_pickle(os.path.join(analysis_dir,'data', 'MediumConnections_computed_20200501.pkl'))
-StrongConnections = pd.read_pickle(os.path.join(analysis_dir,'data', 'StrongConnections_computed_20200501.pkl'))
+WeakConnections = pd.read_pickle(os.path.join(analysis_dir,'data', 'WeakConnections_computed_20200507.pkl'))
+MediumConnections = pd.read_pickle(os.path.join(analysis_dir,'data', 'MediumConnections_computed_20200507.pkl'))
+StrongConnections = pd.read_pickle(os.path.join(analysis_dir,'data', 'StrongConnections_computed_20200507.pkl'))
 
 if usemat == 'count_all':
     conn_mat = WeakConnections + MediumConnections + StrongConnections
 
 elif usemat == 'weight_computed':
-    conn_mat = pd.read_pickle(os.path.join(analysis_dir,'data', 'Connectivity_computed_20200501.pkl'))
+    conn_mat = pd.read_pickle(os.path.join(analysis_dir,'data', 'Connectivity_computed_20200507.pkl'))
 
 elif usemat == 'ct_precomputed':
     conn_mat = RegionConnectivity.getPrecomputedConnectivityMatrix(neuprint_client, mapping, metric='count', diagonal='nan')
@@ -178,6 +178,8 @@ g.ax_joint.plot(xx, linfit(xx), 'k-')
 g.ax_joint.annotate('r = {:.3f}'.format(r), xy=(2000, 1.5))
 
 fig1_1 = plt.gcf()
+
+# TODO: re-do anatomy roi names
 #
 # # log transform anatomical connectivity values
 # keep_inds = np.where(anatomical_adjacency > 0)[0] # toss zero connection values
@@ -377,7 +379,7 @@ for z_ind, z in enumerate(zslices):
 
 # %%
 # spectral clustering of anatomical matrix
-n_clusters = 5
+n_clusters = 8
 
 roi_names = ConnectivityMatrix.index
 
