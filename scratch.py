@@ -46,31 +46,23 @@ roi_completeness = RegionConnectivity.getRoiCompleteness(neuprint_client, mappin
 
 
 
-# %% Load kevin's functional data and atlas data
-fn_cm = 'sorted_cmat.npy'
-fn_names = 'sorted_names.npy'
+
+
+# %%
+
+
+
+
+
+
+# %%
 fn_atlas = 'JFRCtempate2010.mask130819_crop.nii'
 fn_atlas_index = 'Original_Index_panda.csv'
 
-CM_fxn = np.load(os.path.join(analysis_dir, 'from_kevin', fn_cm))
-rois_fxn_orig = np.load(os.path.join(analysis_dir, 'from_kevin', fn_names), allow_pickle=True)
-rois_fxn = [x.split('_R')[0] for x in rois_fxn_orig]
-rois_fxn = [x.replace('_', '') for x in rois_fxn]
-
-CorrMat_fxnal = pd.DataFrame(data=CM_fxn, index=rois_fxn, columns=rois_fxn)
-
-# %%
-
-
-
-
-
-
-# %%
 # load atlas data
 pull_inds = np.array([ 3,  4, 5,  6,  7,  8, 9, 11, 12, 13, 14, 15, 16, 17, 18, 19, 22, 23,
    25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 48, 49])
-atlas_index = pd.read_csv(os.path.join(analysis_dir, 'from_kevin', fn_atlas_index)).iloc[pull_inds, :]
+atlas_index = pd.read_csv(os.path.join(analysis_dir, 'data', fn_atlas_index)).iloc[pull_inds, :]
 # match to fxn roi names
 new_rois = atlas_index.name
 new_rois = [x.split('_R')[0] for x in new_rois]

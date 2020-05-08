@@ -30,11 +30,12 @@ atlas_dir = '/home/mhturner/GitHub/DrosAdultBRAINdomains'
 
 # start client
 neuprint_client = Client('neuprint.janelia.org', dataset='hemibrain:v1.0.1', token='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6Im1heHdlbGxob2x0ZXR1cm5lckBnbWFpbC5jb20iLCJsZXZlbCI6Im5vYXV0aCIsImltYWdlLXVybCI6Imh0dHBzOi8vbGgzLmdvb2dsZXVzZXJjb250ZW50LmNvbS9hLS9BT2gxNEdpMHJRX0M4akliX0ZrS2h2OU5DSElsWlpnRDY5YUMtVGdNLWVWM3lRP3N6PTUwP3N6PTUwIiwiZXhwIjoxNzY2MTk1MzcwfQ.Q-57D4tX2sXMjWym2LFhHaUGHgHiUsIM_JI9xekxw_0')
-
-mapping = RegionConnectivity.getRoiMapping(neuprint_client)
+mapping = RegionConnectivity.getRoiMapping()
 rois = list(mapping.keys())
 rois.sort()
+
 roi_completeness = RegionConnectivity.getRoiCompleteness(neuprint_client, mapping)
+
 
 # %% LOAD DATA
 """
@@ -43,7 +44,9 @@ Functional connectivity matrix
 
     :CorrelationMatrix_Functional
 """
-CorrelationMatrix_Functional = pd.read_pickle(os.path.join(analysis_dir, 'data', 'CorrelationMatrix_Functional.pkl'))
+CorrelationMatrix_Full = RegionConnectivity.prepFullCorrrelationMatrix()
+
+CorrelationMatrix_Functional = RegionConnectivity.filterCorrelationMatrix(CorrelationMatrix_Full, mapping)
 rois_fxn = CorrelationMatrix_Functional.index
 
 """
@@ -53,45 +56,45 @@ Atlas data
     :DistanceMatrix
     :SizeMatrix
 """
-
-pull_inds = np.array([ 3,  4, 5,  6,  7,  8, 9, 11, 12, 13, 14, 15, 16, 17, 18, 19, 22, 23,
-   25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 48, 49])
-atlas_index = pd.read_csv(os.path.join(analysis_dir, 'data', 'Original_Index_panda.csv')).iloc[pull_inds, :]
-
-# match to fxn roi names
-new_rois = atlas_index.name
-new_rois = [x.split('_R')[0] for x in new_rois]
-new_rois = [x.replace('_', '') for x in new_rois]
-atlas_index.name = new_rois
-
-# load mask brain
-mask_brain = np.asarray(np.squeeze(nib.load(os.path.join(analysis_dir, 'data', 'JFRCtempate2010.mask130819_crop.nii')).get_fdata()), 'uint8')
-
-# get individual roi masks and compute size of each roi (in voxels)
-roi_mask = []
-roi_size = []
-for r in rois_fxn:
-    new_roi_mask = np.zeros_like(mask_brain)
-    target_index = atlas_index[atlas_index.name==r].num.to_numpy()[0]
-    new_roi_mask = mask_brain == target_index
-    roi_mask.append(new_roi_mask)
-    roi_size.append(np.sum(new_roi_mask))
-
-# find center of mass for each roi
-coms = np.vstack([center_of_mass(x) for x in roi_mask])
-
-# calulcate euclidean distance matrix between roi centers of mass
-dist_mat = np.zeros_like(CorrelationMatrix_Functional)
-upper_inds = np.triu_indices(dist_mat.shape[0], k=1)
-dist_mat[upper_inds] = pdist(coms)
-dist_mat += dist_mat.T # symmetrize to fill in below diagonal
-
-DistanceMatrix = pd.DataFrame(data=dist_mat, index=rois_fxn, columns=rois_fxn)
-
-# geometric mean of the sizes for each pair of ROIs
-sz_mat = np.sqrt(np.outer(np.array(roi_size), np.array(roi_size)))
-
-SizeMatrix = pd.DataFrame(data=sz_mat, index=rois_fxn, columns=rois_fxn)
+#
+# pull_inds = np.array([ 3,  4, 5,  6,  7,  8, 9, 11, 12, 13, 14, 15, 16, 17, 18, 19, 22, 23,
+#    25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 48, 49])
+# atlas_index = pd.read_csv(os.path.join(analysis_dir, 'data', 'Original_Index_panda.csv')).iloc[pull_inds, :]
+#
+# # match to fxn roi names
+# new_rois = atlas_index.name
+# new_rois = [x.split('_R')[0] for x in new_rois]
+# new_rois = [x.replace('_', '') for x in new_rois]
+# atlas_index.name = new_rois
+#
+# # load mask brain
+# mask_brain = np.asarray(np.squeeze(nib.load(os.path.join(analysis_dir, 'data', 'JFRCtempate2010.mask130819_crop.nii')).get_fdata()), 'uint8')
+#
+# # get individual roi masks and compute size of each roi (in voxels)
+# roi_mask = []
+# roi_size = []
+# for r in rois_fxn:
+#     new_roi_mask = np.zeros_like(mask_brain)
+#     target_index = atlas_index[atlas_index.name==r].num.to_numpy()[0]
+#     new_roi_mask = mask_brain == target_index
+#     roi_mask.append(new_roi_mask)
+#     roi_size.append(np.sum(new_roi_mask))
+#
+# # find center of mass for each roi
+# coms = np.vstack([center_of_mass(x) for x in roi_mask])
+#
+# # calulcate euclidean distance matrix between roi centers of mass
+# dist_mat = np.zeros_like(CorrelationMatrix_Functional)
+# upper_inds = np.triu_indices(dist_mat.shape[0], k=1)
+# dist_mat[upper_inds] = pdist(coms)
+# dist_mat += dist_mat.T # symmetrize to fill in below diagonal
+#
+# DistanceMatrix = pd.DataFrame(data=dist_mat, index=rois_fxn, columns=rois_fxn)
+#
+# # geometric mean of the sizes for each pair of ROIs
+# sz_mat = np.sqrt(np.outer(np.array(roi_size), np.array(roi_size)))
+#
+# SizeMatrix = pd.DataFrame(data=sz_mat, index=rois_fxn, columns=rois_fxn)
 
 # %%
 
@@ -101,7 +104,7 @@ Anatomical connectivity matrix
     :ConnectivityMatrix
     :ConnectivityMatrix_Symmetrized
 """
-usemat = 'weight_computed'
+usemat = 'ct_precomputed'
 correct_for_completeness = False
 
 WeakConnections = pd.read_pickle(os.path.join(analysis_dir,'data', 'WeakConnections_computed_20200501.pkl'))
@@ -114,6 +117,8 @@ if usemat == 'count_all':
 elif usemat == 'weight_computed':
     conn_mat = pd.read_pickle(os.path.join(analysis_dir,'data', 'Connectivity_computed_20200501.pkl'))
 
+elif usemat == 'ct_precomputed':
+    conn_mat = RegionConnectivity.getPrecomputedConnectivityMatrix(neuprint_client, mapping, metric='count', diagonal='nan')
 
 if correct_for_completeness:
     conn_mat = conn_mat / roi_completeness['completeness'][:, None]
@@ -121,7 +126,7 @@ if correct_for_completeness:
 
 # drop '(R)' from roi names
 roi_names = conn_mat.index
-roi_names = [x.split('(')[0] for x in rois]
+# roi_names = [x.split('(')[0] for x in rois]
 # set diag to nan
 tmp_mat = conn_mat.to_numpy().copy()
 np.fill_diagonal(tmp_mat, np.nan)
@@ -133,8 +138,10 @@ ConnectivityMatrix_Symmetrized = pd.DataFrame(data=(tmp_mat + tmp_mat.T)/2, inde
 
 # %% FIGURE 1: Correlation between anatomical and functional connectivty matrices
 
-
 fig1_0, ax = plt.subplots(1, 2, figsize=(16,8))
+
+ConnectivityMatrix.index
+CorrelationMatrix_Functional.index
 
 sns.heatmap(ConnectivityMatrix, ax=ax[0], xticklabels=True, cbar_kws={'label': 'Connection strength (cells)', 'shrink': .8}, cmap="cividis", rasterized=True)
 ax[0].set_xlabel('Target');
@@ -171,17 +178,17 @@ g.ax_joint.plot(xx, linfit(xx), 'k-')
 g.ax_joint.annotate('r = {:.3f}'.format(r), xy=(2000, 1.5))
 
 fig1_1 = plt.gcf()
-
-# log transform anatomical connectivity values
-keep_inds = np.where(anatomical_adjacency > 0)[0] # toss zero connection values
-functional_adjacency_no0= functional_adjacency[keep_inds]
-anatomical_adjacency_log = np.log10(anatomical_adjacency[keep_inds])
-
-adj_log_DF = pd.DataFrame(data = np.vstack([anatomical_adjacency_log, functional_adjacency_no0]).T, columns = ['Anatomical', 'Functional'])
-
-r_log, p_log = pearsonr(anatomical_adjacency_log, functional_adjacency_no0)
-coef = np.polyfit(anatomical_adjacency_log, functional_adjacency_no0, 1)
-linfit_log = np.poly1d(coef)
+#
+# # log transform anatomical connectivity values
+# keep_inds = np.where(anatomical_adjacency > 0)[0] # toss zero connection values
+# functional_adjacency_no0= functional_adjacency[keep_inds]
+# anatomical_adjacency_log = np.log10(anatomical_adjacency[keep_inds])
+#
+# adj_log_DF = pd.DataFrame(data = np.vstack([anatomical_adjacency_log, functional_adjacency_no0]).T, columns = ['Anatomical', 'Functional'])
+#
+# r_log, p_log = pearsonr(anatomical_adjacency_log, functional_adjacency_no0)
+# coef = np.polyfit(anatomical_adjacency_log, functional_adjacency_no0, 1)
+# linfit_log = np.poly1d(coef)
 
 # fig1_1, ax = plt.subplots(1, 2, figsize=(12, 6))
 

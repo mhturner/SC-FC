@@ -1,8 +1,9 @@
 from neuprint import (Client, fetch_neurons, NeuronCriteria)
 import numpy as np
 import pandas as pd
+import os
 
-def getRoiMapping(neuprint_client):
+def getRoiMapping():
     """
     Include ROIs that are at least 50% in the EM dataset
     Toss stuff in the optic lobes since those aren't in the functional dataset
@@ -25,7 +26,7 @@ def getRoiMapping(neuprint_client):
                 'FB': ['AB(R)', 'AB(L)', 'FB'],
                 'GOR(R)': ['GOR(R)'],
                 'GOR(L)': ['GOR(L)'], # ~60% in volume
-                'IB(R)': ['IB'], # This is lateralized in functional data but not EM. Can we smoosh IB_R and IB_L in fxnal?
+                # 'IB(R)': ['IB'], # This is lateralized in functional data but not EM. Can we smoosh IB_R and IB_L in fxnal?
                 'ICL(R)': ['ICL(R)'],
                 'LAL(R)': ['LAL(R)'],
                 'LH(R)': ['LH(R)'],
@@ -48,6 +49,43 @@ def getRoiMapping(neuprint_client):
                 'WED(R)': ['WED(R)']}
 
     return mapping
+
+def prepFullCorrrelationMatrix():
+    analysis_dir = '/home/mhturner/Dropbox/ClandininLab/Analysis/hemibrain_analysis/roi_connectivity'
+
+    fn_cmat = 'full_cmat.txt'
+    fn_names = 'Original_Index_panda_full.csv'
+
+    # cmat = pd.read_csv(os.path.join(analysis_dir, 'data', fn_cmat), sep=' ', header=0)
+    cmat = np.loadtxt(os.path.join(analysis_dir, 'data', fn_cmat), delimiter=' ')
+
+    # roi_names = pd.read_csv(os.path.join(analysis_dir, 'data', fn_names), sep=',', header=0)
+    roi_names = pd.read_csv(os.path.join(analysis_dir, 'data', fn_names), sep=',', header=0)
+    pull_inds = np.where([type(x) is not str for x in roi_names.name.to_numpy()])[0]
+
+    new_roi_names = roi_names.name.to_numpy()
+    new_roi_names = [x.replace('_R','(R)') for x in new_roi_names if type(x) is str]
+    new_roi_names = [x.replace('_L','(L)') for x in new_roi_names if type(x) is str]
+    new_roi_names = [x.replace('_', '') for x in new_roi_names if type(x) is str]
+
+    cmat = np.delete(cmat, pull_inds, axis=0)
+    cmat = np.delete(cmat, pull_inds, axis=1)
+
+    CorrelationMatrix = pd.DataFrame(data=cmat, index=new_roi_names, columns=new_roi_names)
+
+    return CorrelationMatrix
+
+
+def filterCorrelationMatrix(CorrelationMatrix_Full, mapping):
+    rois = list(mapping.keys())
+    rois.sort()
+    mat = np.zeros(shape=(len(rois), len(rois)))
+    CorrelationMatrix_Filtered = pd.DataFrame(data=mat, index=rois, columns=rois)
+    for r_ind, r in enumerate(rois):
+        for c_ind, c in enumerate(rois):
+            CorrelationMatrix_Filtered.loc[[r], [c]] = CorrelationMatrix_Full.loc[r, c]
+
+    return CorrelationMatrix_Filtered
 
 def getRoiCompleteness(neuprint_client, mapping):
     rois = list(mapping.keys())
