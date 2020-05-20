@@ -51,16 +51,41 @@ def getRoiMapping():
 
     return mapping
 
+def loadAtlasData():
+    analysis_dir = '/home/mhturner/Dropbox/ClandininLab/Analysis/hemibrain_analysis/roi_connectivity'
+
+    fn_names = 'Original_Index_panda_full.csv'
+    fn_maskbrain = 'vfb_68_Original.nii.gz'
+
+    roi_names = pd.read_csv(os.path.join(analysis_dir, 'data', fn_names), sep=',', header=0).name.to_numpy()
+    mask_brain = np.asarray(np.squeeze(nib.load(os.path.join(analysis_dir, 'data', fn_maskbrain)).get_fdata()), 'uint8')
+
+    # cut out nan regions (tracts))
+    pull_inds = np.where([type(x) is str for x in roi_names])[0]
+    delete_inds = np.where([type(x) is not str for x in roi_names])[0]
+
+    # filter region names
+    roi_names = np.array([x for x in roi_names if type(x) is str]) # cut out nan regions from roi names
+
+    # filter mask brain regions
+    roi_mask = []
+    roi_size = []
+    for r_ind, r in enumerate(roi_names):
+        new_roi_mask = np.zeros_like(mask_brain)
+        new_roi_mask = mask_brain == (pull_inds[r_ind] + 1) # mask values start at 1, not 0
+        roi_mask.append(new_roi_mask) #bool
+        roi_size.append(np.sum(new_roi_mask>0))
+
+    return roi_mask, roi_size
+
 def loadFunctionalData():
     analysis_dir = '/home/mhturner/Dropbox/ClandininLab/Analysis/hemibrain_analysis/roi_connectivity'
 
     fn_cmat = 'full_cmat.txt'
     fn_names = 'Original_Index_panda_full.csv'
-    fn_maskbrain = 'JFRCtempate2010.mask130819_crop.nii'
 
     cmat = np.loadtxt(os.path.join(analysis_dir, 'data', fn_cmat), delimiter=' ')
     roi_names = pd.read_csv(os.path.join(analysis_dir, 'data', fn_names), sep=',', header=0).name.to_numpy()
-    mask_brain = np.asarray(np.squeeze(nib.load(os.path.join(analysis_dir, 'data', fn_maskbrain)).get_fdata()), 'uint8')
 
     # cut out nan regions (tracts))
     pull_inds = np.where([type(x) is str for x in roi_names])[0]
@@ -73,15 +98,6 @@ def loadFunctionalData():
     # filter region names
     roi_names = np.array([x for x in roi_names if type(x) is str]) # cut out nan regions from roi names
 
-    # filter mask brain regions
-    roi_mask = []
-    roi_size = []
-    for r_ind, r in enumerate(roi_names):
-        new_roi_mask = np.zeros_like(mask_brain)
-        new_roi_mask = mask_brain == pull_inds[r_ind] + 1 # mask values start at 1, not 0
-        roi_mask.append(new_roi_mask)
-        roi_size.append(np.sum(new_roi_mask))
-
     # convert names to match display format
     roi_names = [x.replace('_R','(R)') for x in roi_names]
     roi_names = [x.replace('_L','(L)') for x in roi_names]
@@ -89,7 +105,7 @@ def loadFunctionalData():
 
     CorrelationMatrix = pd.DataFrame(data=cmat, index=roi_names, columns=roi_names)
 
-    return CorrelationMatrix, roi_mask, roi_size
+    return CorrelationMatrix
 
 
 def filterFunctionalData(CorrelationMatrix_Full, mapping):
@@ -103,21 +119,6 @@ def filterFunctionalData(CorrelationMatrix_Full, mapping):
             CorrelationMatrix_Filtered.loc[[r], [c]] = CorrelationMatrix_Full.loc[r, c]
 
     return CorrelationMatrix_Filtered, pull_inds
-#
-# def getAtlasData(mapping):
-#     analysis_dir = '/home/mhturner/Dropbox/ClandininLab/Analysis/hemibrain_analysis/roi_connectivity'
-#     rois = list(mapping.keys())
-#     rois.sort()
-#
-#     # # convert to atlas naming convention
-#     # rois = [x.replace('(R)', '_R') for x in rois
-#     # rois = [x.replace('(L)','_L') for x in rois if type(x) is str]
-#     # rois = [x.replace('_', '') for x in rois if type(x) is str]
-#
-#     atlas_numbers = []
-#     for r in rois_fxn:
-#         ind = np.where(r == atlas_index.name)
-#         atlas_numbers.append(np.where())
 
 def getRoiCompleteness(neuprint_client, mapping):
     rois = list(mapping.keys())
