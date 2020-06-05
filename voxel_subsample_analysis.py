@@ -30,7 +30,7 @@ functional_brain = ants.image_read(os.path.join(data_dir, fly_id, 'func_volreg_t
 # %% filter to select rois of interest from mapping
 mapping = RegionConnectivity.getRoiMapping()
 CorrelationMatrix_Full = RegionConnectivity.loadFunctionalData(data_dir=data_dir)
-roi_mask, roi_size = RegionConnectivity.loadAtlasData()
+roi_mask, roi_size = RegionConnectivity.loadAtlasData(data_dir=data_dir)
 
 _, pull_inds = RegionConnectivity.filterFunctionalData(CorrelationMatrix_Full, mapping)
 roi_mask = [roi_mask[x] for x in pull_inds]
