@@ -25,7 +25,7 @@ elif 'sh' in socket.gethostname():
 fly_id = 'fly2'
 
 atlas_brain = np.asarray(ants.image_read(os.path.join(data_dir, fly_id, 'vfb_68_Original.nii.gz')).numpy(), 'uint8')
-functional_brain = ants.image_read(os.path.join(data_dir, fly_id, 'func_volreg.nii.gz'))
+functional_brain = ants.image_read(os.path.join(data_dir, fly_id, 'func_volreg_trim.nii.gz'))
 
 # %% filter to select rois of interest from mapping
 mapping = RegionConnectivity.getRoiMapping()
