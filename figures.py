@@ -97,10 +97,7 @@ elif usemat == 'ct_precomputed':
 if correct_for_completeness:
     conn_mat = conn_mat / roi_completeness['completeness'][:, None]
 
-
-# drop '(R)' from roi names
 roi_names = conn_mat.index
-# roi_names = [x.split('(')[0] for x in rois]
 # set diag to nan
 tmp_mat = conn_mat.to_numpy().copy()
 np.fill_diagonal(tmp_mat, np.nan)
