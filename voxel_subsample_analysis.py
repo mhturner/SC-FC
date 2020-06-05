@@ -20,7 +20,7 @@ if socket.gethostname() == 'max-laptop':
     data_dir = '/home/mhturner/CurrentData/resting_state'
 elif 'sh' in socket.gethostname():
     analysis_dir = '/oak/stanford/groups/trc/data/Max/Analysis/Hemibrain'
-    data_dir = '/oak/stanford/groups/trc/data/Max/Analysis/resting_state'
+    data_dir = '/oak/stanford/groups/trc/data/Max/Analysis/resting_state/data'
 
 fly_id = 'fly2'
 
@@ -138,9 +138,9 @@ Fig 3: calculate SC-FC correlation for subsampled regions, bootstrap over some i
 t0 = time.time()
 
 # first get anatomical matrix
-WeakConnections = pd.read_pickle(os.path.join(analysis_dir,'data', 'WeakConnections_computed_20200507.pkl'))
-MediumConnections = pd.read_pickle(os.path.join(analysis_dir,'data', 'MediumConnections_computed_20200507.pkl'))
-StrongConnections = pd.read_pickle(os.path.join(analysis_dir,'data', 'StrongConnections_computed_20200507.pkl'))
+WeakConnections = pd.read_pickle(os.path.join(data_dir, 'WeakConnections_computed_20200507.pkl'))
+MediumConnections = pd.read_pickle(os.path.join(data_dir, 'MediumConnections_computed_20200507.pkl'))
+StrongConnections = pd.read_pickle(os.path.join(data_dir, 'StrongConnections_computed_20200507.pkl'))
 conn_mat = WeakConnections + MediumConnections + StrongConnections
 roi_names = conn_mat.index
 # set diag to nan
