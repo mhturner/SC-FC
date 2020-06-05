@@ -25,11 +25,11 @@ elif 'sh' in socket.gethostname():
 fly_id = 'fly2'
 
 atlas_brain = np.asarray(ants.image_read(os.path.join(data_dir, fly_id, 'vfb_68_Original.nii.gz')).numpy(), 'uint8')
-functional_brain = ants.image_read(os.path.join(data_dir, fly_id, 'func_volreg_trim.nii.gz'))
+functional_brain = ants.image_read(os.path.join(data_dir, fly_id, 'func_volreg.nii.gz'))
 
 # %% filter to select rois of interest from mapping
 mapping = RegionConnectivity.getRoiMapping()
-CorrelationMatrix_Full = RegionConnectivity.loadFunctionalData()
+CorrelationMatrix_Full = RegionConnectivity.loadFunctionalData(data_dir=data_dir)
 roi_mask, roi_size = RegionConnectivity.loadAtlasData()
 
 _, pull_inds = RegionConnectivity.filterFunctionalData(CorrelationMatrix_Full, mapping)
@@ -161,8 +161,8 @@ functional_adjacency_full = CorrelationMatrix_Full[upper_inds]
 r_full, _ = pearsonr(anatomical_adjacency, functional_adjacency_full)
 
 # now for subsampled regions: compute SC-FC corr
-subsampled_sizes = np.logspace(1, 4.4, 5) # voxels
-n_iter = 2 # num iterations for randomly subsampling regions
+subsampled_sizes = np.logspace(1, 4.4, 3) # voxels
+n_iter = 1 # num iterations for randomly subsampling regions
 
 r_subsampled = []
 for subsampled_size in subsampled_sizes:

@@ -51,14 +51,15 @@ def getRoiMapping():
 
     return mapping
 
-def loadAtlasData():
-    analysis_dir = '/home/mhturner/Dropbox/ClandininLab/Analysis/hemibrain_analysis/roi_connectivity'
+def loadAtlasData(data_dir=None):
+    if data_dir is None:
+        data_dir = '/home/mhturner/Dropbox/ClandininLab/Analysis/hemibrain_analysis/roi_connectivity/data'
 
     fn_names = 'Original_Index_panda_full.csv'
     fn_maskbrain = 'vfb_68_Original.nii.gz'
 
-    roi_names = pd.read_csv(os.path.join(analysis_dir, 'data', fn_names), sep=',', header=0).name.to_numpy()
-    mask_brain = np.asarray(np.squeeze(nib.load(os.path.join(analysis_dir, 'data', fn_maskbrain)).get_fdata()), 'uint8')
+    roi_names = pd.read_csv(os.path.join(data_dir, fn_names), sep=',', header=0).name.to_numpy()
+    mask_brain = np.asarray(np.squeeze(nib.load(os.path.join(data_dir, fn_maskbrain)).get_fdata()), 'uint8')
 
     # cut out nan regions (tracts))
     pull_inds = np.where([type(x) is str for x in roi_names])[0]
@@ -78,14 +79,15 @@ def loadAtlasData():
 
     return roi_mask, roi_size
 
-def loadFunctionalData():
-    analysis_dir = '/home/mhturner/Dropbox/ClandininLab/Analysis/hemibrain_analysis/roi_connectivity'
+def loadFunctionalData(data_dir=None):
+    if data_dir is None:
+        data_dir = '/home/mhturner/Dropbox/ClandininLab/Analysis/hemibrain_analysis/roi_connectivity/data'
 
     fn_cmat = 'full_cmat.txt'
     fn_names = 'Original_Index_panda_full.csv'
 
-    cmat = np.loadtxt(os.path.join(analysis_dir, 'data', fn_cmat), delimiter=' ')
-    roi_names = pd.read_csv(os.path.join(analysis_dir, 'data', fn_names), sep=',', header=0).name.to_numpy()
+    cmat = np.loadtxt(os.path.join(data_dir, fn_cmat), delimiter=' ')
+    roi_names = pd.read_csv(os.path.join(data_dir, fn_names), sep=',', header=0).name.to_numpy()
 
     # cut out nan regions (tracts))
     pull_inds = np.where([type(x) is str for x in roi_names])[0]
