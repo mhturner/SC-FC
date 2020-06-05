@@ -8,6 +8,8 @@
 #SBATCH --output=/home/users/mhturner/SC-FC/job_outputs/%x.%j.out
 #SBATCH --open-mode=append
 
+module use /home/groups/trc/modules
+module load antspy/0.2.2
 ml python/3.6.1
 
 python3 /home/users/mhturner/SC-FC/voxel_subsample_analysis.py

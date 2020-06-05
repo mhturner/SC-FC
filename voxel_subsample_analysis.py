@@ -41,6 +41,8 @@ roi_size = [roi_size[x] for x in pull_inds]
 Fig1: Correlation with full fxnal correlation matrix as a function of restricted region size
 
 """
+t0 = time.time()
+
 # get full cmat
 full_responses = []
 for r_ind, mask in enumerate(roi_mask):
@@ -87,11 +89,15 @@ ax2.plot(base[:-1], cumulative)
 ax2.set_ylabel('Cumulative fraction')
 ax2.set_ylim([0, 1.05]);
 
+print('Finished F1 (time = {:.1f} sec)'.format(time.time()-t0))
+
 # %%
 """
 Fig 2: subsample set fractions of all regions and compute correlation to full region response
 
 """
+t0 = time.time()
+
 # get full region response
 full_responses = []
 for r_ind, mask in enumerate(roi_mask):
@@ -121,11 +127,16 @@ ax.set_ylim([0, 1.1])
 ax.set_xlabel('Fraction of voxels used')
 ax.set_ylabel('Corr. with full region response');
 
+print('Finished F2 (time = {:.1f} sec)'.format(time.time()-t0))
+
+
 
 # %% calculate corr with anatomy for subsampled regions
 """
 Fig 3: calculate SC-FC correlation for subsampled regions, bootstrap over some iterations
 """
+t0 = time.time()
+
 # first get anatomical matrix
 WeakConnections = pd.read_pickle(os.path.join(analysis_dir,'data', 'WeakConnections_computed_20200507.pkl'))
 MediumConnections = pd.read_pickle(os.path.join(analysis_dir,'data', 'MediumConnections_computed_20200507.pkl'))
@@ -173,7 +184,7 @@ for subsampled_size in subsampled_sizes:
 
     r_subsampled.append(r_iter)
 r_subsampled = np.vstack(r_subsampled)
-# %%
+
 # plot mean+/-SEM results on top of region size cumulative histogram
 err_y = np.std(r_subsampled, axis=1) / np.sqrt(r_subsampled.shape[1])
 mean_y = np.mean(r_subsampled, axis=1)
@@ -189,6 +200,9 @@ ax2 = ax1.twinx()
 ax2.plot(base[:-1], cumulative)
 ax2.set_ylabel('Cumulative fraction')
 ax2.set_ylim([0, 1.05])
+
+print('Finished F3 (time = {:.1f} sec)'.format(time.time()-t0))
+
 
 # %% save all figs to collated PDF
 with PdfPages(os.path.join(analysis_dir, 'SC_FC_subsample_{}.pdf'.format(fly_id))) as pdf:
