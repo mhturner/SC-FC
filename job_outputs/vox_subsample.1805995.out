@@ -1,0 +1,12 @@
+Traceback (most recent call last):
+  File "/home/users/mhturner/SC-FC/voxel_subsample_analysis.py", line 32, in <module>
+    CorrelationMatrix_Full = RegionConnectivity.loadFunctionalData()
+  File "/home/users/mhturner/SC-FC/region_connectivity/RegionConnectivity.py", line 87, in loadFunctionalData
+    cmat = np.loadtxt(os.path.join(analysis_dir, 'data', fn_cmat), delimiter=' ')
+  File "/home/groups/trc/python/lib/python3.6/site-packages/numpy/lib/npyio.py", line 962, in loadtxt
+    fh = np.lib._datasource.open(fname, 'rt', encoding=encoding)
+  File "/home/groups/trc/python/lib/python3.6/site-packages/numpy/lib/_datasource.py", line 266, in open
+    return ds.open(path, mode, encoding=encoding, newline=newline)
+  File "/home/groups/trc/python/lib/python3.6/site-packages/numpy/lib/_datasource.py", line 624, in open
+    raise IOError("%s not found." % path)
+OSError: /home/mhturner/Dropbox/ClandininLab/Analysis/hemibrain_analysis/roi_connectivity/data/full_cmat.txt not found.
