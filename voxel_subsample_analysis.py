@@ -11,7 +11,7 @@ from matplotlib.backends.backend_pdf import PdfPages
 import datetime
 import time
 import socket
-
+ # TODO: add dates, more fly data, and loop thru flies for pop'n subsampling
 
 analysis_dir = '/home/mhturner/Dropbox/ClandininLab/Analysis/hemibrain_analysis/roi_connectivity'
 
@@ -22,6 +22,7 @@ elif 'sh' in socket.gethostname():
     analysis_dir = '/oak/stanford/groups/trc/data/Max/Analysis/resting_state'
     data_dir = '/oak/stanford/groups/trc/data/Max/Analysis/resting_state/data'
 
+date_id = ''
 fly_id = 'fly2'
 
 atlas_brain = np.asarray(ants.image_read(os.path.join(data_dir, fly_id, 'vfb_68_Original.nii.gz')).numpy(), 'uint8')
