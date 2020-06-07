@@ -23,7 +23,7 @@ elif 'sh' in socket.gethostname():
     data_dir = '/oak/stanford/groups/trc/data/Max/Analysis/resting_state/data'
 
 date_id = ''
-fly_id = 'fly2'
+fly_id = 'fly1'
 
 atlas_brain = np.asarray(ants.image_read(os.path.join(data_dir, fly_id, 'vfb_68_Original.nii.gz')).numpy(), 'uint8')
 functional_brain = ants.image_read(os.path.join(data_dir, fly_id, 'func_volreg.nii.gz'))
