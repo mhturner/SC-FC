@@ -51,7 +51,7 @@ def getRoiMapping():
 
     return mapping
 
-def loadAtlasData(data_dir=None):
+def loadAtlasData(data_dir=None, mapping=None):
     if data_dir is None:
         data_dir = '/home/mhturner/Dropbox/ClandininLab/Analysis/hemibrain_analysis/roi_connectivity/data'
 
@@ -68,6 +68,11 @@ def loadAtlasData(data_dir=None):
     # filter region names
     roi_names = np.array([x for x in roi_names if type(x) is str]) # cut out nan regions from roi names
 
+    # convert names to match display format
+    roi_names = [x.replace('_R','(R)') for x in roi_names]
+    roi_names = [x.replace('_L','(L)') for x in roi_names]
+    roi_names = [x.replace('_', '') for x in roi_names]
+
     # filter mask brain regions
     roi_mask = []
     roi_size = []
@@ -77,9 +82,19 @@ def loadAtlasData(data_dir=None):
         roi_mask.append(new_roi_mask) #bool
         roi_size.append(np.sum(new_roi_mask>0))
 
+    if mapping is not None: #filter atlas data to only include rois in mapping
+        rois = list(mapping.keys())
+        rois.sort()
+        pull_inds = []
+        for r_ind, r in enumerate(rois):
+            pull_inds.append(np.where(np.array(roi_names) == r)[0][0])
+
+        roi_mask = [roi_mask[x] for x in pull_inds]
+        roi_size = [roi_size[x] for x in pull_inds]
+
     return roi_mask, roi_size
 
-def loadFunctionalData(data_dir=None):
+def loadFunctionalData(data_dir=None, mapping=None):
     if data_dir is None:
         data_dir = '/home/mhturner/Dropbox/ClandininLab/Analysis/hemibrain_analysis/roi_connectivity/data'
 
@@ -105,22 +120,44 @@ def loadFunctionalData(data_dir=None):
     roi_names = [x.replace('_L','(L)') for x in roi_names]
     roi_names = [x.replace('_', '') for x in roi_names]
 
-    CorrelationMatrix = pd.DataFrame(data=cmat, index=roi_names, columns=roi_names)
+    CorrelationMatrix_Full = pd.DataFrame(data=cmat, index=roi_names, columns=roi_names)
+
+    if mapping is not None: #filter cmat to only include rois in mapping
+        rois = list(mapping.keys())
+        rois.sort()
+        CorrelationMatrix_Filtered = pd.DataFrame(data=np.zeros(shape=(len(rois), len(rois))), index=rois, columns=rois)
+        for r_ind, r in enumerate(rois):
+            for c_ind, c in enumerate(rois):
+                CorrelationMatrix_Filtered.loc[[r], [c]] = CorrelationMatrix_Full.loc[r, c]
+        CorrelationMatrix = CorrelationMatrix_Filtered
+    else:
+        CorrelationMatrix = CorrelationMatrix_Full
 
     return CorrelationMatrix
 
+def computeRegionResponses(brain, region_masks):
+    """
+    brain is xyzt
+    region_masks is list of xyz masks to use
+    """
+    region_responses = []
+    for r_ind, mask in enumerate(region_masks):
+        region_responses.append(np.mean(brain[mask, :], axis=0))
 
-def filterFunctionalData(CorrelationMatrix_Full, mapping):
-    rois = list(mapping.keys())
-    rois.sort()
-    CorrelationMatrix_Filtered = pd.DataFrame(data=np.zeros(shape=(len(rois), len(rois))), index=rois, columns=rois)
-    pull_inds = []
-    for r_ind, r in enumerate(rois):
-        pull_inds.append(np.where(CorrelationMatrix_Full.index == r)[0][0])
-        for c_ind, c in enumerate(rois):
-            CorrelationMatrix_Filtered.loc[[r], [c]] = CorrelationMatrix_Full.loc[r, c]
+    return np.vstack(region_responses)
 
-    return CorrelationMatrix_Filtered, pull_inds
+def computeCorrelationMatrix(brain, region_masks):
+    """
+    brain is xyzt
+    region_masks is list of xyz masks to use
+    """
+    region_responses = []
+    for r_ind, mask in enumerate(region_masks):
+        region_responses.append(np.mean(brain[mask, :], axis=0))
+    correlation_matrix = np.corrcoef(np.vstack(region_responses))
+
+    return correlation_matrix
+
 
 def getRoiCompleteness(neuprint_client, mapping):
     rois = list(mapping.keys())
