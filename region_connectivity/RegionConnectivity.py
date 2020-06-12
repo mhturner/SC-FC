@@ -88,15 +88,9 @@ def loadAtlasData(atlas_path, roinames_path, mapping=None):
 
     return roi_mask, roi_size
 
-def loadFunctionalData(data_dir=None, mapping=None):
-    if data_dir is None:
-        data_dir = '/home/mhturner/Dropbox/ClandininLab/Analysis/hemibrain_analysis/roi_connectivity/data'
-
-    fn_cmat = 'full_cmat.txt'
-    fn_names = 'Original_Index_panda_full.csv'
-
-    cmat = np.loadtxt(os.path.join(data_dir, fn_cmat), delimiter=' ')
-    roi_names = pd.read_csv(os.path.join(data_dir, fn_names), sep=',', header=0).name.to_numpy()
+def loadFunctionalData(cmat_path, roinames_path, mapping=None):
+    cmat = np.loadtxt(cmat_path, delimiter=' ')
+    roi_names = pd.read_csv(roinames_path, sep=',', header=0).name.to_numpy()
 
     # cut out nan regions (tracts))
     pull_inds = np.where([type(x) is str for x in roi_names])[0]

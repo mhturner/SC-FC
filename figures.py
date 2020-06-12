@@ -25,9 +25,8 @@ https://github.com/connectome-neuprint/neuprint-python
 
 """
 
-data_dir = '/home/mhturner/Dropbox/ClandininLab/Analysis/hemibrain_analysis/roi_connectivity/data'
+data_dir = '/home/mhturner/Dropbox/ClandininLab/Analysis/SC-FC/data'
 analysis_dir = '/home/mhturner/Dropbox/ClandininLab/Analysis/hemibrain_analysis/roi_connectivity'
-atlas_dir = '/home/mhturner/GitHub/DrosAdultBRAINdomains'
 
 # start client
 neuprint_client = Client('neuprint.janelia.org', dataset='hemibrain:v1.0.1', token='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6Im1heHdlbGxob2x0ZXR1cm5lckBnbWFpbC5jb20iLCJsZXZlbCI6Im5vYXV0aCIsImltYWdlLXVybCI6Imh0dHBzOi8vbGgzLmdvb2dsZXVzZXJjb250ZW50LmNvbS9hLS9BT2gxNEdpMHJRX0M4akliX0ZrS2h2OU5DSElsWlpnRDY5YUMtVGdNLWVWM3lRP3N6PTUwP3N6PTUwIiwiZXhwIjoxNzY2MTk1MzcwfQ.Q-57D4tX2sXMjWym2LFhHaUGHgHiUsIM_JI9xekxw_0')
@@ -44,9 +43,12 @@ Functional connectivity and atlas data
     :DistanceMatrix: distance between centers of mass for each pair of ROIs
     :SizeMatrix: geometric mean of the sizes for each pair of ROIs
 """
-CorrelationMatrix_Functional = RegionConnectivity.loadFunctionalData(data_dir=data_dir,mapping=mapping)
-roinames_path = os.path.join(data_dir, 'Original_Index_panda_full.csv')
-atlas_path = os.path.join(data_dir, 'vfb_68_Original.nii.gz')
+roinames_path = os.path.join(data_dir, 'atlas_data', 'Original_Index_panda_full.csv')
+cmat_path = os.path.join(data_dir, 'functional_connectivity', 'full_cmat.txt')
+atlas_path = os.path.join(data_dir, 'atlas_data', 'vfb_68_Original.nii.gz')
+
+# CorrelationMatrix_Functional = RegionConnectivity.loadFunctionalData(cmat_path=cmat_path, roinames_path=roinames_path, mapping=mapping)
+CorrelationMatrix_Functional = pd.read_pickle(os.path.join(data_dir, 'functional_connectivity', 'CorrelationMatrix_Functional_{}.pkl'.format('20200612')))
 roi_mask, roi_size = RegionConnectivity.loadAtlasData(atlas_path=atlas_path, roinames_path=roinames_path, mapping=mapping)
 
 # find center of mass for each roi
@@ -79,9 +81,9 @@ Anatomical connectivity matrices and symmetrized versions of each
 """
 
 # 1) ConnectivityCount
-WeakConnections = pd.read_pickle(os.path.join(analysis_dir,'data', 'WeakConnections_computed_20200507.pkl'))
-MediumConnections = pd.read_pickle(os.path.join(analysis_dir,'data', 'MediumConnections_computed_20200507.pkl'))
-StrongConnections = pd.read_pickle(os.path.join(analysis_dir,'data', 'StrongConnections_computed_20200507.pkl'))
+WeakConnections = pd.read_pickle(os.path.join(data_dir, 'connectome_connectivity', 'WeakConnections_computed_20200507.pkl'))
+MediumConnections = pd.read_pickle(os.path.join(data_dir, 'connectome_connectivity', 'MediumConnections_computed_20200507.pkl'))
+StrongConnections = pd.read_pickle(os.path.join(data_dir, 'connectome_connectivity', 'StrongConnections_computed_20200507.pkl'))
 conn_mat = WeakConnections + MediumConnections + StrongConnections
 # set diag to nan
 tmp_mat = conn_mat.to_numpy().copy()
@@ -90,7 +92,7 @@ ConnectivityCount_Symmetrized = pd.DataFrame(data=(tmp_mat + tmp_mat.T)/2, index
 ConnectivityCount = pd.DataFrame(data=tmp_mat, index=conn_mat.index, columns=conn_mat.index)
 # - - - - - - - - - - - - - - - - #
 # 2) ConnectivityWeight
-weight_mat = pd.read_pickle(os.path.join(analysis_dir,'data', 'Connectivity_computed_20200507.pkl'))
+weight_mat = pd.read_pickle(os.path.join(data_dir, 'connectome_connectivity', 'Connectivity_computed_20200507.pkl'))
 # set diag to nan
 tmp_mat = weight_mat.to_numpy().copy()
 np.fill_diagonal(tmp_mat, np.nan)

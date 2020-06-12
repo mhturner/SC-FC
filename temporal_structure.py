@@ -1,45 +1,29 @@
 import os
-import nibabel as nib
-import numpy as np
-import ants
-import matplotlib.pyplot as plt
-import seaborn as sns
-from scipy.stats import pearsonr
-from region_connectivity import RegionConnectivity
+import glob
 import pandas as pd
-from matplotlib.backends.backend_pdf import PdfPages
-import datetime
-import time
-import socket
-import umap
-from sklearn.cluster import KMeans
 
-analysis_dir = '/home/mhturner/Dropbox/ClandininLab/Analysis/hemibrain_analysis/roi_connectivity'
+import numpy as np
+import matplotlib.pyplot as plt
 
-if socket.gethostname() == 'max-laptop':
-    analysis_dir = '/home/mhturner/Dropbox/ClandininLab/Analysis/hemibrain_analysis/roi_connectivity'
-    data_dir = '/home/mhturner/CurrentData/resting_state'
-elif 'sh' in socket.gethostname():
-    analysis_dir = '/oak/stanford/groups/trc/data/Max/Analysis/resting_state'
-    data_dir = '/oak/stanford/groups/trc/data/Max/Analysis/resting_state/data'
+# import matplotlib.pyplot as plt
+# import seaborn as sns
+# from scipy.stats import pearsonr
+# from region_connectivity import RegionConnectivity
+# import pandas as pd
+# from matplotlib.backends.backend_pdf import PdfPages
+# import datetime
+# import time
+# import socket
+# import umap
+# from sklearn.cluster import KMeans
 
-date_id = ''
-fly_id = 'fly2'
+analysis_dir = '/home/mhturner/Dropbox/ClandininLab/Analysis/SC-FC'
+data_dir = '/home/mhturner/Dropbox/ClandininLab/Analysis/SC-FC/data'
 
-# TODO: use precomputed region responses for this...
-atlas_brain = np.asarray(ants.image_read(os.path.join(data_dir, fly_id, 'vfb_68_Original.nii.gz')).numpy(), 'uint8')
-# %%
-functional_brain = np.asanyarray(nib.load(os.path.join(data_dir, fly_id, 'func_volreg.nii.gz')).dataobj).astype('uint16')
-
-
-# %%
-mapping = RegionConnectivity.getRoiMapping()
-roi_mask, roi_size = RegionConnectivity.loadAtlasData(data_dir=data_dir, mapping=mapping)
-
-# get anatomical matrix
-WeakConnections = pd.read_pickle(os.path.join(data_dir, 'WeakConnections_computed_20200507.pkl'))
-MediumConnections = pd.read_pickle(os.path.join(data_dir, 'MediumConnections_computed_20200507.pkl'))
-StrongConnections = pd.read_pickle(os.path.join(data_dir, 'StrongConnections_computed_20200507.pkl'))
+# Load anatomical stuff:
+WeakConnections = pd.read_pickle(os.path.join(data_dir, 'connectome_connectivity', 'WeakConnections_computed_20200507.pkl'))
+MediumConnections = pd.read_pickle(os.path.join(data_dir, 'connectome_connectivity', 'MediumConnections_computed_20200507.pkl'))
+StrongConnections = pd.read_pickle(os.path.join(data_dir, 'connectome_connectivity', 'StrongConnections_computed_20200507.pkl'))
 conn_mat = WeakConnections + MediumConnections + StrongConnections
 roi_names = conn_mat.index
 # set diag to nan
@@ -50,8 +34,13 @@ ConnectivityMatrix_Symmetrized = pd.DataFrame(data=(tmp_mat + tmp_mat.T)/2, inde
 upper_inds = np.triu_indices(ConnectivityMatrix_Symmetrized.shape[0], k=1) # k=1 excludes main diagonal
 anatomical_adjacency = ConnectivityMatrix_Symmetrized.to_numpy().copy()[upper_inds]
 
-# compute time series responses of all regions
-region_responses = RegionConnectivity.computeRegionResponses(functional_brain, roi_mask)
+
+response_filepaths = glob.glob(os.path.join(data_dir, 'region_responses') + '/' + '*.pkl')
+fp = response_filepaths[0]
+# for fp in response_filepaths:
+
+region_responses = pd.read_pickle(fp)
+
 # %%
 
 dt = 5
@@ -59,7 +48,7 @@ window_sizes = [100]
 fh, ax = plt.subplots(1,1, figsize=(16,8))
 ax2 = plt.twinx(ax)
 for ws in window_sizes:
-    window_centers = np.arange(ws/2, functional_brain.shape[3]-ws/2, dt)
+    window_centers = np.arange(ws/2, region_responses.shape[1]-ws/2, dt)
     r = []
     act = []
     cmats = []

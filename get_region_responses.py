@@ -34,7 +34,6 @@ for brain_fp in brain_filepaths:
 
     save_fn = suffix.split('.')[0] + '.pkl'
     save_path = os.path.join(data_dir, 'region_responses', save_fn)
-    # np.save(save_path, region_responses, )
 
     RegionResponses.to_pickle(save_path)
 
