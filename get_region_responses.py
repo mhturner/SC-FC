@@ -3,6 +3,7 @@ import glob
 import nibabel as nib
 import numpy as np
 import pandas as pd
+import time
 
 from region_connectivity import RegionConnectivity
 t_total_0 = time.time()
