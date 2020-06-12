@@ -13,8 +13,6 @@ data_dir = '/oak/stanford/groups/trc/data/Max/flynet/5d_atlas'
 brain_filepaths = glob.glob(os.path.join(data_dir, 'func_volreg') + '*')
 roinames_path = os.path.join(data_dir, 'Original_Index_panda_full.csv')
 
-brain_filepaths = brain_filepaths[0:1]
-
 mapping = RegionConnectivity.getRoiMapping()
 rois = list(mapping.keys())
 rois.sort()
@@ -26,13 +24,13 @@ for brain_fp in brain_filepaths:
 
     functional_brain = np.asanyarray(nib.load(brain_fp).dataobj).astype('uint16')
 
-    roi_mask, _ = RegionConnectivity.loadAtlasData(atlas_fp, roinames_path, mapping=None)
+    roi_mask, _ = RegionConnectivity.loadAtlasData(atlas_fp, roinames_path, mapping=mapping)
 
     # region_responses: n_rois x n_timepoints np array, mean voxel response in each region
     region_responses = RegionConnectivity.computeRegionResponses(functional_brain, roi_mask)
 
     # make a pandas series to associate ROI names
-    RegionResponses = pd.Series(data=region_responses, index=rois)
+    RegionResponses = pd.DataFrame(data=region_responses, index=rois)
 
     save_fn = suffix.split('.')[0] + '.pkl'
     save_path = os.path.join(data_dir, 'region_responses', save_fn)
