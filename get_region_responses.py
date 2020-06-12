@@ -13,7 +13,7 @@ data_dir = '/oak/stanford/groups/trc/data/Max/flynet/5d_atlas'
 brain_filepaths = glob.glob(os.path.join(data_dir, 'func_volreg') + '*')
 roinames_path = os.path.join(data_dir, 'Original_Index_panda_full.csv')
 
-brain_filepaths = brain_filepaths[0]
+brain_filepaths = brain_filepaths[0:1]
 
 mapping = RegionConnectivity.getRoiMapping()
 rois = list(mapping.keys())
