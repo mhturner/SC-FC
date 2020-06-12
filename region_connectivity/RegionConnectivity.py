@@ -88,7 +88,27 @@ def loadAtlasData(atlas_path, roinames_path, mapping=None):
 
     return roi_mask, roi_size
 
-def loadFunctionalData(cmat_path, roinames_path, mapping=None):
+def getFunctionalConnectivity(response_filepaths):
+    cmats_z = []
+    for resp_fp in response_filepaths:
+        region_responses = pd.read_pickle(resp_fp)
+        correlation_matrix = np.corrcoef(np.vstack(region_responses.to_numpy()))
+        # set diag to 0
+        np.fill_diagonal(correlation_matrix, 0)
+        # fischer z transform (arctanh) and append
+        new_cmat_z = np.arctanh(correlation_matrix)
+        cmats_z.append(new_cmat_z)
+
+    cmats = np.stack(cmats_z, axis=2) # population cmats, z transformed
+
+    # Make mean pd Dataframe
+    mean_cmat = np.mean(cmats, axis=2)
+    np.fill_diagonal(mean_cmat, np.nan)
+    CorrelationMatrix_Functional = pd.DataFrame(data=mean_cmat, index=region_responses.index, columns=region_responses.index)
+
+    return CorrelationMatrix_Functional, cmats
+
+def loadFunctionalData_old(cmat_path, roinames_path, mapping=None):
     cmat = np.loadtxt(cmat_path, delimiter=' ')
     roi_names = pd.read_csv(roinames_path, sep=',', header=0).name.to_numpy()
 
@@ -133,18 +153,6 @@ def computeRegionResponses(brain, region_masks):
         region_responses.append(np.mean(brain[mask, :], axis=0))
 
     return np.vstack(region_responses)
-
-def computeCorrelationMatrix(brain, region_masks):
-    """
-    brain is xyzt
-    region_masks is list of xyz masks to use
-    """
-    region_responses = []
-    for r_ind, mask in enumerate(region_masks):
-        region_responses.append(np.mean(brain[mask, :], axis=0))
-    correlation_matrix = np.corrcoef(np.vstack(region_responses))
-
-    return correlation_matrix
 
 def getRoiCompleteness(neuprint_client, mapping):
     rois = list(mapping.keys())

@@ -1,4 +1,5 @@
 from neuprint import Client
+import glob
 import pandas as pd
 import numpy as np
 import nibabel as nib
@@ -17,6 +18,8 @@ from scipy.stats import kstest, lognorm, norm
 
 from region_connectivity import RegionConnectivity
 
+# TODO: Population data, fly by fly SC-FC correlation
+# TODO: Nonparametric correlation values?
 
 """
 References:
@@ -47,8 +50,8 @@ roinames_path = os.path.join(data_dir, 'atlas_data', 'Original_Index_panda_full.
 cmat_path = os.path.join(data_dir, 'functional_connectivity', 'full_cmat.txt')
 atlas_path = os.path.join(data_dir, 'atlas_data', 'vfb_68_Original.nii.gz')
 
-# CorrelationMatrix_Functional = RegionConnectivity.loadFunctionalData(cmat_path=cmat_path, roinames_path=roinames_path, mapping=mapping)
-CorrelationMatrix_Functional = pd.read_pickle(os.path.join(data_dir, 'functional_connectivity', 'CorrelationMatrix_Functional_{}.pkl'.format('20200612')))
+response_filepaths = glob.glob(os.path.join(data_dir, 'region_responses') + '/' + '*.pkl')
+CorrelationMatrix_Functional, cmats = RegionConnectivity.getFunctionalConnectivity(response_filepaths)
 roi_mask, roi_size = RegionConnectivity.loadAtlasData(atlas_path=atlas_path, roinames_path=roinames_path, mapping=mapping)
 
 # find center of mass for each roi
@@ -216,6 +219,20 @@ ax.set_xscale('log')
 ax.set_xlabel('Connection strength (cells)')
 ax.set_ylabel('Functional correlation (z)')
 ax.annotate('r = {:.3f}'.format(r), xy=(1, 1.3));
+
+r_vals = []
+for c_ind in range(cmats.shape[2]):
+    cmat = cmats[:, :, c_ind]
+    functional_adjacency = cmat[upper_inds][keep_inds]
+
+    r, p = pearsonr(anatomical_adjacency, functional_adjacency)
+    r_vals.append(r)
+
+
+fig2_3, ax = plt.subplots(1,1,figsize=(2,6))
+sns.swarmplot(x=np.ones_like(r_vals), y=r_vals, color='k')
+ax.set_ylabel('Correlation coefficient (z)')
+ax.set_ylim([0, 1])
 # %% Other determinants of FC
 # TODO: corrs with size, distance etc
 
