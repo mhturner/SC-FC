@@ -45,7 +45,9 @@ Functional connectivity and atlas data
     :SizeMatrix: geometric mean of the sizes for each pair of ROIs
 """
 CorrelationMatrix_Functional = RegionConnectivity.loadFunctionalData(data_dir=data_dir,mapping=mapping)
-roi_mask, roi_size = RegionConnectivity.loadAtlasData(data_dir=data_dir, mapping=mapping)
+roinames_path = os.path.join(data_dir, 'Original_Index_panda_full.csv')
+atlas_path = os.path.join(data_dir, 'vfb_68_Original.nii.gz')
+roi_mask, roi_size = RegionConnectivity.loadAtlasData(atlas_path=atlas_path, roinames_path=roinames_path, mapping=mapping)
 
 # find center of mass for each roi
 coms = np.vstack([center_of_mass(x) for x in roi_mask])
@@ -108,36 +110,26 @@ PrecomputedCount_Symmetrized = pd.DataFrame(data=(tmp_mat + tmp_mat.T)/2, index=
 PrecomputedCount = pd.DataFrame(data=tmp_mat, index=pcweight_mat.index, columns=pcweight_mat.index)
 
 # compute two-step count connectivity matrix
+# TODO: remove AAC and ACC connections - check this
 A = ConnectivityCount.to_numpy().copy()
 two_steps = np.zeros_like(A)
 for source in range(ConnectivityCount.shape[0]):
     for target in range(ConnectivityCount.shape[1]):
         if source != target:
-            conns = [A[source, x] * A[x, target] for x in range(ConnectivityCount.shape[0])]
+            conns = [np.sqrt(A[source, x] * A[x, target]) for x in range(ConnectivityCount.shape[0]) if x not in (source, target)]
             two_steps[source, target] = np.nansum(conns)
 
 TwoStep_Symmetrized = pd.DataFrame(data=(two_steps + two_steps.T)/2, index=ConnectivityCount.index, columns=ConnectivityCount.index)
 TwoStep = pd.DataFrame(data=two_steps, index=ConnectivityCount.index, columns=ConnectivityCount.index)
-# %% FIGURE 1: Correlation between anatomical and functional connectivty matrices
-fig1_0, ax = plt.subplots(1, 2, figsize=(16,8))
 
-df = np.log10(ConnectivityCount).replace([np.inf, -np.inf], np.nan)
+# %%
 
-sns.heatmap(df, ax=ax[0], xticklabels=True, cbar_kws={'label': 'Connection strength (cells)', 'shrink': .8}, cmap="cividis", rasterized=True)
-ax[0].set_xlabel('Target');
-ax[0].set_ylabel('Source');
-ax[0].set_aspect('equal')
-ax[0].set_title('Anatomical');
+plt.plot(TwoStep_Symmetrized.to_numpy().ravel(), ConnectivityCount.to_numpy().ravel(),'ko')
 
-sns.heatmap(CorrelationMatrix_Functional, ax=ax[1], xticklabels=True, cbar_kws={'label': 'Correlation (z)','shrink': .8}, cmap="cividis", rasterized=True)
-ax[1].set_aspect('equal')
-ax[1].set_title('Functional');
-
-
-# %% distribtution of connection strengths and weight/count relationship
+# %% Fig1: Distribtution of connection strengths and weight/count relationship
 upper_inds = np.triu_indices(ConnectivityCount.shape[0], k=1) # k=1 excludes main diagonal
 
-fig1_1, ax = plt.subplots(1, 2, figsize=(12,4))
+fig1_0, ax = plt.subplots(1, 2, figsize=(16,4))
 
  # Toss zero connection values for log transform
 keep_inds = np.where(ConnectivityCount_Symmetrized.to_numpy()[upper_inds] > 0)
@@ -150,7 +142,7 @@ val, bin = np.histogram(log_ct, 20, density=True)
 ax[0].plot(10**bin[:-1], val, LineWidth=2)
 xx = np.linspace(-1, 4, 100)
 yy = norm(loc=np.mean(np.log10(ct)), scale=np.std(np.log10(ct))).pdf(xx)
-ax[0].plot(10**xx, yy, 'k', alpha=0.5)
+ax[0].plot(10**xx, yy, 'k', alpha=1)
 
 p_ct, _ = kstest(zscore(log_ct), 'norm')
 ax[0].set_xlabel('Cell count')
@@ -166,7 +158,7 @@ val, bin = np.histogram(log_wt, 30, density=True)
 ax[1].plot(10**bin[:-1], val, LineWidth=2)
 xx = np.linspace(-1, 7, 100)
 yy = norm(loc=np.mean(np.log10(wt)), scale=np.std(np.log10(wt))).pdf(xx)
-ax[1].plot(10**xx, yy, 'k', alpha=0.5)
+ax[1].plot(10**xx, yy, 'k', alpha=1)
 p_wt, _ = kstest(zscore(log_wt), 'norm')
 ax[1].set_xlabel('Connection weight')
 ax[1].set_ylabel('Prob.')
@@ -174,15 +166,32 @@ ax[1].set_xscale('log')
 
 print('KS test lognormal: Count p = {:.4f}; weight p = {:.4f}'.format(p_ct, p_wt))
 
-# %%
 
-fig1_2, ax = plt.subplots(1, figsize=(4,4))
+fig1_1, ax = plt.subplots(1, figsize=(4,4))
 r, p = pearsonr(ConnectivityCount_Symmetrized.to_numpy()[upper_inds], ConnectivityWeight_Symmetrized.to_numpy()[upper_inds])
 ax.plot(ConnectivityCount_Symmetrized.to_numpy()[upper_inds], ConnectivityWeight_Symmetrized.to_numpy()[upper_inds], 'ko')
 ax.set_title('r = {:.3f}'.format(r));
 ax.set_xlabel('Cell count')
 ax.set_ylabel('Connection weight')
-# %%
+
+# %% FIGURE 2: Connectivity matrices and SC-FC correlation
+# TODO: add e.g. region traces
+fig2_1, ax = plt.subplots(1, 2, figsize=(16,8))
+
+df = np.log10(ConnectivityCount).replace([np.inf, -np.inf], 0)
+
+
+sns.heatmap(df, ax=ax[0], xticklabels=True, cbar_kws={'label': 'Connection strength (cells)', 'shrink': .8}, cmap="cividis", rasterized=True)
+ax[0].set_xlabel('Target');
+ax[0].set_ylabel('Source');
+ax[0].set_aspect('equal')
+ax[0].set_title('Anatomical');
+
+sns.heatmap(CorrelationMatrix_Functional, ax=ax[1], xticklabels=True, cbar_kws={'label': 'Correlation (z)','shrink': .8}, cmap="cividis", rasterized=True)
+ax[1].set_aspect('equal')
+ax[1].set_title('Functional');
+
+
 do_log_transform = True
 if do_log_transform:
     keep_inds = np.where(ConnectivityCount_Symmetrized.to_numpy()[upper_inds] > 0) # toss zero connection values
@@ -197,7 +206,7 @@ r, p = pearsonr(anatomical_adjacency, functional_adjacency)
 coef = np.polyfit(anatomical_adjacency, functional_adjacency, 1)
 linfit = np.poly1d(coef)
 
-fig1_1, ax = plt.subplots(1,1,figsize=(6,6))
+fig2_2, ax = plt.subplots(1,1,figsize=(6,6))
 ax.scatter(10**anatomical_adjacency, functional_adjacency, color='k')
 xx = np.linspace(anatomical_adjacency.min(), anatomical_adjacency.max(), 100)
 ax.plot(10**xx, linfit(xx), 'k-')
@@ -205,7 +214,10 @@ ax.set_xscale('log')
 ax.set_xlabel('Connection strength (cells)')
 ax.set_ylabel('Functional correlation (z)')
 ax.annotate('r = {:.3f}'.format(r), xy=(1, 1.3));
-# %% Multiple linear regression
+# %% Other determinants of FC
+# TODO: corrs with size, distance etc
+
+# Multiple linear regression model:
 from sklearn.linear_model import LinearRegression, Ridge, ARDRegression, BayesianRidge
 
 upper_inds = np.triu_indices(ConnectivityCount_Symmetrized.to_numpy().shape[0], k=1) #k=1 excludes main fill_diagonal
@@ -224,11 +236,10 @@ X = np.vstack([count, size, dist]).T
 fc = zscore(CorrelationMatrix_Functional.to_numpy()[upper_inds][keep_inds])
 # fc = CorrelationMatrix_Functional.to_numpy()[upper_inds][keep_inds]
 
-
 # linear correlation of each variable with fc
 corr_vals = np.array([np.corrcoef(X[:,c],fc)[0,1] for c in range(X.shape[1])])
 
-fh, ax = plt.subplots(1, 1, figsize=(6,6))
+fig3_0, ax = plt.subplots(1, 1, figsize=(6,6))
 regressor = LinearRegression()
 regressor.fit(X, fc);
 pred = regressor.predict(X)
@@ -242,147 +253,8 @@ ax.set_xlabel('Predicted FC')
 ax.set_ylabel('Measured FC (z-score)');
 
 
-# %% FIGURE 2 - effects of distance and sizes between ROIs
-#
-# upper_inds = np.triu_indices(DistanceMatrix.to_numpy().shape[0], k=1) #k=1 excludes main diagonal
-# anat = ConnectivityMatrix_Symmetrized.to_numpy()[upper_inds]
-# fc = CorrelationMatrix_Functional.to_numpy()[upper_inds]
-#
-#
-# fig2_0, ax = plt.subplots(2, 4, figsize=(16,10))
-#
-# # # # # Effect of distance
-# dist = DistanceMatrix.to_numpy()[upper_inds]
-#
-# r, p = pearsonr(dist, anat)
-# coef = np.polyfit(dist, anat, 1)
-# poly1d_fn = np.poly1d(coef)
-# xx = [dist.min(), dist.max()]
-# ax[0, 0].scatter(dist, anat, color='k', alpha=0.5)
-# ax[0, 0].plot(xx, poly1d_fn(xx), LineWidth=2, color='k', marker=None)
-# ax[0, 0].set_xlabel('Distance between ROIs')
-# ax[0, 0].set_ylabel('Anatomical connectivity')
-# ax[0, 0].set_title('r = {:.3f}'.format(r))
-#
-# r, p = pearsonr(dist, fc)
-# coef = np.polyfit(dist, fc, 1)
-# poly1d_fn = np.poly1d(coef)
-# xx = [dist.min(), dist.max()]
-# ax[0, 1].scatter(dist, fc, color='k', alpha=0.5)
-# ax[0, 1].plot(xx, poly1d_fn(xx), LineWidth=2, color='k', marker=None)
-# ax[0, 1].set_xlabel('Distance between ROIs')
-# ax[0, 1].set_ylabel('Functional correlation (z)')
-# ax[0, 1].set_title('r = {:.3f}'.format(r))
-#
-# residuals = zscore(fc) - zscore(dist)
-#
-# r, p = pearsonr(anat, residuals)
-# coef = np.polyfit(anat, residuals, 1)
-# poly1d_fn = np.poly1d(coef)
-# xx = np.linspace(anat.min(), anat.max(), 20)
-#
-# sc = ax[0, 2].scatter(anat, residuals, alpha=0.5, color='k')
-# ax[0, 2].plot(xx, poly1d_fn(xx), LineWidth=2, marker=None)
-# ax[0, 2].set_xlabel('Anatomical connectivity')
-# ax[0, 2].set_ylabel('Residual (zscore)')
-# ax[0, 2].set_title('r = {:.3f}'.format(r));
-#
-# # # # effect of region sizes
-# size = SizeMatrix.to_numpy()[upper_inds]
-#
-# r, p = pearsonr(size, anat)
-# coef = np.polyfit(size, anat, 1)
-# poly1d_fn = np.poly1d(coef)
-# xx = [size.min(), size.max()]
-# ax[1, 0].scatter(size, anat, color='k', alpha=0.5)
-# ax[1, 0].plot(xx, poly1d_fn(xx), LineWidth=2, color='k', marker=None)
-# ax[1, 0].set_xlabel('Size of ROIs')
-# ax[1, 0].set_ylabel('Anatomical connectivity')
-# ax[1, 0].set_title('r = {:.3f}'.format(r))
-#
-#
-# colors = anat / anat.max()
-# r, p = pearsonr(size, fc)
-# coef = np.polyfit(size, fc, 1)
-# poly1d_fn = np.poly1d(coef)
-# xx = [size.min(), size.max()]
-# ax[1, 1].scatter(size, fc, c=colors, alpha=0.5)
-# ax[1, 1].plot(xx, poly1d_fn(xx), LineWidth=2, color='k', marker=None)
-# ax[1, 1].set_xlabel('Size of ROIs')
-# ax[1, 1].set_ylabel('Functional correlation (z)')
-# ax[1, 1].set_title('r = {:.3f}'.format(r))
-#
-# residuals = zscore(fc) - zscore(size)
-#
-# r, p = pearsonr(anat, residuals)
-# coef = np.polyfit(anat, residuals, 1)
-# poly1d_fn = np.poly1d(coef)
-# xx = np.linspace(anat.min(), anat.max(), 20)
-#
-# sc = ax[1, 2].scatter(anat, residuals, alpha=0.5, color='k')
-#
-# ax[1, 2].plot(xx, poly1d_fn(xx), LineWidth=2, marker=None)
-# ax[1, 2].set_xlabel('Anatomical connectivity')
-# ax[1, 2].set_ylabel('Residual (zscore)')
-# ax[1, 2].set_title('r = {:.3f}'.format(r));
-#
-# # regress out anat and see how much size explains
-# residuals = zscore(fc) - zscore(anat)
-#
-# r, p = pearsonr(size, residuals)
-# coef = np.polyfit(size, residuals, 1)
-# poly1d_fn = np.poly1d(coef)
-# xx = np.linspace(size.min(), size.max(), 20)
-#
-# sc = ax[1, 3].scatter(size, residuals, alpha=0.5, color='k')
-#
-# ax[1, 3].plot(xx, poly1d_fn(xx), LineWidth=2, marker=None)
-# ax[1, 3].set_xlabel('size')
-# ax[1, 3].set_ylabel('Residual (zscore)')
-# ax[1, 3].set_title('r = {:.3f}'.format(r));
-# # %%
-# fig2_1, ax = plt.subplots(1, 2, figsize=(18,9))
-#
-# colors = size / size.max()
-# r, p = pearsonr(anat, fc)
-# coef = np.polyfit(anat, fc, 1)
-# poly1d_fn = np.poly1d(coef)
-# xx = [anat.min(), anat.max()]
-# ax[0].scatter(anat, fc, c=colors, alpha=1.0, cmap='viridis', edgecolors='k')
-# ax[0].plot(xx, poly1d_fn(xx), LineWidth=2, color='k', marker=None)
-# ax[0].set_xlabel('Anatomical connectivity')
-# ax[0].set_ylabel('Functional correlation (z)')
-# ax[0].set_title('r = {:.3f}'.format(r))
-#
-# colors = anat / anat.max()
-# r, p = pearsonr(size, fc)
-# coef = np.polyfit(size, fc, 1)
-# poly1d_fn = np.poly1d(coef)
-# xx = [size.min(), size.max()]
-# ax[1].scatter(size, fc, c=colors, alpha=1.0, cmap='viridis', edgecolors='k')
-# ax[1].plot(xx, poly1d_fn(xx), LineWidth=2, color='k', marker=None)
-# ax[1].set_xlabel('G. Mean region size')
-# ax[1].set_ylabel('Functional correlation (z)')
-# ax[1].set_title('r = {:.3f}'.format(r))
-#
-# # %%
-# import matplotlib
-# import matplotlib.pyplot as plt
-# from mpl_toolkits.mplot3d import Axes3D
-#
-# upper_inds = np.triu_indices(ConnectivityMatrix_Symmetrized.to_numpy().shape[0], k=1) #k=1 excludes main diagonal
-# anat = ConnectivityMatrix_Symmetrized.to_numpy()[upper_inds]
-# fc = CorrelationMatrix_Functional.to_numpy()[upper_inds]
-# size = SizeMatrix.to_numpy()[upper_inds]
-#
-#
-# fh = plt.figure(figsize=(16, 8))
-# ax = fh.add_subplot(1, 1, 1, projection='3d')
-# ax.scatter(size, anat, fc, color='k', marker='o', alpha=1.0)
-# ax.set_xlabel('G. Mean region size')
-# ax.set_ylabel('Anatomical connectivity')
 
-# %% FIGURE 3
+# %% Difference matrix
 
 # compute difference matrix using original, asymmetric anatomical connectivity matrix
 anatomical_mat = ConnectivityCount.to_numpy().copy()
@@ -476,10 +348,7 @@ for z_ind, z in enumerate(zslices):
 cb = fig4_0.colorbar(img, ax=ax)
 cb.set_label(label='Anat - Fxnal connectivity', weight='bold', color='k')
 cb.ax.tick_params(labelsize=12, color='k')
-# for l in cb.ax.yaxis.get_ticklabels():
-#     l.set_weight("bold")
-#     l.set_color("white")
-#     l.set_fontsize(12)
+
 
 
 

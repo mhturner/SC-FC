@@ -26,6 +26,7 @@ elif 'sh' in socket.gethostname():
 date_id = ''
 fly_id = 'fly2'
 
+# TODO: use precomputed region responses for this...
 atlas_brain = np.asarray(ants.image_read(os.path.join(data_dir, fly_id, 'vfb_68_Original.nii.gz')).numpy(), 'uint8')
 # %%
 functional_brain = np.asanyarray(nib.load(os.path.join(data_dir, fly_id, 'func_volreg.nii.gz')).dataobj).astype('uint16')
@@ -55,7 +56,7 @@ region_responses = RegionConnectivity.computeRegionResponses(functional_brain, r
 
 dt = 5
 window_sizes = [100]
-fh, ax = plt.subplots(1,1, figsize=(12,4))
+fh, ax = plt.subplots(1,1, figsize=(16,8))
 ax2 = plt.twinx(ax)
 for ws in window_sizes:
     window_centers = np.arange(ws/2, functional_brain.shape[3]-ws/2, dt)

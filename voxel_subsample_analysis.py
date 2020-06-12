@@ -13,8 +13,6 @@ import time
 import socket
  # TODO: add dates, more fly data, and loop thru flies for pop'n subsampling
 
-analysis_dir = '/home/mhturner/Dropbox/ClandininLab/Analysis/hemibrain_analysis/roi_connectivity'
-
 if socket.gethostname() == 'max-laptop':
     analysis_dir = '/home/mhturner/Dropbox/ClandininLab/Analysis/hemibrain_analysis/roi_connectivity'
     data_dir = '/home/mhturner/CurrentData/resting_state'
