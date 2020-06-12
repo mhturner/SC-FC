@@ -26,7 +26,7 @@ https://github.com/connectome-neuprint/neuprint-python
 """
 
 data_dir = '/home/mhturner/Dropbox/ClandininLab/Analysis/SC-FC/data'
-analysis_dir = '/home/mhturner/Dropbox/ClandininLab/Analysis/hemibrain_analysis/roi_connectivity'
+analysis_dir = '/home/mhturner/Dropbox/ClandininLab/Analysis/SC-FC'
 
 # start client
 neuprint_client = Client('neuprint.janelia.org', dataset='hemibrain:v1.0.1', token='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6Im1heHdlbGxob2x0ZXR1cm5lckBnbWFpbC5jb20iLCJsZXZlbCI6Im5vYXV0aCIsImltYWdlLXVybCI6Imh0dHBzOi8vbGgzLmdvb2dsZXVzZXJjb250ZW50LmNvbS9hLS9BT2gxNEdpMHJRX0M4akliX0ZrS2h2OU5DSElsWlpnRDY5YUMtVGdNLWVWM3lRP3N6PTUwP3N6PTUwIiwiZXhwIjoxNzY2MTk1MzcwfQ.Q-57D4tX2sXMjWym2LFhHaUGHgHiUsIM_JI9xekxw_0')
@@ -292,8 +292,6 @@ anat_conn = ConnectivityCount.to_numpy().ravel()[include_inds]
 
 
 r, p = pearsonr(comp_score, diff_score)
-r
-p
 
 figS1, ax = plt.subplots(1, 2, figsize=(12,6))
 ax[0].scatter(comp_score, diff_score, marker='o', color='k', alpha=0.5)
@@ -316,7 +314,7 @@ for r_ind, r_key in enumerate(sort_keys):
     for c_ind, c_key in enumerate(sort_keys):
         sorted_diff.iloc[r_ind, c_ind]=DifferenceMatrix.loc[[r_key], [c_key]].to_numpy()
 
-fig3_0, ax = plt.subplots(1, 2, figsize=(16,8))
+fig4_0, ax = plt.subplots(1, 2, figsize=(16,8))
 lim = np.nanmax(np.abs(DifferenceMatrix.to_numpy().ravel()))
 ax[0].scatter(A_zscore, F_zscore, alpha=1, c=diff, cmap="RdBu",  vmin=-lim, vmax=lim, edgecolors='k', linewidths=0.5)
 ax[0].plot([-3, 3], [-3, 3], 'k-')
@@ -340,14 +338,14 @@ for r_ind, r in enumerate(roi_mask):
 zslices = np.arange(5, 65, 12)
 lim = np.nanmax(np.abs(diff_brain.ravel()))
 
-fig4_0 = plt.figure(figsize=(15,3))
+fig4_1 = plt.figure(figsize=(15,3))
 for z_ind, z in enumerate(zslices):
-    ax = fig4_0.add_subplot(1, 5, z_ind+1)
+    ax = fig4_1.add_subplot(1, 5, z_ind+1)
     img = ax.imshow(diff_brain[:, :, z].T, cmap="RdBu", rasterized=True, vmin=-lim, vmax=lim)
     ax.set_axis_off()
     ax.set_aspect('equal')
 
-cb = fig4_0.colorbar(img, ax=ax)
+cb = fig4_1.colorbar(img, ax=ax)
 cb.set_label(label='Anat - Fxnal connectivity', weight='bold', color='k')
 cb.ax.tick_params(labelsize=12, color='k')
 
@@ -359,9 +357,11 @@ cb.ax.tick_params(labelsize=12, color='k')
 with PdfPages(os.path.join(analysis_dir, 'SC_FC_figs.pdf')) as pdf:
     pdf.savefig(fig1_0)
     pdf.savefig(fig1_1)
-    pdf.savefig(fig2_0)
+    pdf.savefig(fig2_1)
+    pdf.savefig(fig2_2)
     pdf.savefig(fig3_0)
     pdf.savefig(fig4_0)
+    pdf.savefig(fig4_1)
 
     d = pdf.infodict()
     d['Title'] = 'SC-FC early figs'
