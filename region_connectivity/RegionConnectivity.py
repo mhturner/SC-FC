@@ -51,15 +51,9 @@ def getRoiMapping():
 
     return mapping
 
-def loadAtlasData(data_dir=None, mapping=None):
-    if data_dir is None:
-        data_dir = '/home/mhturner/Dropbox/ClandininLab/Analysis/hemibrain_analysis/roi_connectivity/data'
-
-    fn_names = 'Original_Index_panda_full.csv'
-    fn_maskbrain = 'vfb_68_Original.nii.gz'
-
-    roi_names = pd.read_csv(os.path.join(data_dir, fn_names), sep=',', header=0).name.to_numpy()
-    mask_brain = np.asarray(np.squeeze(nib.load(os.path.join(data_dir, fn_maskbrain)).get_fdata()), 'uint8')
+def loadAtlasData(atlas_path, roinames_path, mapping=None):
+    roi_names = pd.read_csv(roinames_path, sep=',', header=0).name.to_numpy()
+    mask_brain = np.asarray(np.squeeze(nib.load(atlas_path).get_fdata()), 'uint8')
 
     # cut out nan regions (tracts))
     pull_inds = np.where([type(x) is str for x in roi_names])[0]
@@ -82,7 +76,7 @@ def loadAtlasData(data_dir=None, mapping=None):
         roi_mask.append(new_roi_mask) #bool
         roi_size.append(np.sum(new_roi_mask>0))
 
-    if mapping is not None: #filter atlas data to only include rois in mapping
+    if mapping is not None: #filter atlas data to only include rois in mapping, sort by sorted mapping rois
         rois = list(mapping.keys())
         rois.sort()
         pull_inds = []
@@ -157,7 +151,6 @@ def computeCorrelationMatrix(brain, region_masks):
     correlation_matrix = np.corrcoef(np.vstack(region_responses))
 
     return correlation_matrix
-
 
 def getRoiCompleteness(neuprint_client, mapping):
     rois = list(mapping.keys())
