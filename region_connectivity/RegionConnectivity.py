@@ -3,6 +3,7 @@ import numpy as np
 import pandas as pd
 import os
 import nibabel as nib
+from scipy import signal
 
 def getRoiMapping():
     """
@@ -88,11 +89,24 @@ def loadAtlasData(atlas_path, roinames_path, mapping=None):
 
     return roi_mask, roi_size
 
-def getFunctionalConnectivity(response_filepaths):
+def filterRegionResponse(region_response, cutoff=None, fs=None, t_start=None, t_end=None):
+    if fs is not None:
+        sos = signal.butter(1, cutoff, 'hp', fs=fs, output='sos')
+        resp = signal.sosfilt(sos, region_response)[:, t_start:t_end]
+        resp = pd.DataFrame(data=resp, index=region_response.index)
+    else:
+        resp = region_response.iloc[:, t_start:t_end]
+
+    return resp
+
+def getFunctionalConnectivity(response_filepaths, cutoff=None, fs=None, t_start=None, t_end=None):
     cmats_z = []
     for resp_fp in response_filepaths:
         region_responses = pd.read_pickle(resp_fp)
-        correlation_matrix = np.corrcoef(np.vstack(region_responses.to_numpy()))
+
+        resp = filterRegionResponse(region_responses, cutoff=cutoff, fs=fs, t_start=t_start, t_end=t_end)
+
+        correlation_matrix = np.corrcoef(resp)
         # set diag to 0
         np.fill_diagonal(correlation_matrix, 0)
         # fischer z transform (arctanh) and append

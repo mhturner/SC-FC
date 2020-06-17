@@ -51,7 +51,12 @@ cmat_path = os.path.join(data_dir, 'functional_connectivity', 'full_cmat.txt')
 atlas_path = os.path.join(data_dir, 'atlas_data', 'vfb_68_Original.nii.gz')
 
 response_filepaths = glob.glob(os.path.join(data_dir, 'region_responses') + '/' + '*.pkl')
-CorrelationMatrix_Functional, cmats = RegionConnectivity.getFunctionalConnectivity(response_filepaths)
+# CorrelationMatrix_Functional, cmats = RegionConnectivity.getFunctionalConnectivity(response_filepaths, t_lim=1000)
+fs = 1.2
+cutoff = 0.01
+t_start = 100
+t_end = None
+CorrelationMatrix_Functional, cmats = RegionConnectivity.getFunctionalConnectivity(response_filepaths, cutoff=cutoff, fs=fs, t_start=t_start, t_end=t_end)
 roi_mask, roi_size = RegionConnectivity.loadAtlasData(atlas_path=atlas_path, roinames_path=roinames_path, mapping=mapping)
 
 # find center of mass for each roi
@@ -180,12 +185,44 @@ ax.set_xlabel('Cell count')
 ax.set_ylabel('Connection weight')
 
 # %% FIGURE 2: Connectivity matrices and SC-FC correlation
-# TODO: add e.g. region traces
+
+colors = sns.color_palette("Set2", n_colors=20)
+
+t_lim = 1000
+ind = 0
+resp_fp = response_filepaths[ind]
+region_responses = pd.read_pickle(resp_fp)
+# region_responses = RegionConnectivity.filterRegionResponse(region_responses, cutoff=cutoff, fs=fs, t_start=t_start, t_end=t_end)
+new_dff = (region_responses.to_numpy() - np.mean(region_responses.to_numpy(), axis=1)[:, None]) / np.mean(region_responses.to_numpy(), axis=1)[:, None]
+
+region_dff = pd.DataFrame(data=new_dff, index=region_responses.index)
+
+pull_regions = ['MBML(L)', 'MBML(R)', 'MBVL(R)', 'CRE(R)', 'CRE(L)']
+fig2_1, ax = plt.subplots(5, 1, figsize=(12,8))
+ax = ax.ravel()
+[x.set_axis_off() for x in ax]
+[x.set_ylim([-0.5, 1.0]) for x in ax]
+for p_ind, pr in enumerate(pull_regions):
+    ax[p_ind].plot(region_dff.loc[pr, 100:t_lim], color=colors[p_ind])
+    ax[p_ind].annotate(pr, (100, 1))
+
+
+pull_regions = ['LAL(R)', 'AL(R)', 'FB', 'VES(R)']
+fig2_1, ax = plt.subplots(4, 1, figsize=(12,8))
+ax = ax.ravel()
+[x.set_axis_off() for x in ax]
+[x.set_ylim([-0.2, 0.4]) for x in ax]
+for p_ind, pr in enumerate(pull_regions):
+    ax[p_ind].plot(region_dff.loc[pr, 100:t_lim], color=colors[p_ind])
+    ax[p_ind].annotate(pr, (100, 0.4))
+
+
+# %%
+
+
 fig2_1, ax = plt.subplots(1, 2, figsize=(16,8))
 
 df = np.log10(ConnectivityCount).replace([np.inf, -np.inf], 0)
-
-
 sns.heatmap(df, ax=ax[0], xticklabels=True, cbar_kws={'label': 'Connection strength (cells)', 'shrink': .8}, cmap="cividis", rasterized=True)
 ax[0].set_xlabel('Target');
 ax[0].set_ylabel('Source');
@@ -218,7 +255,7 @@ ax.plot(10**xx, linfit(xx), 'k-')
 ax.set_xscale('log')
 ax.set_xlabel('Connection strength (cells)')
 ax.set_ylabel('Functional correlation (z)')
-ax.annotate('r = {:.3f}'.format(r), xy=(1, 1.3));
+ax.annotate('r = {:.3f}'.format(r), xy=(1, 1.0));
 
 r_vals = []
 for c_ind in range(cmats.shape[2]):
@@ -228,6 +265,7 @@ for c_ind in range(cmats.shape[2]):
     r, p = pearsonr(anatomical_adjacency, functional_adjacency)
     r_vals.append(r)
 
+r_vals
 
 fig2_3, ax = plt.subplots(1,1,figsize=(2,6))
 sns.swarmplot(x=np.ones_like(r_vals), y=r_vals, color='k')

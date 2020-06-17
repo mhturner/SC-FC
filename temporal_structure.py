@@ -1,21 +1,13 @@
 import os
 import glob
-import pandas as pd
-
 import numpy as np
 import matplotlib.pyplot as plt
+from scipy.stats import pearsonr, zscore
+import pandas as pd
 
-# import matplotlib.pyplot as plt
-# import seaborn as sns
-# from scipy.stats import pearsonr
-# from region_connectivity import RegionConnectivity
-# import pandas as pd
-# from matplotlib.backends.backend_pdf import PdfPages
-# import datetime
-# import time
-# import socket
-# import umap
-# from sklearn.cluster import KMeans
+from region_connectivity import RegionConnectivity
+
+
 
 analysis_dir = '/home/mhturner/Dropbox/ClandininLab/Analysis/SC-FC'
 data_dir = '/home/mhturner/Dropbox/ClandininLab/Analysis/SC-FC/data'
@@ -34,44 +26,81 @@ ConnectivityMatrix_Symmetrized = pd.DataFrame(data=(tmp_mat + tmp_mat.T)/2, inde
 upper_inds = np.triu_indices(ConnectivityMatrix_Symmetrized.shape[0], k=1) # k=1 excludes main diagonal
 anatomical_adjacency = ConnectivityMatrix_Symmetrized.to_numpy().copy()[upper_inds]
 
-
-response_filepaths = glob.glob(os.path.join(data_dir, 'region_responses') + '/' + '*.pkl')
-fp = response_filepaths[0]
-# for fp in response_filepaths:
-
-region_responses = pd.read_pickle(fp)
-
 # %%
 
+fs = 1.2
+cutoff = 0.01
+t_start = 100
+t_end = None
+
+response_filepaths = glob.glob(os.path.join(data_dir, 'region_responses') + '/' + '*.pkl')
+fh, ax = plt.subplots(5, 3, figsize=(24, 8))
+ax = ax.ravel()
+[x.set_axis_off() for x in ax]
+
+for ind in range(len(response_filepaths)):
+
+
+    region_response = pd.read_pickle(response_filepaths[ind])
+    region_response = RegionConnectivity.filterRegionResponse(region_response, cutoff=cutoff, fs=fs, t_start=t_start, t_end=t_end)
+
+    correlation_matrix = np.corrcoef(region_response)
+
+
+    ax[ind].plot(region_response.T);
+
+    r, _ = pearsonr(anatomical_adjacency, correlation_matrix[upper_inds])
+    ax[ind].set_title('r={:.2f}'.format(r))
+
+
+
+fh.savefig(os.path.join(analysis_dir, 'HPfiltering_{}.png'.format(fs)))
+# %%
+fs = 2
+cutoff = 0.025
+t_start = 50
+t_end = None
+
+ind = 9
 dt = 5
-window_sizes = [100]
-fh, ax = plt.subplots(1,1, figsize=(16,8))
-ax2 = plt.twinx(ax)
-for ws in window_sizes:
-    window_centers = np.arange(ws/2, region_responses.shape[1]-ws/2, dt)
-    r = []
-    act = []
-    cmats = []
-    corr = []
-    for t in window_centers:
-        correlation_matrix = np.corrcoef(region_responses[:, int(t-ws/2):int(t+ws/2)])
-        cmats.append(correlation_matrix[upper_inds])
+ws = 50
 
-        corr.append(np.mean(correlation_matrix[upper_inds]))
+resp_fp = response_filepaths[ind]
 
-        r_new, _ = pearsonr(anatomical_adjacency, correlation_matrix[upper_inds])
-        r.append(r_new)
+fh, ax = plt.subplots(2, 1, figsize=(16, 8))
 
-        activity = np.var(region_responses[:, int(t-ws/2):int(t+ws/2)], axis=1) / np.mean(region_responses[:, int(t-ws/2):int(t+ws/2)], axis=1)
-        act.append(np.mean(activity))
 
-    ax.plot(window_centers, r, LineStyle='-', c='k', label='SC-FC corr')
-    ax2.plot(window_centers, corr, LineStyle='-', c='r', label='Mean FC')
-    # ax2.plot(window_centers, act, LineStyle='--', label='activity_{}'.format(ws), color='b')
+region_responses = pd.read_pickle(resp_fp)
+region_responses = RegionConnectivity.filterRegionResponse(region_responses, cutoff=cutoff, fs=fs, t_start=t_start, t_end=t_end)
+ax[0].plot(region_responses.T)
 
-ax.set_ylabel('SC-FC correlation')
-ax2.set_ylabel('Mean FC')
-fh.legend()
+window_centers = np.arange(ws/2, region_responses.shape[1]-ws/2, dt)
+r = []
+act = []
+cmats = []
+corr = []
+for t in window_centers:
+    correlation_matrix = np.corrcoef(region_responses.to_numpy()[:, int(t-ws/2):int(t+ws/2)])
+    cmats.append(correlation_matrix[upper_inds])
+
+    corr.append(np.mean(correlation_matrix[upper_inds]))
+
+    r_new, _ = pearsonr(anatomical_adjacency, correlation_matrix[upper_inds])
+    r.append(r_new)
+
+    activity = np.var(region_responses.to_numpy()[:, int(t-ws/2):int(t+ws/2)], axis=1) / np.mean(region_responses.to_numpy()[:, int(t-ws/2):int(t+ws/2)], axis=1)
+    act.append(np.mean(activity))
+
+rr, _ = pearsonr(corr, r)
+
+ax[1].plot(window_centers, r, LineStyle='-', c='k', label='SC-FC corr')
+ax[1].plot(window_centers, corr, LineStyle='-', c='r', label='Mean FC')
+ax[1].set_ylim([0, 1])
+ax[1].set_title('r={:.2f}'.format(rr))
+ax2 = plt.twinx(ax[1])
+ax2.plot(window_centers, act, LineStyle='--', label='activity_{}'.format(ws), color='b')
+
+
 cmats = np.vstack(cmats)
 
 # fh.savefig(os.path.join(analysis_dir, 'SCFC_MeanCorr_TimeEvolved.png'))
