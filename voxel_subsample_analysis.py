@@ -59,7 +59,7 @@ cumulative = np.cumsum(values)
 cmats = []
 for brain_fp in brain_filepaths:
     suffix = brain_fp.split('func_volreg_')[-1]
-    atlas_fp = os.path.join(data_dir, 'vfb_68_' + suffix)
+    atlas_fp = os.path.join(data_dir, '5d_atlas', 'vfb_68_' + suffix)
     roi_mask, _ = RegionConnectivity.loadAtlasData(atlas_fp, roinames_path, mapping=mapping)
 
     # Load functional brain
