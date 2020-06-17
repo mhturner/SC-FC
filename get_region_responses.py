@@ -8,9 +8,9 @@ import time
 from region_connectivity import RegionConnectivity
 t_total_0 = time.time()
 
-data_dir = '/oak/stanford/groups/trc/data/Max/flynet/5d_atlas'
+data_dir = '/oak/stanford/groups/trc/data/Max/flynet/data'
 
-brain_filepaths = glob.glob(os.path.join(data_dir, 'func_volreg') + '*')
+brain_filepaths = glob.glob(os.path.join(data_dir, '5d_atlas', 'func_volreg') + '*')
 roinames_path = os.path.join(data_dir, 'Original_Index_panda_full.csv')
 
 mapping = RegionConnectivity.getRoiMapping()

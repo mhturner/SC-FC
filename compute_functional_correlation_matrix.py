@@ -6,8 +6,6 @@ import matplotlib.pyplot as plt
 from region_connectivity import RegionConnectivity
 import datetime
 
-# TODO: put in RegionConnectivity and return population and pop average DFs
-
 analysis_dir = '/home/mhturner/Dropbox/ClandininLab/Analysis/SC-FC'
 data_dir = '/home/mhturner/Dropbox/ClandininLab/Analysis/SC-FC/data'
 
