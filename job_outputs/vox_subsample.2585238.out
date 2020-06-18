@@ -1,0 +1,32 @@
+Finished full region cmat (time = 937.9 sec)
+Starting brain 2017-10-30_2.nii.gz
+Finished brain 2017-10-30_2.nii.gz (time = 1239.7 sec)
+Starting brain 2017-10-26_1.nii.gz
+Finished brain 2017-10-26_1.nii.gz (time = 980.7 sec)
+Starting brain 2018-11-03_2.nii.gz
+Finished brain 2018-11-03_2.nii.gz (time = 932.1 sec)
+Starting brain 2017-11-16_1.nii.gz
+Finished brain 2017-11-16_1.nii.gz (time = 1278.9 sec)
+Starting brain 2018-10-20_1.nii.gz
+Finished brain 2018-10-20_1.nii.gz (time = 980.3 sec)
+Starting brain 2018-11-03_4.nii.gz
+Finished brain 2018-11-03_4.nii.gz (time = 1021.7 sec)
+Starting brain 2018-11-03_5.nii.gz
+Finished brain 2018-11-03_5.nii.gz (time = 986.8 sec)
+Starting brain 2018-10-19_2.nii.gz
+Finished brain 2018-10-19_2.nii.gz (time = 801.3 sec)
+Starting brain 2018-10-31_1.nii.gz
+Finished brain 2018-10-31_1.nii.gz (time = 982.1 sec)
+Starting brain 2017-11-08_2.nii.gz
+Finished brain 2017-11-08_2.nii.gz (time = 2776.6 sec)
+Starting brain 2018-10-19_1.nii.gz
+Finished brain 2018-10-19_1.nii.gz (time = 750.3 sec)
+Starting brain 2018-11-03_1.nii.gz
+Finished brain 2018-11-03_1.nii.gz (time = 921.7 sec)
+Starting brain 2017-11-08_1.nii.gz
+Finished brain 2017-11-08_1.nii.gz (time = 2767.2 sec)
+Starting brain 2018-11-03_3.nii.gz
+Finished brain 2018-11-03_3.nii.gz (time = 935.0 sec)
+Starting brain 2017-10-30_1.nii.gz
+Finished brain 2017-10-30_1.nii.gz (time = 1275.4 sec)
+Finished all brains, saved full and population cmats at /oak/stanford/groups/trc/data/Max/flynet/analysis/subsampled_cmats.npy
