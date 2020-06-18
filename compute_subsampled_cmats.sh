@@ -10,4 +10,4 @@
 
 ml python/3.6.1
 
-python3 /home/users/mhturner/SC-FC/voxel_subsample_analysis.py
+python3 /home/users/mhturner/SC-FC/compute_subsampled_cmats.py

@@ -404,6 +404,34 @@ cb = fig4_1.colorbar(img, ax=ax)
 cb.set_label(label='Anat - Fxnal connectivity', weight='bold', color='k')
 cb.ax.tick_params(labelsize=12, color='k')
 
+# %% subsampled region cmats and SC-FC corr
+
+
+# Get region sizes from atlas data
+atlas_path = os.path.join(data_dir, 'atlas_data', 'vfb_68_Original.nii.gz')
+roinames_path = os.path.join(data_dir, 'atlas_data', 'Original_Index_panda_full.csv')
+roi_mask, roi_size = RegionConnectivity.loadAtlasData(atlas_path, roinames_path, mapping=mapping)
+bins = np.arange(np.floor(np.min(roi_size)), np.ceil(np.max(roi_size)))
+values, base = np.histogram(roi_size, bins=bins, density=True)
+cumulative = np.cumsum(values)
+
+# Load subsampled Cmats for each brain
+
+# plot mean+/-SEM results on top of region size cumulative histogram
+err_y = np.std(r_subsampled, axis=1) / np.sqrt(r_subsampled.shape[1])
+mean_y = np.mean(r_subsampled, axis=1)
+
+fh1, ax1 = plt.subplots(1, 1, figsize=(6,6))
+# ax1.plot(subsampled_sizes, mean_y, 'k-o')
+ax1.errorbar(subsampled_sizes, mean_y, yerr=err_y, color='k')
+ax1.hlines(r_full, subsampled_sizes.min(), subsampled_sizes.max(), color='k', linestyle='--')
+ax1.set_xlabel('Region size (voxels)')
+ax1.set_ylabel('Correlation with anatomical connectivity'.format(voxel_numbers[-1]))
+ax1.set_xscale('log')
+ax2 = ax1.twinx()
+ax2.plot(base[:-1], cumulative)
+ax2.set_ylabel('Cumulative fraction')
+ax2.set_ylim([0, 1.05])
 
 
 
