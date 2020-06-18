@@ -82,30 +82,77 @@ functional_adjacency_full = CorrelationMatrix_Full[upper_inds]
 sf_corr_full, _ = pearsonr(anatomical_adjacency, functional_adjacency_full)
 print('Finished full region cmat (time = {:.1f} sec)'.format(time.time()-t0))
 
-# Loop over subsampled sizes
-sf_corr_subsampled = [] #sizes x iterations, r values for SC-FC
-for subsampled_size in subsampled_sizes:
-    print('Starting size {}'.format(subsampled_size))
+# # Loop over subsampled sizes
+# sf_corr_subsampled = [] #sizes x iterations, r values for SC-FC
+# for subsampled_size in subsampled_sizes:
+#     print('Starting size {}'.format(subsampled_size))
+#     t0 = time.time()
+#     r_iter = []
+#     for n in range(n_iter):
+#         print('{}/{} iterations...'.format(n, n_iter))
+#         # loop over all brains
+#         cmats = []
+#         for brain_fp in brain_filepaths:
+#             suffix = brain_fp.split('func_volreg_')[-1]
+#             atlas_fp = os.path.join(data_dir, 'vfb_68_' + suffix)
+#             roi_mask, _ = RegionConnectivity.loadAtlasData(atlas_fp, '5d_atlas', roinames_path, mapping=mapping)
+#
+#             # Load functional brain
+#             functional_brain = np.asanyarray(nib.load(brain_fp).dataobj).astype('uint16')
+#
+#             # get SUBSAMPLED region responses and SC-FC corr
+#             region_responses_subsampled = []
+#             for r_ind, mask in enumerate(roi_mask):
+#                 mask_size = np.sum(mask)
+#                 if mask_size >= subsampled_size:
+#                     pull_inds = np.random.choice(np.arange(roi_size[r_ind]), size=int(subsampled_size), replace=False)
+#                     region_responses_subsampled.append(np.mean(functional_brain[mask, :][pull_inds,:], axis=0))
+#                 else: # not enough voxels in mask, so just take the whole region
+#                     region_responses_subsampled.append(np.mean(functional_brain[mask, :], axis=0))
+#
+#             correlation_matrix = np.corrcoef(np.vstack(region_responses_subsampled))
+#             # set diag to 0
+#             np.fill_diagonal(correlation_matrix, 0)
+#             # fischer z transform (arctanh) and append
+#             cmats.append(np.arctanh(correlation_matrix))
+#
+#         cmats = np.stack(cmats, axis=2) # population cmats, z transformed
+#         CorrelationMatrix_Subsampled = np.mean(cmats, axis=2)
+#
+#         functional_adjacency_subsampled = CorrelationMatrix_Subsampled[upper_inds]
+#         r_new, _ = pearsonr(anatomical_adjacency, functional_adjacency_subsampled)
+#         r_iter.append(r_new)
+#
+#     sf_corr_subsampled.append(r_iter)
+#     print('Finished size {} (time = {:.1f} sec)'.format(subsampled_size, time.time()-t0))
+#
+# sf_corr_subsampled = np.vstack(sf_corr_subsampled)
+#
+# save_fn = os.path.join(analysis_dir, 'subsampled_sf_corrs.npy')
+# np.save(save_fn, (sf_corr_subsampled, subsampled_sizes))
+# %%
+brain_filepaths = brain_filepaths[0:1] # TODO: TEST
+
+cmats_pop = []
+for brain_fp in brain_filepaths:
+    suffix = brain_fp.split('func_volreg_')[-1]
+    print('Starting brain {}'.format(suffix))
     t0 = time.time()
-    r_iter = []
-    for n in range(n_iter):
-        print('{}/{} iterations...'.format(n, n_iter))
-        # loop over all brains
-        cmats = []
-        for brain_fp in brain_filepaths:
-            suffix = brain_fp.split('func_volreg_')[-1]
-            atlas_fp = os.path.join(data_dir, 'vfb_68_' + suffix)
-            roi_mask, _ = RegionConnectivity.loadAtlasData(atlas_fp, roinames_path, mapping=mapping)
+    atlas_fp = os.path.join(data_dir, '5d_atlas', 'vfb_68_' + suffix)
+    roi_mask, _ = RegionConnectivity.loadAtlasData(atlas_fp, roinames_path, mapping=mapping)
 
-            # Load functional brain
-            functional_brain = np.asanyarray(nib.load(brain_fp).dataobj).astype('uint16')
-
+    # Load functional brain
+    functional_brain = np.asanyarray(nib.load(brain_fp).dataobj).astype('uint16')
+    cmats_sizes = []
+    for subsampled_size in subsampled_sizes:
+        cmats_iter = []
+        for n in range(n_iter):
             # get SUBSAMPLED region responses and SC-FC corr
             region_responses_subsampled = []
             for r_ind, mask in enumerate(roi_mask):
                 mask_size = np.sum(mask)
                 if mask_size >= subsampled_size:
-                    pull_inds = np.random.choice(np.arange(roi_size[r_ind]), size=int(subsampled_size), replace=False)
+                    pull_inds = np.random.choice(np.arange(mask_size), size=int(subsampled_size), replace=False)
                     region_responses_subsampled.append(np.mean(functional_brain[mask, :][pull_inds,:], axis=0))
                 else: # not enough voxels in mask, so just take the whole region
                     region_responses_subsampled.append(np.mean(functional_brain[mask, :], axis=0))
@@ -114,23 +161,68 @@ for subsampled_size in subsampled_sizes:
             # set diag to 0
             np.fill_diagonal(correlation_matrix, 0)
             # fischer z transform (arctanh) and append
-            cmats.append(np.arctanh(correlation_matrix))
+            cmats_iter.append(np.arctanh(correlation_matrix))
+        cmats_sizes.append(cmats_iter)
 
-        cmats = np.stack(cmats, axis=2) # population cmats, z transformed
-        CorrelationMatrix_Subsampled = np.mean(cmats, axis=2)
+    cmats_sizes = np.stack(cmats_sizes, axis=2)
+    print(cmats_sizes.shape)
+    cmats_pop.append(cmats_sizes)
+    print('Finished brain {} (time = {:.1f} sec)'.format(suffix, time.time()-t0))
 
-        functional_adjacency_subsampled = CorrelationMatrix_Subsampled[upper_inds]
-        r_new, _ = pearsonr(anatomical_adjacency, functional_adjacency_subsampled)
-        r_iter.append(r_new)
+cmats_pop = np.stack(cmats_sizes, axis=3)
 
-    sf_corr_subsampled.append(r_iter)
-    print('Finished size {} (time = {:.1f} sec)'.format(subsampled_size, time.time()-t0))
 
-sf_corr_subsampled = np.vstack(sf_corr_subsampled)
 
-save_fn = os.path.join(analysis_dir, 'subsampled_sf_corrs.npy')
-np.save(save_fn, (sf_corr_subsampled, subsampled_sizes))
 
+#
+# # Loop over subsampled sizes
+# sf_corr_subsampled = [] #sizes x iterations, r values for SC-FC
+# for subsampled_size in subsampled_sizes:
+#     print('Starting size {}'.format(subsampled_size))
+#     t0 = time.time()
+#     r_iter = []
+#     for n in range(n_iter):
+#         print('{}/{} iterations...'.format(n, n_iter))
+#         # loop over all brains
+#         cmats = []
+#         for brain_fp in brain_filepaths:
+#             suffix = brain_fp.split('func_volreg_')[-1]
+#             atlas_fp = os.path.join(data_dir, 'vfb_68_' + suffix)
+#             roi_mask, _ = RegionConnectivity.loadAtlasData(atlas_fp, roinames_path, mapping=mapping)
+#
+#             # Load functional brain
+#             functional_brain = np.asanyarray(nib.load(brain_fp).dataobj).astype('uint16')
+#
+#             # get SUBSAMPLED region responses and SC-FC corr
+#             region_responses_subsampled = []
+#             for r_ind, mask in enumerate(roi_mask):
+#                 mask_size = np.sum(mask)
+#                 if mask_size >= subsampled_size:
+#                     pull_inds = np.random.choice(np.arange(roi_size[r_ind]), size=int(subsampled_size), replace=False)
+#                     region_responses_subsampled.append(np.mean(functional_brain[mask, :][pull_inds,:], axis=0))
+#                 else: # not enough voxels in mask, so just take the whole region
+#                     region_responses_subsampled.append(np.mean(functional_brain[mask, :], axis=0))
+#
+#             correlation_matrix = np.corrcoef(np.vstack(region_responses_subsampled))
+#             # set diag to 0
+#             np.fill_diagonal(correlation_matrix, 0)
+#             # fischer z transform (arctanh) and append
+#             cmats.append(np.arctanh(correlation_matrix))
+#
+#         cmats = np.stack(cmats, axis=2) # population cmats, z transformed
+#         CorrelationMatrix_Subsampled = np.mean(cmats, axis=2)
+#
+#         functional_adjacency_subsampled = CorrelationMatrix_Subsampled[upper_inds]
+#         r_new, _ = pearsonr(anatomical_adjacency, functional_adjacency_subsampled)
+#         r_iter.append(r_new)
+#
+#     sf_corr_subsampled.append(r_iter)
+#     print('Finished size {} (time = {:.1f} sec)'.format(subsampled_size, time.time()-t0))
+
+# sf_corr_subsampled = np.vstack(sf_corr_subsampled)
+#
+# save_fn = os.path.join(analysis_dir, 'subsampled_sf_corrs.npy')
+# np.save(save_fn, (sf_corr_subsampled, subsampled_sizes))
 
 # # %%
 # # plot mean+/-SEM results on top of region size cumulative histogram
