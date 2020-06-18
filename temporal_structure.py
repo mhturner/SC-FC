@@ -13,9 +13,9 @@ analysis_dir = '/home/mhturner/Dropbox/ClandininLab/Analysis/SC-FC'
 data_dir = '/home/mhturner/Dropbox/ClandininLab/Analysis/SC-FC/data'
 
 # Load anatomical stuff:
-WeakConnections = pd.read_pickle(os.path.join(data_dir, 'connectome_connectivity', 'WeakConnections_computed_20200507.pkl'))
-MediumConnections = pd.read_pickle(os.path.join(data_dir, 'connectome_connectivity', 'MediumConnections_computed_20200507.pkl'))
-StrongConnections = pd.read_pickle(os.path.join(data_dir, 'connectome_connectivity', 'StrongConnections_computed_20200507.pkl'))
+WeakConnections = pd.read_pickle(os.path.join(data_dir, 'connectome_connectivity', 'WeakConnections_computed_20200618.pkl'))
+MediumConnections = pd.read_pickle(os.path.join(data_dir, 'connectome_connectivity', 'MediumConnections_computed_20200618.pkl'))
+StrongConnections = pd.read_pickle(os.path.join(data_dir, 'connectome_connectivity', 'StrongConnections_computed_20200618.pkl'))
 conn_mat = WeakConnections + MediumConnections + StrongConnections
 roi_names = conn_mat.index
 # set diag to nan

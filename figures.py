@@ -88,9 +88,9 @@ Anatomical connectivity matrices and symmetrized versions of each
 """
 
 # 1) ConnectivityCount
-WeakConnections = pd.read_pickle(os.path.join(data_dir, 'connectome_connectivity', 'WeakConnections_computed_20200507.pkl'))
-MediumConnections = pd.read_pickle(os.path.join(data_dir, 'connectome_connectivity', 'MediumConnections_computed_20200507.pkl'))
-StrongConnections = pd.read_pickle(os.path.join(data_dir, 'connectome_connectivity', 'StrongConnections_computed_20200507.pkl'))
+WeakConnections = pd.read_pickle(os.path.join(data_dir, 'connectome_connectivity', 'WeakConnections_computed_20200618.pkl'))
+MediumConnections = pd.read_pickle(os.path.join(data_dir, 'connectome_connectivity', 'MediumConnections_computed_20200618.pkl'))
+StrongConnections = pd.read_pickle(os.path.join(data_dir, 'connectome_connectivity', 'StrongConnections_computed_20200618.pkl'))
 conn_mat = WeakConnections + MediumConnections + StrongConnections
 # set diag to nan
 tmp_mat = conn_mat.to_numpy().copy()
@@ -99,7 +99,7 @@ ConnectivityCount_Symmetrized = pd.DataFrame(data=(tmp_mat + tmp_mat.T)/2, index
 ConnectivityCount = pd.DataFrame(data=tmp_mat, index=conn_mat.index, columns=conn_mat.index)
 # - - - - - - - - - - - - - - - - #
 # 2) ConnectivityWeight
-weight_mat = pd.read_pickle(os.path.join(data_dir, 'connectome_connectivity', 'Connectivity_computed_20200507.pkl'))
+weight_mat = pd.read_pickle(os.path.join(data_dir, 'connectome_connectivity', 'Connectivity_computed_20200618.pkl'))
 # set diag to nan
 tmp_mat = weight_mat.to_numpy().copy()
 np.fill_diagonal(tmp_mat, np.nan)
@@ -113,10 +113,10 @@ ConnectivityCount_precomputed_Symmetrized = pd.DataFrame(data=(tmp_mat + tmp_mat
 ConnectivityCount_precomputed = pd.DataFrame(data=tmp_mat, index=pccount_mat.index, columns=pccount_mat.index)
 # - - - - - - - - - - - - - - - - #
 # 4) ConnectivityWeight_precomputed
-pcweight_mat = RegionConnectivity.getPrecomputedConnectivityMatrix(neuprint_client, mapping, metric='count', diagonal='nan')
+pcweight_mat = RegionConnectivity.getPrecomputedConnectivityMatrix(neuprint_client, mapping, metric='weight', diagonal='nan')
 tmp_mat = pcweight_mat.to_numpy().copy()
-PrecomputedCount_Symmetrized = pd.DataFrame(data=(tmp_mat + tmp_mat.T)/2, index=pcweight_mat.index, columns=pcweight_mat.index)
-PrecomputedCount = pd.DataFrame(data=tmp_mat, index=pcweight_mat.index, columns=pcweight_mat.index)
+ConnectivityWeight_precomputed_Symmetrized = pd.DataFrame(data=(tmp_mat + tmp_mat.T)/2, index=pcweight_mat.index, columns=pcweight_mat.index)
+ConnectivityWeight_precomputed = pd.DataFrame(data=tmp_mat, index=pcweight_mat.index, columns=pcweight_mat.index)
 
 # compute two-step count connectivity matrix
 # TODO: remove AAC and ACC connections - check this
@@ -199,7 +199,7 @@ new_dff = (region_responses.to_numpy() - np.mean(region_responses.to_numpy(), ax
 region_dff = pd.DataFrame(data=new_dff, index=region_responses.index)
 
 pull_regions = ['MBML(L)', 'MBML(R)', 'MBVL(R)', 'CRE(R)', 'CRE(L)']
-fig2_1, ax = plt.subplots(5, 1, figsize=(12,8))
+fig2_0, ax = plt.subplots(5, 1, figsize=(12,8))
 ax = ax.ravel()
 [x.set_axis_off() for x in ax]
 [x.set_ylim([-0.5, 1.0]) for x in ax]
@@ -221,7 +221,7 @@ for p_ind, pr in enumerate(pull_regions):
 # %%
 
 
-fig2_1, ax = plt.subplots(1, 2, figsize=(16,8))
+fig2_2, ax = plt.subplots(1, 2, figsize=(16,8))
 
 df = np.log10(ConnectivityCount).replace([np.inf, -np.inf], 0)
 sns.heatmap(df, ax=ax[0], xticklabels=True, cbar_kws={'label': 'Connection strength (cells)', 'shrink': .8}, cmap="cividis", rasterized=True)
@@ -239,7 +239,7 @@ coef = np.polyfit(anatomical_adjacency, functional_adjacency, 1)
 linfit = np.poly1d(coef)
 
 
-fig2_2, ax = plt.subplots(1,1,figsize=(6,6))
+fig2_3, ax = plt.subplots(1,1,figsize=(6,6))
 ax.scatter(10**anatomical_adjacency, functional_adjacency, color='k')
 xx = np.linspace(anatomical_adjacency.min(), anatomical_adjacency.max(), 100)
 ax.plot(10**xx, linfit(xx), 'k-')
@@ -257,7 +257,7 @@ for c_ind in range(cmats.shape[2]):
     r_vals.append(r_new)
 
 
-fig2_3, ax = plt.subplots(1,1,figsize=(2,6))
+fig2_4, ax = plt.subplots(1,1,figsize=(2,6))
 sns.swarmplot(x=np.ones_like(r_vals), y=r_vals, color='k')
 ax.set_ylabel('Correlation coefficient (z)')
 ax.set_ylim([0, 1]);
@@ -439,9 +439,11 @@ ax2.set_ylim([0, 1.05])
 
 with PdfPages(os.path.join(analysis_dir, 'SC_FC_figs.pdf')) as pdf:
     pdf.savefig(fig1_0)
-    pdf.savefig(fig1_1)
+    pdf.savefig(fig2_0)
     pdf.savefig(fig2_1)
     pdf.savefig(fig2_2)
+    pdf.savefig(fig2_3)
+    pdf.savefig(fig2_4)
     pdf.savefig(fig3_0)
     pdf.savefig(fig4_0)
     pdf.savefig(fig4_1)
