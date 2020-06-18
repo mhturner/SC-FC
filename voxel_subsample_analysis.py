@@ -56,6 +56,7 @@ values, base = np.histogram(roi_size, bins=bins, density=True)
 cumulative = np.cumsum(values)
 
 # Get full region SC-FC correlation, avg across flies
+t0 = time.time()
 cmats = []
 for brain_fp in brain_filepaths:
     suffix = brain_fp.split('func_volreg_')[-1]
@@ -67,7 +68,7 @@ for brain_fp in brain_filepaths:
 
     # get region responses and SC-FC corr
     region_responses_full = RegionConnectivity.computeRegionResponses(functional_brain, roi_mask)
-    correlation_matrix = np.corrcoef(full_region_responses)
+    correlation_matrix = np.corrcoef(region_responses_full)
     # set diag to 0
     np.fill_diagonal(correlation_matrix, 0)
     # fischer z transform (arctanh) and append
@@ -79,7 +80,7 @@ CorrelationMatrix_Full = np.mean(cmats, axis=2)
 
 functional_adjacency_full = CorrelationMatrix_Full[upper_inds]
 sf_corr_full, _ = pearsonr(anatomical_adjacency, functional_adjacency_full)
-
+print('Finished full region cmat (time = {:.1f} sec)'.format(time.time()-t0))
 
 # Loop over subsampled sizes
 sf_corr_subsampled = [] #sizes x iterations, r values for SC-FC
