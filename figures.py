@@ -7,7 +7,7 @@ import os
 import pickle
 import matplotlib.pyplot as plt
 import seaborn as sns
-from scipy.stats import pearsonr
+from scipy.stats import pearsonr, spearmanr
 from scipy.spatial.distance import pdist
 from scipy.stats import zscore
 from scipy.ndimage.measurements import center_of_mass
@@ -17,9 +17,6 @@ import datetime
 from scipy.stats import kstest, lognorm, norm
 
 from region_connectivity import RegionConnectivity
-
-# TODO: Population data, fly by fly SC-FC correlation
-# TODO: Nonparametric correlation values?
 
 """
 References:
@@ -32,7 +29,7 @@ data_dir = '/home/mhturner/Dropbox/ClandininLab/Analysis/SC-FC/data'
 analysis_dir = '/home/mhturner/Dropbox/ClandininLab/Analysis/SC-FC'
 
 # start client
-neuprint_client = Client('neuprint.janelia.org', dataset='hemibrain:v1.0.1', token='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6Im1heHdlbGxob2x0ZXR1cm5lckBnbWFpbC5jb20iLCJsZXZlbCI6Im5vYXV0aCIsImltYWdlLXVybCI6Imh0dHBzOi8vbGgzLmdvb2dsZXVzZXJjb250ZW50LmNvbS9hLS9BT2gxNEdpMHJRX0M4akliX0ZrS2h2OU5DSElsWlpnRDY5YUMtVGdNLWVWM3lRP3N6PTUwP3N6PTUwIiwiZXhwIjoxNzY2MTk1MzcwfQ.Q-57D4tX2sXMjWym2LFhHaUGHgHiUsIM_JI9xekxw_0')
+neuprint_client = Client('neuprint.janelia.org', dataset='hemibrain:v1.1', token='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6Im1heHdlbGxob2x0ZXR1cm5lckBnbWFpbC5jb20iLCJsZXZlbCI6Im5vYXV0aCIsImltYWdlLXVybCI6Imh0dHBzOi8vbGgzLmdvb2dsZXVzZXJjb250ZW50LmNvbS9hLS9BT2gxNEdpMHJRX0M4akliX0ZrS2h2OU5DSElsWlpnRDY5YUMtVGdNLWVWM3lRP3N6PTUwP3N6PTUwIiwiZXhwIjoxNzY2MTk1MzcwfQ.Q-57D4tX2sXMjWym2LFhHaUGHgHiUsIM_JI9xekxw_0')
 mapping = RegionConnectivity.getRoiMapping()
 rois = list(mapping.keys())
 rois.sort()
@@ -59,12 +56,14 @@ t_end = None
 CorrelationMatrix_Functional, cmats = RegionConnectivity.getFunctionalConnectivity(response_filepaths, cutoff=cutoff, fs=fs, t_start=t_start, t_end=t_end)
 roi_mask, roi_size = RegionConnectivity.loadAtlasData(atlas_path=atlas_path, roinames_path=roinames_path, mapping=mapping)
 
+# indices for connectivity and correlation matrices
+upper_inds = np.triu_indices(CorrelationMatrix_Functional.shape[0], k=1) # k=1 excludes main diagonal
+
 # find center of mass for each roi
 coms = np.vstack([center_of_mass(x) for x in roi_mask])
 
 # calulcate euclidean distance matrix between roi centers of mass
 dist_mat = np.zeros_like(CorrelationMatrix_Functional)
-upper_inds = np.triu_indices(dist_mat.shape[0], k=1)
 dist_mat[upper_inds] = pdist(coms)
 dist_mat += dist_mat.T # symmetrize to fill in below diagonal
 
@@ -132,25 +131,30 @@ for source in range(ConnectivityCount.shape[0]):
 TwoStep_Symmetrized = pd.DataFrame(data=(two_steps + two_steps.T)/2, index=ConnectivityCount.index, columns=ConnectivityCount.index)
 TwoStep = pd.DataFrame(data=two_steps, index=ConnectivityCount.index, columns=ConnectivityCount.index)
 
-# %%
+# indices for log transforming and comparing to log-transformed mats
+keep_inds = np.where(ConnectivityCount_Symmetrized.to_numpy()[upper_inds] > 0) # for log-transforming anatomical connectivity, toss zero values
 
-plt.plot(TwoStep_Symmetrized.to_numpy().ravel(), ConnectivityCount.to_numpy().ravel(),'ko')
+# Make adjacency matrices
+# Log transform anatomical connectivity
+anatomical_adjacency = np.log10(ConnectivityCount_Symmetrized.to_numpy().copy()[upper_inds][keep_inds])
+functional_adjacency = CorrelationMatrix_Functional.to_numpy().copy()[upper_inds][keep_inds]
 
 # %% Fig1: Distribtution of connection strengths and weight/count relationship
-upper_inds = np.triu_indices(ConnectivityCount.shape[0], k=1) # k=1 excludes main diagonal
-
 fig1_0, ax = plt.subplots(1, 2, figsize=(16,4))
 
- # Toss zero connection values for log transform
-keep_inds = np.where(ConnectivityCount_Symmetrized.to_numpy()[upper_inds] > 0)
-
 #  ConnectivityCount:
-ct = ConnectivityCount_Symmetrized.to_numpy().copy()[upper_inds][keep_inds]
-log_ct = np.log10(ConnectivityCount_Symmetrized.to_numpy().copy()[upper_inds][keep_inds])
+ct_mat = ConnectivityCount.to_numpy().copy()
+np.fill_diagonal(ct_mat, 0) # replace diag nan with 0
+counts = ct_mat.ravel()
+keep_inds_count = np.where(counts > 0) # exclude 0 ct vals for log transform
+ct = counts[keep_inds_count]
+log_ct = np.log10(counts[keep_inds_count])
+np.log10(np.max(ct))
 
 val, bin = np.histogram(log_ct, 20, density=True)
-ax[0].plot(10**bin[:-1], val, LineWidth=2)
-xx = np.linspace(-1, 4, 100)
+bin_ctrs = bin[:-1] + np.mean(np.diff(bin))
+ax[0].plot(10**bin_ctrs, val, LineWidth=2)
+xx = np.linspace(bin_ctrs.min(), bin_ctrs.max(), 100)
 yy = norm(loc=np.mean(np.log10(ct)), scale=np.std(np.log10(ct))).pdf(xx)
 ax[0].plot(10**xx, yy, 'k', alpha=1)
 
@@ -160,13 +164,17 @@ ax[0].set_ylabel('Prob.')
 ax[0].set_xscale('log')
 
 # ConnectivityWeight:
-wt = ConnectivityWeight_Symmetrized.to_numpy().copy()[upper_inds][keep_inds]
-log_wt = np.log10(ConnectivityWeight_Symmetrized.to_numpy().copy()[upper_inds][keep_inds])
-val, bin = np.histogram(wt, 30, density=True)
+wt_mat = ConnectivityWeight.to_numpy().copy()
+np.fill_diagonal(wt_mat, 0) # replace diag nan with 0
+weights = wt_mat.ravel()
+keep_inds_weight = np.where(weights > 0) # exclude 0 ct vals for log transform
+wt = weights[keep_inds_weight]
+log_wt = np.log10(weights[keep_inds_weight])
 
-val, bin = np.histogram(log_wt, 30, density=True)
-ax[1].plot(10**bin[:-1], val, LineWidth=2)
-xx = np.linspace(-1, 7, 100)
+val, bin = np.histogram(log_wt, 20, density=True)
+bin_ctrs = bin[:-1] + np.mean(np.diff(bin))
+ax[1].plot(10**bin_ctrs, val, LineWidth=2)
+xx = np.linspace(bin_ctrs.min(), bin_ctrs.max(), 100)
 yy = norm(loc=np.mean(np.log10(wt)), scale=np.std(np.log10(wt))).pdf(xx)
 ax[1].plot(10**xx, yy, 'k', alpha=1)
 p_wt, _ = kstest(zscore(log_wt), 'norm')
@@ -176,13 +184,6 @@ ax[1].set_xscale('log')
 
 print('KS test lognormal: Count p = {:.4f}; weight p = {:.4f}'.format(p_ct, p_wt))
 
-
-fig1_1, ax = plt.subplots(1, figsize=(4,4))
-r, p = pearsonr(ConnectivityCount_Symmetrized.to_numpy()[upper_inds], ConnectivityWeight_Symmetrized.to_numpy()[upper_inds])
-ax.plot(ConnectivityCount_Symmetrized.to_numpy()[upper_inds], ConnectivityWeight_Symmetrized.to_numpy()[upper_inds], 'ko')
-ax.set_title('r = {:.3f}'.format(r));
-ax.set_xlabel('Cell count')
-ax.set_ylabel('Connection weight')
 
 # %% FIGURE 2: Connectivity matrices and SC-FC correlation
 
@@ -233,20 +234,10 @@ sns.heatmap(CorrelationMatrix_Functional, ax=ax[1], xticklabels=True, cbar_kws={
 ax[1].set_aspect('equal')
 ax[1].set_title('Functional');
 
-
-do_log_transform = True
-if do_log_transform:
-    keep_inds = np.where(ConnectivityCount_Symmetrized.to_numpy()[upper_inds] > 0) # toss zero connection values
-
-    anatomical_adjacency = np.log10(ConnectivityCount_Symmetrized.to_numpy().copy()[upper_inds][keep_inds])
-    functional_adjacency = CorrelationMatrix_Functional.to_numpy().copy()[upper_inds][keep_inds]
-else:
-    anatomical_adjacency = ConnectivityMatrix_Symmetrized.to_numpy().copy()[upper_inds]
-    functional_adjacency = CorrelationMatrix_Functional.to_numpy().copy()[upper_inds]
-
 r, p = pearsonr(anatomical_adjacency, functional_adjacency)
 coef = np.polyfit(anatomical_adjacency, functional_adjacency, 1)
 linfit = np.poly1d(coef)
+
 
 fig2_2, ax = plt.subplots(1,1,figsize=(6,6))
 ax.scatter(10**anatomical_adjacency, functional_adjacency, color='k')
@@ -260,25 +251,21 @@ ax.annotate('r = {:.3f}'.format(r), xy=(1, 1.0));
 r_vals = []
 for c_ind in range(cmats.shape[2]):
     cmat = cmats[:, :, c_ind]
-    functional_adjacency = cmat[upper_inds][keep_inds]
+    functional_adjacency_new = cmat[upper_inds][keep_inds]
 
-    r, p = pearsonr(anatomical_adjacency, functional_adjacency)
-    r_vals.append(r)
+    r_new, _ = pearsonr(anatomical_adjacency, functional_adjacency_new)
+    r_vals.append(r_new)
 
-r_vals
 
 fig2_3, ax = plt.subplots(1,1,figsize=(2,6))
 sns.swarmplot(x=np.ones_like(r_vals), y=r_vals, color='k')
 ax.set_ylabel('Correlation coefficient (z)')
-ax.set_ylim([0, 1])
+ax.set_ylim([0, 1]);
 # %% Other determinants of FC
 # TODO: corrs with size, distance etc
 
 # Multiple linear regression model:
 from sklearn.linear_model import LinearRegression, Ridge, ARDRegression, BayesianRidge
-
-upper_inds = np.triu_indices(ConnectivityCount_Symmetrized.to_numpy().shape[0], k=1) #k=1 excludes main fill_diagonal
-keep_inds = np.where(ConnectivityCount_Symmetrized.to_numpy()[upper_inds] > 0) # toss zero connection values
 
 # regressors:
 count = zscore(np.log10(ConnectivityCount_Symmetrized.to_numpy()[upper_inds][keep_inds]))
@@ -313,23 +300,24 @@ ax.set_ylabel('Measured FC (z-score)');
 
 # %% Difference matrix
 
-# compute difference matrix using original, asymmetric anatomical connectivity matrix
+# # compute difference matrix using original, asymmetric anatomical connectivity matrix
 anatomical_mat = ConnectivityCount.to_numpy().copy()
 np.fill_diagonal(anatomical_mat, 0)
 functional_mat = CorrelationMatrix_Functional.to_numpy().copy()
 np.fill_diagonal(functional_mat, 0)
 
 # log transform anatomical connectivity values
-keep_inds = np.where(anatomical_mat > 0) # toss zero connection values
-functional_adjacency_no0= functional_mat[keep_inds]
-anatomical_adjacency_log = np.log10(anatomical_mat[keep_inds])
+keep_inds_diff = np.where(anatomical_mat > 0)
+functional_adjacency_diff= functional_mat[keep_inds_diff]
+anatomical_adjacency_diff = np.log10(anatomical_mat[keep_inds_diff])
 
-F_zscore = zscore(functional_adjacency_no0)
-A_zscore = zscore(anatomical_adjacency_log)
+F_zscore = zscore(functional_adjacency_diff)
+A_zscore = zscore(anatomical_adjacency_diff)
+diff = A_zscore - F_zscore
+
 
 diff_m = np.zeros_like(ConnectivityCount.to_numpy())
-diff = A_zscore - F_zscore
-diff_m[keep_inds] = diff
+diff_m[keep_inds_diff] = diff
 DifferenceMatrix = pd.DataFrame(data=diff_m, index=ConnectivityCount.index, columns=ConnectivityCount.index)
 
 # %% SUPP FIG: does completeness of reconstruction impact
@@ -405,9 +393,6 @@ cb.set_label(label='Anat - Fxnal connectivity', weight='bold', color='k')
 cb.ax.tick_params(labelsize=12, color='k')
 
 # %% subsampled region cmats and SC-FC corr
-keep_inds = np.where(ConnectivityCount_Symmetrized.to_numpy()[upper_inds] > 0) # toss zero connection values
-anatomical_adjacency = np.log10(ConnectivityCount_Symmetrized.to_numpy().copy()[upper_inds][keep_inds])
-functional_adjacency = CorrelationMatrix_Functional.to_numpy().copy()[upper_inds][keep_inds]
 
 # Get region sizes from atlas data
 atlas_path = os.path.join(data_dir, 'atlas_data', 'vfb_68_Original.nii.gz')
@@ -422,16 +407,16 @@ load_fn = os.path.join(data_dir, 'functional_connectivity', 'subsampled_cmats.np
 (cmats_pop, CorrelationMatrix_Full, subsampled_sizes) = np.load(load_fn, allow_pickle=True)
 
 # compute full region SC-FC corr
-functional_adjacency = CorrelationMatrix_Full[upper_inds][keep_inds]
-full_r, _ = pearsonr(anatomical_adjacency, functional_adjacency)
+functional_adjacency_full_ss = CorrelationMatrix_Full[upper_inds][keep_inds]
+full_r, _ = pearsonr(anatomical_adjacency, functional_adjacency_full_ss)
 
 # mean cmat over brains for each subsampledsize and iteration
 cmats_popmean = np.mean(cmats_pop, axis=4) # roi x roi x iterations x sizes
 scfc_r = np.zeros(shape=(cmats_popmean.shape[2], cmats_popmean.shape[3])) # iterations x sizes
 for s_ind, sz in enumerate(subsampled_sizes):
     for it in range(cmats_popmean.shape[2]):
-        functional_adjacency = cmats_popmean[:, :, it, s_ind][upper_inds][keep_inds]
-        new_r, _ = pearsonr(anatomical_adjacency, functional_adjacency)
+        functional_adjacency_tmp = cmats_popmean[:, :, it, s_ind][upper_inds][keep_inds]
+        new_r, _ = pearsonr(anatomical_adjacency, functional_adjacency_tmp)
         scfc_r[it, s_ind] = new_r
 
 # plot mean+/-SEM results on top of region size cumulative histogram
