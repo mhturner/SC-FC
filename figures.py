@@ -405,7 +405,9 @@ cb.set_label(label='Anat - Fxnal connectivity', weight='bold', color='k')
 cb.ax.tick_params(labelsize=12, color='k')
 
 # %% subsampled region cmats and SC-FC corr
-
+keep_inds = np.where(ConnectivityCount_Symmetrized.to_numpy()[upper_inds] > 0) # toss zero connection values
+anatomical_adjacency = np.log10(ConnectivityCount_Symmetrized.to_numpy().copy()[upper_inds][keep_inds])
+functional_adjacency = CorrelationMatrix_Functional.to_numpy().copy()[upper_inds][keep_inds]
 
 # Get region sizes from atlas data
 atlas_path = os.path.join(data_dir, 'atlas_data', 'vfb_68_Original.nii.gz')
@@ -415,25 +417,38 @@ bins = np.arange(np.floor(np.min(roi_size)), np.ceil(np.max(roi_size)))
 values, base = np.histogram(roi_size, bins=bins, density=True)
 cumulative = np.cumsum(values)
 
-# Load subsampled Cmats for each brain
+# Load precomputed subsampled Cmats for each brain
+load_fn = os.path.join(data_dir, 'functional_connectivity', 'subsampled_cmats.npy')
+(cmats_pop, CorrelationMatrix_Full, subsampled_sizes) = np.load(load_fn, allow_pickle=True)
+
+# compute full region SC-FC corr
+functional_adjacency = CorrelationMatrix_Full[upper_inds][keep_inds]
+full_r, _ = pearsonr(anatomical_adjacency, functional_adjacency)
+
+# mean cmat over brains for each subsampledsize and iteration
+cmats_popmean = np.mean(cmats_pop, axis=4) # roi x roi x iterations x sizes
+scfc_r = np.zeros(shape=(cmats_popmean.shape[2], cmats_popmean.shape[3])) # iterations x sizes
+for s_ind, sz in enumerate(subsampled_sizes):
+    for it in range(cmats_popmean.shape[2]):
+        functional_adjacency = cmats_popmean[:, :, it, s_ind][upper_inds][keep_inds]
+        new_r, _ = pearsonr(anatomical_adjacency, functional_adjacency)
+        scfc_r[it, s_ind] = new_r
 
 # plot mean+/-SEM results on top of region size cumulative histogram
-err_y = np.std(r_subsampled, axis=1) / np.sqrt(r_subsampled.shape[1])
-mean_y = np.mean(r_subsampled, axis=1)
+err_y = np.std(scfc_r, axis=0) / np.sqrt(scfc_r.shape[0])
+mean_y = np.mean(scfc_r, axis=0)
 
-fh1, ax1 = plt.subplots(1, 1, figsize=(6,6))
-# ax1.plot(subsampled_sizes, mean_y, 'k-o')
+figS2, ax1 = plt.subplots(1, 1, figsize=(6,6))
+ax1.plot(subsampled_sizes, mean_y, 'ko')
 ax1.errorbar(subsampled_sizes, mean_y, yerr=err_y, color='k')
-ax1.hlines(r_full, subsampled_sizes.min(), subsampled_sizes.max(), color='k', linestyle='--')
+ax1.hlines(full_r, subsampled_sizes.min(), subsampled_sizes.max(), color='k', linestyle='--')
 ax1.set_xlabel('Region size (voxels)')
-ax1.set_ylabel('Correlation with anatomical connectivity'.format(voxel_numbers[-1]))
+ax1.set_ylabel('Correlation with anatomical connectivity')
 ax1.set_xscale('log')
 ax2 = ax1.twinx()
 ax2.plot(base[:-1], cumulative)
 ax2.set_ylabel('Cumulative fraction')
 ax2.set_ylim([0, 1.05])
-
-
 
 # %%
 
@@ -445,6 +460,9 @@ with PdfPages(os.path.join(analysis_dir, 'SC_FC_figs.pdf')) as pdf:
     pdf.savefig(fig3_0)
     pdf.savefig(fig4_0)
     pdf.savefig(fig4_1)
+
+    pdf.savefig(figS1)
+    pdf.savefig(figS2)
 
     d = pdf.infodict()
     d['Title'] = 'SC-FC early figs'
