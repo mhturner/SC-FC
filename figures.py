@@ -7,11 +7,11 @@ import os
 import pickle
 import matplotlib.pyplot as plt
 import seaborn as sns
+from sklearn.linear_model import LinearRegression, Ridge, ARDRegression, BayesianRidge
 from scipy.stats import pearsonr, spearmanr
 from scipy.spatial.distance import pdist
 from scipy.stats import zscore
 from scipy.ndimage.measurements import center_of_mass
-from sklearn.cluster import SpectralClustering
 from matplotlib.backends.backend_pdf import PdfPages
 import datetime
 from scipy.stats import kstest, lognorm, norm
@@ -35,6 +35,7 @@ rois = list(mapping.keys())
 rois.sort()
 
 roi_completeness = RegionConnectivity.getRoiCompleteness(neuprint_client, mapping)
+CompletenessMatrix = pd.DataFrame(data=np.outer(roi_completeness['frac_post'], roi_completeness['frac_pre']), index=roi_completeness.index, columns=roi_completeness.index)
 
 # %% LOAD FUNCTIONAL DATA, FILTER IT ACCORDING TO MAPPING, COMPUTE SOME GEOMETRY STUFF
 """
@@ -149,7 +150,6 @@ counts = ct_mat.ravel()
 keep_inds_count = np.where(counts > 0) # exclude 0 ct vals for log transform
 ct = counts[keep_inds_count]
 log_ct = np.log10(counts[keep_inds_count])
-np.log10(np.max(ct))
 
 val, bin = np.histogram(log_ct, 20, density=True)
 bin_ctrs = bin[:-1] + np.mean(np.diff(bin))
@@ -160,7 +160,7 @@ ax[0].plot(10**xx, yy, 'k', alpha=1)
 
 p_ct, _ = kstest(zscore(log_ct), 'norm')
 ax[0].set_xlabel('Cell count')
-ax[0].set_ylabel('Prob.')
+ax[0].set_ylabel('Probability')
 ax[0].set_xscale('log')
 
 # ConnectivityWeight:
@@ -179,7 +179,7 @@ yy = norm(loc=np.mean(np.log10(wt)), scale=np.std(np.log10(wt))).pdf(xx)
 ax[1].plot(10**xx, yy, 'k', alpha=1)
 p_wt, _ = kstest(zscore(log_wt), 'norm')
 ax[1].set_xlabel('Connection weight')
-ax[1].set_ylabel('Prob.')
+ax[1].set_ylabel('Probability')
 ax[1].set_xscale('log')
 
 print('KS test lognormal: Count p = {:.4f}; weight p = {:.4f}'.format(p_ct, p_wt))
@@ -221,32 +221,29 @@ for p_ind, pr in enumerate(pull_regions):
 # %%
 
 
-fig2_2, ax = plt.subplots(1, 2, figsize=(16,8))
+fig2_2, ax = plt.subplots(1, 2, figsize=(20,10))
 
 df = np.log10(ConnectivityCount).replace([np.inf, -np.inf], 0)
-sns.heatmap(df, ax=ax[0], xticklabels=True, cbar_kws={'label': 'Connection strength (cells)', 'shrink': .8}, cmap="cividis", rasterized=True)
+sns.heatmap(df, ax=ax[0], xticklabels=True, cbar_kws={'label': 'Connection strength (log10(Connecting cells))', 'shrink': .8}, cmap="cividis", rasterized=True)
 ax[0].set_xlabel('Target');
 ax[0].set_ylabel('Source');
 ax[0].set_aspect('equal')
-ax[0].set_title('Anatomical');
 
-sns.heatmap(CorrelationMatrix_Functional, ax=ax[1], xticklabels=True, cbar_kws={'label': 'Correlation (z)','shrink': .8}, cmap="cividis", rasterized=True)
+sns.heatmap(CorrelationMatrix_Functional, ax=ax[1], xticklabels=True, cbar_kws={'label': 'Functional Correlation (z)','shrink': .8}, cmap="cividis", rasterized=True)
 ax[1].set_aspect('equal')
-ax[1].set_title('Functional');
 
 r, p = pearsonr(anatomical_adjacency, functional_adjacency)
 coef = np.polyfit(anatomical_adjacency, functional_adjacency, 1)
 linfit = np.poly1d(coef)
-
 
 fig2_3, ax = plt.subplots(1,1,figsize=(6,6))
 ax.scatter(10**anatomical_adjacency, functional_adjacency, color='k')
 xx = np.linspace(anatomical_adjacency.min(), anatomical_adjacency.max(), 100)
 ax.plot(10**xx, linfit(xx), 'k-')
 ax.set_xscale('log')
-ax.set_xlabel('Connection strength (cells)')
+ax.set_xlabel('Anatomical adjacency (Connecting cells)')
 ax.set_ylabel('Functional correlation (z)')
-ax.annotate('r = {:.3f}'.format(r), xy=(1, 1.0));
+ax.annotate('r = {:.2f}'.format(r), xy=(1, 1.0));
 
 r_vals = []
 for c_ind in range(cmats.shape[2]):
@@ -259,44 +256,92 @@ for c_ind in range(cmats.shape[2]):
 
 fig2_4, ax = plt.subplots(1,1,figsize=(2,6))
 sns.swarmplot(x=np.ones_like(r_vals), y=r_vals, color='k')
+# sns.violinplot(y=r_vals)
 ax.set_ylabel('Correlation coefficient (z)')
 ax.set_ylim([0, 1]);
 # %% Other determinants of FC
-# TODO: corrs with size, distance etc
+# Corrs with size, distance etc
 
-# Multiple linear regression model:
-from sklearn.linear_model import LinearRegression, Ridge, ARDRegression, BayesianRidge
+connectivity = np.log10(ConnectivityCount_Symmetrized.to_numpy()[upper_inds][keep_inds])
+size = SizeMatrix.to_numpy()[upper_inds][keep_inds]
+dist = DistanceMatrix.to_numpy()[upper_inds][keep_inds]
+completeness = CompletenessMatrix.to_numpy()[upper_inds][keep_inds]
 
-# regressors:
-count = zscore(np.log10(ConnectivityCount_Symmetrized.to_numpy()[upper_inds][keep_inds]))
-weight = zscore(np.log10(ConnectivityWeight_Symmetrized.to_numpy()[upper_inds][keep_inds]))
-twostep = zscore(np.log10(TwoStep_Symmetrized.to_numpy()[upper_inds][keep_inds]))
-size = zscore(SizeMatrix.to_numpy()[upper_inds][keep_inds])
-dist = zscore(DistanceMatrix.to_numpy()[upper_inds][keep_inds])
+fc = CorrelationMatrix_Functional.to_numpy()[upper_inds][keep_inds]
 
-X = np.vstack([count, size, dist]).T
+X = np.vstack([connectivity, size, dist, completeness, fc]).T
 
-# to predict:
-fc = zscore(CorrelationMatrix_Functional.to_numpy()[upper_inds][keep_inds])
-# fc = CorrelationMatrix_Functional.to_numpy()[upper_inds][keep_inds]
+fig3_0, ax = plt.subplots(2, 2, figsize=(12,12))
+r, p = pearsonr(size, fc)
+ax[0, 0].scatter(size, fc, color='k', alpha=0.5)
+coef = np.polyfit(size, fc, 1)
+linfit = np.poly1d(coef)
+xx = np.linspace(size.min(), size.max(), 100)
+ax[0, 0].plot(xx, linfit(xx), 'k-', LineWidth=3)
+ax[0, 0].set_title('{:.3f}'.format(r))
+ax[0, 0].set_ylabel('Functional correlation (z)');
+ax[0, 0].set_xlabel('ROI pair size');
 
-# linear correlation of each variable with fc
-corr_vals = np.array([np.corrcoef(X[:,c],fc)[0,1] for c in range(X.shape[1])])
+r, p = pearsonr(dist, fc)
+ax[0, 1].scatter(dist, fc, color='k', alpha=0.5)
+coef = np.polyfit(dist, fc, 1)
+linfit = np.poly1d(coef)
+xx = np.linspace(dist.min(), dist.max(), 100)
+ax[0, 1].plot(xx, linfit(xx), 'k-', LineWidth=3)
+ax[0, 1].set_title('{:.3f}'.format(r))
+ax[0, 1].set_xlabel('Inter-ROI distance');
 
-fig3_0, ax = plt.subplots(1, 1, figsize=(6,6))
+
+
+r, p = pearsonr(size, connectivity)
+ax[1, 0].scatter(size, 10**connectivity, color='k', alpha=0.5)
+coef = np.polyfit(size, connectivity, 1)
+linfit = np.poly1d(coef)
+xx = np.linspace(size.min(), size.max(), 100)
+ax[1, 0].plot(xx, 10**linfit(xx), 'k-', LineWidth=3)
+ax[1, 0].set_title('{:.3f}'.format(r))
+ax[1, 0].set_ylabel('Anatomical adjacency (connecting cells)');
+ax[1, 0].set_xlabel('ROI pair size');
+ax[1, 0].set_yscale('log')
+
+r, p = pearsonr(dist, connectivity)
+ax[1, 1].scatter(dist, 10**connectivity, color='k', alpha=0.5)
+coef = np.polyfit(dist, connectivity, 1)
+linfit = np.poly1d(coef)
+xx = np.linspace(dist.min(), dist.max(), 100)
+ax[1, 1].plot(xx, 10**linfit(xx), 'k-', LineWidth=3)
+ax[1, 1].set_title('{:.3f}'.format(r))
+ax[1, 1].set_xlabel('Inter-ROI distance');
+ax[1, 1].set_yscale('log')
+
+# %% Dominance analysis
+from dominance_analysis import Dominance
+fig3_1, ax = plt.subplots(1, 2, figsize=(10, 5))
+
+# linear regression model prediction:
 regressor = LinearRegression()
-regressor.fit(X, fc);
-pred = regressor.predict(X)
-frac_var = corr_vals * regressor.coef_
-print('Count:{:.2f}; size:{:.2f}; Distance:{:.2f}'.format(*frac_var))
-
-ax.plot(pred, fc, 'ko')
-ax.plot([-2, 2], [-2, 2], 'k--')
-ax.set_title(regressor.score(X, fc));
-ax.set_xlabel('Predicted FC')
-ax.set_ylabel('Measured FC (z-score)');
+regressor.fit(X[:, :-1], X[:, -1]);
+pred = regressor.predict(X[:, :-1])
+score = regressor.score(X[:, :-1], fc)
+ax[0].plot(pred, fc, 'ko')
+ax[0].plot([0, 1.4], [0, 1.4], 'k--')
+ax[0].annotate('$r^2$={:.2f}'.format(score), (0, 1));
+ax[0].set_xlabel('Predicted functional conectivity (z)')
+ax[0].set_ylabel('Measured functional conectivity (z)');
 
 
+fc_df = pd.DataFrame(data=X, columns=['Connectivity', 'ROI size', 'ROI Distance', 'Completeness', 'fc'])
+dominance_regression=Dominance(data=fc_df,target='fc',objective=1)
+
+incr_variable_rsquare=dominance_regression.incremental_rsquare()
+keys = np.array(list(incr_variable_rsquare.keys()))
+vals = np.array(list(incr_variable_rsquare.values()))
+s_inds = np.argsort(vals)[::-1]
+
+sns.barplot(x=keys[s_inds], y=vals[s_inds], ax=ax[1], color=colors[0])
+ax[1].set_ylabel('Incremental $r^2$')
+for tick in ax[1].get_xticklabels():
+    tick.set_rotation(90)
 
 # %% Difference matrix
 
@@ -321,31 +366,30 @@ diff_m[keep_inds_diff] = diff
 DifferenceMatrix = pd.DataFrame(data=diff_m, index=ConnectivityCount.index, columns=ConnectivityCount.index)
 
 # %% SUPP FIG: does completeness of reconstruction impact
-
-CompletenessMatrix = pd.DataFrame(data=np.outer(roi_completeness['frac_post'], roi_completeness['frac_pre']), index=ConnectivityCount.index, columns=ConnectivityCount.index)
-
-comp_score = CompletenessMatrix.to_numpy().ravel()
-# diff_score = np.abs(DifferenceMatrix.to_numpy().ravel())
-diff_score = DifferenceMatrix.to_numpy().ravel()
-
-include_inds = np.where(diff_score != 0)[0]
-comp_score  = comp_score[include_inds]
-diff_score = diff_score[include_inds]
-anat_conn = ConnectivityCount.to_numpy().ravel()[include_inds]
-
-
-r, p = pearsonr(comp_score, diff_score)
-
-figS1, ax = plt.subplots(1, 2, figsize=(12,6))
-ax[0].scatter(comp_score, diff_score, marker='o', color='k', alpha=0.5)
-
-ax[0].set_xlabel('Completeness of reconstruction')
-ax[0].set_ylabel('abs(Anat. - Fxnal (z-score))')
-
-ax[1].scatter(comp_score, anat_conn, marker='o', color='k', alpha=0.5)
-
-ax[1].set_xlabel('Completeness of reconstruction')
-ax[1].set_ylabel('Anat connectivity')
+#
+#
+# comp_score = CompletenessMatrix.to_numpy().ravel()
+# # diff_score = np.abs(DifferenceMatrix.to_numpy().ravel())
+# diff_score = DifferenceMatrix.to_numpy().ravel()
+#
+# include_inds = np.where(diff_score != 0)[0]
+# comp_score  = comp_score[include_inds]
+# diff_score = diff_score[include_inds]
+# anat_conn = ConnectivityCount.to_numpy().ravel()[include_inds]
+#
+#
+# r, p = pearsonr(comp_score, diff_score)
+#
+# figS2, ax = plt.subplots(1, 2, figsize=(12,6))
+# ax[0].scatter(comp_score, diff_score, marker='o', color='k', alpha=0.5)
+#
+# ax[0].set_xlabel('Completeness of reconstruction')
+# ax[0].set_ylabel('abs(Anat. - Fxnal (z-score))')
+#
+# ax[1].scatter(comp_score, anat_conn, marker='o', color='k', alpha=0.5)
+#
+# ax[1].set_xlabel('Completeness of reconstruction')
+# ax[1].set_ylabel('Anat connectivity')
 
 
 # %% sort difference matrix by most to least different rois
@@ -423,7 +467,7 @@ for s_ind, sz in enumerate(subsampled_sizes):
 err_y = np.std(scfc_r, axis=0) / np.sqrt(scfc_r.shape[0])
 mean_y = np.mean(scfc_r, axis=0)
 
-figS2, ax1 = plt.subplots(1, 1, figsize=(6,6))
+figS1, ax1 = plt.subplots(1, 1, figsize=(6,6))
 ax1.plot(subsampled_sizes, mean_y, 'ko')
 ax1.errorbar(subsampled_sizes, mean_y, yerr=err_y, color='k')
 ax1.hlines(full_r, subsampled_sizes.min(), subsampled_sizes.max(), color='k', linestyle='--')
@@ -445,11 +489,11 @@ with PdfPages(os.path.join(analysis_dir, 'SC_FC_figs.pdf')) as pdf:
     pdf.savefig(fig2_3)
     pdf.savefig(fig2_4)
     pdf.savefig(fig3_0)
+    pdf.savefig(fig3_1)
     pdf.savefig(fig4_0)
     pdf.savefig(fig4_1)
 
     pdf.savefig(figS1)
-    pdf.savefig(figS2)
 
     d = pdf.infodict()
     d['Title'] = 'SC-FC early figs'
