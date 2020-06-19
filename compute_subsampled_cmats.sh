@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-#SBATCH --job-name=vox_subsample
+#SBATCH --job-name=cmats_subsampled
 #SBATCH --partition=trc
 #SBATCH --time=48:00:00
 #SBATCH --ntasks=1
