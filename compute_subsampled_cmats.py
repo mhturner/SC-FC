@@ -6,7 +6,7 @@ import nibabel as nib
 import numpy as np
 import time
 import glob
-import pandas as pd
+import datetime
 
 from region_connectivity import RegionConnectivity
 
@@ -23,13 +23,8 @@ mapping = RegionConnectivity.getRoiMapping()
 
 brain_filepaths = glob.glob(os.path.join(data_dir, '5d_atlas', 'func_volreg') + '*')
 
-brain_filepaths = brain_filepaths[0:2]
-
-# subsampled_sizes = np.logspace(1, 4.4, 16) # voxels
-# n_iter = 10 # num iterations for randomly subsampling regions
-
-subsampled_sizes = np.logspace(1, 4.4, 3) # voxels
-n_iter = 2 # num iterations for randomly subsampling regions
+subsampled_sizes = np.logspace(1, 4.4, 16) # voxels
+n_iter = 10 # num iterations for randomly subsampling regions
 
 # Get full region SC-FC correlation, avg across flies
 t0 = time.time()
@@ -101,7 +96,11 @@ for brain_fp in brain_filepaths:
     cmats_pop.append(cmats_sizes)
     print('Finished brain {} (time = {:.1f} sec)'.format(suffix, time.time()-t0))
 
+d = datetime.datetime.today()
+datestring ='{:02d}'.format(d.year)+'{:02d}'.format(d.month)+'{:02d}'.format(d.day)
+
 cmats_pop = np.stack(cmats_pop, axis=4) # roi x roi x iterations x sizes x brains
-save_fn = os.path.join(analysis_dir, 'subsampled_cmats.npy')
+save_fn = os.path.join(analysis_dir, 'subsampled_cmats_{}.npy'.format(datestring))
 np.save(save_fn, (cmats_pop, CorrelationMatrix_Full, subsampled_sizes))
 print('Finished all brains, saved full and population cmats at {}'.format(save_fn))
+print('Total time = {:.1f} sec)'.format(time.time()-t_total_0))
