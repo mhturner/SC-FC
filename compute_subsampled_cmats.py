@@ -13,9 +13,6 @@ from region_connectivity import RegionConnectivity
 # HP filtering responses
 fs = 1.2 #Hz
 cutoff = 0.01 #Hz
-t_start = 100 #Datapoints
-t_end = None
-
 
 t_total_0 = time.time()
 
@@ -23,28 +20,35 @@ analysis_dir = '/oak/stanford/groups/trc/data/Max/flynet/analysis'
 data_dir = '/oak/stanford/groups/trc/data/Max/flynet/data'
 roinames_path = os.path.join(data_dir, 'atlas_data', 'Original_Index_panda_full.csv')
 mapping = RegionConnectivity.getRoiMapping()
-rois = list(mapping.keys())
-rois.sort()
 
 brain_filepaths = glob.glob(os.path.join(data_dir, '5d_atlas', 'func_volreg') + '*')
 
-subsampled_sizes = np.logspace(1, 4.4, 16) # voxels
-n_iter = 10 # num iterations for randomly subsampling regions
+brain_filepaths = brain_filepaths[0:2]
+
+# subsampled_sizes = np.logspace(1, 4.4, 16) # voxels
+# n_iter = 10 # num iterations for randomly subsampling regions
+
+subsampled_sizes = np.logspace(1, 4.4, 3) # voxels
+n_iter = 2 # num iterations for randomly subsampling regions
 
 # Get full region SC-FC correlation, avg across flies
 t0 = time.time()
 cmats = []
 for brain_fp in brain_filepaths:
     suffix = brain_fp.split('func_volreg_')[-1]
+    file_id = suffix.replace('.nii.gz', '')
     atlas_fp = os.path.join(data_dir, '5d_atlas', 'vfb_68_' + suffix)
     roi_mask, _ = RegionConnectivity.loadAtlasData(atlas_fp, roinames_path, mapping=mapping)
 
     # Load functional brain
     functional_brain = np.asanyarray(nib.load(brain_fp).dataobj).astype('uint16')
 
-    # get region responses and cmat
-    region_responses_full = pd.DataFrame(data=RegionConnectivity.computeRegionResponses(functional_brain, roi_mask), index=rois)
-    region_responses_full = RegionConnectivity.filterRegionResponse(region_responses_full, cutoff=cutoff, fs=fs, t_start=t_start, t_end=t_end)
+    # get region responses and filter, trim
+    region_responses_full = RegionConnectivity.computeRegionResponses(functional_brain, roi_mask)
+    region_responses_full = RegionConnectivity.filterRegionResponse(region_responses_full, cutoff=cutoff, fs=fs)
+    region_responses_full = RegionConnectivity.trimRegionResponse(file_id, region_responses_full)
+
+    # compute cmat
     correlation_matrix = np.corrcoef(region_responses_full)
     # set diag to 0
     np.fill_diagonal(correlation_matrix, 0)
@@ -81,8 +85,10 @@ for brain_fp in brain_filepaths:
                 else: # not enough voxels in mask, so just take the whole region
                     region_responses_subsampled.append(np.mean(functional_brain[mask, :], axis=0))
 
-            region_responses_subsampled = pd.DataFrame(data=np.vstack(region_responses_subsampled), index=rois)
-            region_responses_subsampled = RegionConnectivity.filterRegionResponse(region_responses_subsampled, cutoff=cutoff, fs=fs, t_start=t_start, t_end=t_end)
+            # get region responses and filter, trim
+            region_responses_subsampled = RegionConnectivity.filterRegionResponse(np.vstack(region_responses_subsampled), cutoff=cutoff, fs=fs)
+            region_responses_subsampled = RegionConnectivity.trimRegionResponse(file_id, region_responses_subsampled)
+
             correlation_matrix = np.corrcoef(region_responses_subsampled) # roi x roi
             # set diag to 0
             np.fill_diagonal(correlation_matrix, 0)

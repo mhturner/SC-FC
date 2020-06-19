@@ -89,27 +89,56 @@ def loadAtlasData(atlas_path, roinames_path, mapping=None):
 
     return roi_mask, roi_size
 
-def filterRegionResponse(region_response, cutoff=None, fs=None, t_start=None, t_end=None):
+def filterRegionResponse(region_response, cutoff=None, fs=None):
     """
-    region_response is pd dataframe
+    region_response is np array
+    cutoff in Hz
+    fs in Hz
     """
     if fs is not None:
         sos = signal.butter(1, cutoff, 'hp', fs=fs, output='sos')
-        resp = signal.sosfilt(sos, region_response)[:, t_start:t_end]
-        resp = pd.DataFrame(data=resp, index=region_response.index)
+        region_response_filtered = signal.sosfilt(sos, region_response)
+
+    return region_response_filtered
+
+def trimRegionResponse(file_id, region_response):
+    """
+    file_id is string
+    region_response is pd np array
+    """
+    default_start_exclude = 100
+    default_end_exclude = None
+
+    # Key: brain file id
+    # Val: time inds to include
+    brains_to_trim = {'2018-10-19_1': np.array(list(range(100,900)) + list(range(1100,2000))), # transient dropout spikes
+                      '2017-11-08_1': np.array(list(range(100,1900)) + list(range(2000,4000))), # baseline shift
+                      '2018-10-20_1': np.array(list(range(100,1000)))} # dropout halfway through
+
+    if file_id in brains_to_trim.keys():
+        include_inds = brains_to_trim[file_id]
+        region_response_trimmed = region_response[:, include_inds]
     else:
-        resp = region_response.iloc[:, t_start:t_end]
+        region_response_trimmed = region_response[:, default_start_exclude:default_end_exclude]
 
-    return resp
+    return region_response_trimmed
 
-def getFunctionalConnectivity(response_filepaths, cutoff=None, fs=None, t_start=None, t_end=None):
+def getProcessedRegionResponse(resp_fp, cutoff=None, fs=None):
+    file_id = resp_fp.split('/')[-1].replace('.pkl', '')
+    region_responses = pd.read_pickle(resp_fp)
+
+    resp = filterRegionResponse(region_responses.to_numpy(), cutoff=cutoff, fs=fs)
+    resp = trimRegionResponse(file_id, resp)
+
+    region_responses_processed = pd.DataFrame(data=resp, index=region_responses.index)
+    return region_responses_processed
+
+def getFunctionalConnectivity(response_filepaths, cutoff=None, fs=None):
     cmats_z = []
     for resp_fp in response_filepaths:
-        region_responses = pd.read_pickle(resp_fp)
+        region_responses_processed = getProcessedRegionResponse(resp_fp, cutoff=cutoff, fs=fs)
 
-        resp = filterRegionResponse(region_responses, cutoff=cutoff, fs=fs, t_start=t_start, t_end=t_end)
-
-        correlation_matrix = np.corrcoef(resp)
+        correlation_matrix = np.corrcoef(region_responses_processed)
         # set diag to 0
         np.fill_diagonal(correlation_matrix, 0)
         # fischer z transform (arctanh) and append
@@ -121,7 +150,7 @@ def getFunctionalConnectivity(response_filepaths, cutoff=None, fs=None, t_start=
     # Make mean pd Dataframe
     mean_cmat = np.mean(cmats, axis=2)
     np.fill_diagonal(mean_cmat, np.nan)
-    CorrelationMatrix_Functional = pd.DataFrame(data=mean_cmat, index=region_responses.index, columns=region_responses.index)
+    CorrelationMatrix_Functional = pd.DataFrame(data=mean_cmat, index=region_responses_processed.index, columns=region_responses_processed.index)
 
     return CorrelationMatrix_Functional, cmats
 

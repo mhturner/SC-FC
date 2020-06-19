@@ -50,9 +50,8 @@ atlas_path = os.path.join(data_dir, 'atlas_data', 'vfb_68_Original.nii.gz')
 response_filepaths = glob.glob(os.path.join(data_dir, 'region_responses') + '/' + '*.pkl')
 fs = 1.2
 cutoff = 0.01
-t_start = 100
-t_end = None
-CorrelationMatrix_Functional, cmats = RegionConnectivity.getFunctionalConnectivity(response_filepaths, cutoff=cutoff, fs=fs, t_start=t_start, t_end=t_end)
+
+CorrelationMatrix_Functional, cmats = RegionConnectivity.getFunctionalConnectivity(response_filepaths, cutoff=cutoff, fs=fs)
 roi_mask, roi_size = RegionConnectivity.loadAtlasData(atlas_path=atlas_path, roinames_path=roinames_path, mapping=mapping)
 
 # indices for connectivity and correlation matrices
@@ -187,6 +186,7 @@ print('KS test lognormal: Count p = {:.4f}; weight p = {:.4f}'.format(p_ct, p_wt
 
 colors = sns.color_palette("Set2", n_colors=20)
 
+# TODO: redo this using getProcessedRegionResponse
 t_lim = 1000
 ind = 0
 resp_fp = response_filepaths[ind]

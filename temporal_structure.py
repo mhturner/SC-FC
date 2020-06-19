@@ -12,6 +12,8 @@ from region_connectivity import RegionConnectivity
 analysis_dir = '/home/mhturner/Dropbox/ClandininLab/Analysis/SC-FC'
 data_dir = '/home/mhturner/Dropbox/ClandininLab/Analysis/SC-FC/data'
 
+response_filepaths = glob.glob(os.path.join(data_dir, 'region_responses') + '/' + '*.pkl')
+
 # Load anatomical stuff:
 WeakConnections = pd.read_pickle(os.path.join(data_dir, 'connectome_connectivity', 'WeakConnections_computed_20200618.pkl'))
 MediumConnections = pd.read_pickle(os.path.join(data_dir, 'connectome_connectivity', 'MediumConnections_computed_20200618.pkl'))
@@ -30,57 +32,54 @@ anatomical_adjacency = ConnectivityMatrix_Symmetrized.to_numpy().copy()[upper_in
 
 fs = 1.2
 cutoff = 0.01
-t_start = 100
-t_end = None
 
-response_filepaths = glob.glob(os.path.join(data_dir, 'region_responses') + '/' + '*.pkl')
+
 fh, ax = plt.subplots(5, 3, figsize=(24, 8))
 ax = ax.ravel()
 [x.set_axis_off() for x in ax]
 
 for ind in range(len(response_filepaths)):
+    resp_fp = response_filepaths[ind]
+    region_responses_processed = RegionConnectivity.getProcessedRegionResponse(resp_fp, cutoff=cutoff, fs=fs)
+
+    correlation_matrix = np.corrcoef(region_responses_processed)
 
 
-    region_response = pd.read_pickle(response_filepaths[ind])
-    region_response = RegionConnectivity.filterRegionResponse(region_response, cutoff=cutoff, fs=fs, t_start=t_start, t_end=t_end)
-
-    correlation_matrix = np.corrcoef(region_response)
-
-
-    ax[ind].plot(region_response.T);
+    ax[ind].plot(region_responses_processed.T);
 
     r, _ = pearsonr(anatomical_adjacency, correlation_matrix[upper_inds])
     ax[ind].set_title('r={:.2f}'.format(r))
 
 
 
-fh.savefig(os.path.join(analysis_dir, 'HPfiltering_{}.png'.format(fs)))
-# %%
-fs = 2
-cutoff = 0.025
-t_start = 50
-t_end = None
+# fh.savefig(os.path.join(analysis_dir, 'HPfiltering_{}.png'.format(fs)))
 
-ind = 9
+
+
+# %%
+fs = 1.2
+cutoff = 0.01
+
+ind = 2
+
 dt = 5
-ws = 50
+ws = 100
 
 resp_fp = response_filepaths[ind]
 
 fh, ax = plt.subplots(2, 1, figsize=(16, 8))
 
 
-region_responses = pd.read_pickle(resp_fp)
-region_responses = RegionConnectivity.filterRegionResponse(region_responses, cutoff=cutoff, fs=fs, t_start=t_start, t_end=t_end)
-ax[0].plot(region_responses.T)
+region_responses_processed = RegionConnectivity.getProcessedRegionResponse(resp_fp, cutoff=cutoff, fs=fs)
+ax[0].plot(region_responses_processed.T)
 
-window_centers = np.arange(ws/2, region_responses.shape[1]-ws/2, dt)
+window_centers = np.arange(ws/2, region_responses_processed.shape[1]-ws/2, dt)
 r = []
 act = []
 cmats = []
 corr = []
 for t in window_centers:
-    correlation_matrix = np.corrcoef(region_responses.to_numpy()[:, int(t-ws/2):int(t+ws/2)])
+    correlation_matrix = np.corrcoef(region_responses_processed.to_numpy()[:, int(t-ws/2):int(t+ws/2)])
     cmats.append(correlation_matrix[upper_inds])
 
     corr.append(np.mean(correlation_matrix[upper_inds]))
@@ -88,17 +87,17 @@ for t in window_centers:
     r_new, _ = pearsonr(anatomical_adjacency, correlation_matrix[upper_inds])
     r.append(r_new)
 
-    activity = np.var(region_responses.to_numpy()[:, int(t-ws/2):int(t+ws/2)], axis=1) / np.mean(region_responses.to_numpy()[:, int(t-ws/2):int(t+ws/2)], axis=1)
+    activity = np.var(region_responses_processed.to_numpy()[:, int(t-ws/2):int(t+ws/2)], axis=1) / np.mean(region_responses_processed.to_numpy()[:, int(t-ws/2):int(t+ws/2)], axis=1)
     act.append(np.mean(activity))
 
 rr, _ = pearsonr(corr, r)
 
 ax[1].plot(window_centers, r, LineStyle='-', c='k', label='SC-FC corr')
 ax[1].plot(window_centers, corr, LineStyle='-', c='r', label='Mean FC')
-ax[1].set_ylim([0, 1])
+# ax[1].set_ylim([0, 1])
 ax[1].set_title('r={:.2f}'.format(rr))
-ax2 = plt.twinx(ax[1])
-ax2.plot(window_centers, act, LineStyle='--', label='activity_{}'.format(ws), color='b')
+# ax2 = plt.twinx(ax[1])
+# ax2.plot(window_centers, act, LineStyle='--', label='activity_{}'.format(ws), color='b')
 
 
 cmats = np.vstack(cmats)
