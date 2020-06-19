@@ -90,6 +90,9 @@ def loadAtlasData(atlas_path, roinames_path, mapping=None):
     return roi_mask, roi_size
 
 def filterRegionResponse(region_response, cutoff=None, fs=None, t_start=None, t_end=None):
+    """
+    region_response is pd dataframe
+    """
     if fs is not None:
         sos = signal.butter(1, cutoff, 'hp', fs=fs, output='sos')
         resp = signal.sosfilt(sos, region_response)[:, t_start:t_end]

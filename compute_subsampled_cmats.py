@@ -6,6 +6,7 @@ import nibabel as nib
 import numpy as np
 import time
 import glob
+import pandas as pd
 
 from region_connectivity import RegionConnectivity
 
@@ -22,6 +23,9 @@ analysis_dir = '/oak/stanford/groups/trc/data/Max/flynet/analysis'
 data_dir = '/oak/stanford/groups/trc/data/Max/flynet/data'
 roinames_path = os.path.join(data_dir, 'atlas_data', 'Original_Index_panda_full.csv')
 mapping = RegionConnectivity.getRoiMapping()
+rois = list(mapping.keys())
+rois.sort()
+
 brain_filepaths = glob.glob(os.path.join(data_dir, '5d_atlas', 'func_volreg') + '*')
 
 subsampled_sizes = np.logspace(1, 4.4, 16) # voxels
@@ -38,8 +42,8 @@ for brain_fp in brain_filepaths:
     # Load functional brain
     functional_brain = np.asanyarray(nib.load(brain_fp).dataobj).astype('uint16')
 
-    # get region responses and SC-FC corr
-    region_responses_full = RegionConnectivity.computeRegionResponses(functional_brain, roi_mask)
+    # get region responses and cmat
+    region_responses_full = pd.DataFrame(data=RegionConnectivity.computeRegionResponses(functional_brain, roi_mask), index=rois)
     region_responses_full = RegionConnectivity.filterRegionResponse(region_responses_full, cutoff=cutoff, fs=fs, t_start=t_start, t_end=t_end)
     correlation_matrix = np.corrcoef(region_responses_full)
     # set diag to 0
@@ -77,7 +81,7 @@ for brain_fp in brain_filepaths:
                 else: # not enough voxels in mask, so just take the whole region
                     region_responses_subsampled.append(np.mean(functional_brain[mask, :], axis=0))
 
-            region_responses_subsampled = np.vstack(region_responses_subsampled)
+            region_responses_subsampled = pd.DataFrame(data=np.vstack(region_responses_subsampled), index=rois)
             region_responses_subsampled = RegionConnectivity.filterRegionResponse(region_responses_subsampled, cutoff=cutoff, fs=fs, t_start=t_start, t_end=t_end)
             correlation_matrix = np.corrcoef(region_responses_subsampled) # roi x roi
             # set diag to 0

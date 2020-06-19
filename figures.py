@@ -45,11 +45,9 @@ Functional connectivity and atlas data
     :SizeMatrix: geometric mean of the sizes for each pair of ROIs
 """
 roinames_path = os.path.join(data_dir, 'atlas_data', 'Original_Index_panda_full.csv')
-cmat_path = os.path.join(data_dir, 'functional_connectivity', 'full_cmat.txt')
 atlas_path = os.path.join(data_dir, 'atlas_data', 'vfb_68_Original.nii.gz')
 
 response_filepaths = glob.glob(os.path.join(data_dir, 'region_responses') + '/' + '*.pkl')
-# CorrelationMatrix_Functional, cmats = RegionConnectivity.getFunctionalConnectivity(response_filepaths, t_lim=1000)
 fs = 1.2
 cutoff = 0.01
 t_start = 100
