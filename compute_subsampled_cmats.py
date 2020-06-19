@@ -9,6 +9,13 @@ import glob
 
 from region_connectivity import RegionConnectivity
 
+# HP filtering responses
+fs = 1.2 #Hz
+cutoff = 0.01 #Hz
+t_start = 100 #Datapoints
+t_end = None
+
+
 t_total_0 = time.time()
 
 analysis_dir = '/oak/stanford/groups/trc/data/Max/flynet/analysis'
@@ -33,6 +40,7 @@ for brain_fp in brain_filepaths:
 
     # get region responses and SC-FC corr
     region_responses_full = RegionConnectivity.computeRegionResponses(functional_brain, roi_mask)
+    region_responses_full = RegionConnectivity.filterRegionResponse(region_responses_full, cutoff=cutoff, fs=fs, t_start=t_start, t_end=t_end)
     correlation_matrix = np.corrcoef(region_responses_full)
     # set diag to 0
     np.fill_diagonal(correlation_matrix, 0)
@@ -69,7 +77,9 @@ for brain_fp in brain_filepaths:
                 else: # not enough voxels in mask, so just take the whole region
                     region_responses_subsampled.append(np.mean(functional_brain[mask, :], axis=0))
 
-            correlation_matrix = np.corrcoef(np.vstack(region_responses_subsampled)) # roi x roi
+            region_responses_subsampled = np.vstack(region_responses_subsampled)
+            region_responses_subsampled = RegionConnectivity.filterRegionResponse(region_responses_subsampled, cutoff=cutoff, fs=fs, t_start=t_start, t_end=t_end)
+            correlation_matrix = np.corrcoef(region_responses_subsampled) # roi x roi
             # set diag to 0
             np.fill_diagonal(correlation_matrix, 0)
             # fischer z transform (arctanh) and append

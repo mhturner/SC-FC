@@ -122,41 +122,6 @@ def getFunctionalConnectivity(response_filepaths, cutoff=None, fs=None, t_start=
 
     return CorrelationMatrix_Functional, cmats
 
-def loadFunctionalData_old(cmat_path, roinames_path, mapping=None):
-    cmat = np.loadtxt(cmat_path, delimiter=' ')
-    roi_names = pd.read_csv(roinames_path, sep=',', header=0).name.to_numpy()
-
-    # cut out nan regions (tracts))
-    pull_inds = np.where([type(x) is str for x in roi_names])[0]
-    delete_inds = np.where([type(x) is not str for x in roi_names])[0]
-
-    # filter cmat
-    cmat = np.delete(cmat, delete_inds, axis=0)
-    cmat = np.delete(cmat, delete_inds, axis=1)
-
-    # filter region names
-    roi_names = np.array([x for x in roi_names if type(x) is str]) # cut out nan regions from roi names
-
-    # convert names to match display format
-    roi_names = [x.replace('_R','(R)') for x in roi_names]
-    roi_names = [x.replace('_L','(L)') for x in roi_names]
-    roi_names = [x.replace('_', '') for x in roi_names]
-
-    CorrelationMatrix_Full = pd.DataFrame(data=cmat, index=roi_names, columns=roi_names)
-
-    if mapping is not None: #filter cmat to only include rois in mapping
-        rois = list(mapping.keys())
-        rois.sort()
-        CorrelationMatrix_Filtered = pd.DataFrame(data=np.zeros(shape=(len(rois), len(rois))), index=rois, columns=rois)
-        for r_ind, r in enumerate(rois):
-            for c_ind, c in enumerate(rois):
-                CorrelationMatrix_Filtered.loc[[r], [c]] = CorrelationMatrix_Full.loc[r, c]
-        CorrelationMatrix = CorrelationMatrix_Filtered
-    else:
-        CorrelationMatrix = CorrelationMatrix_Full
-
-    return CorrelationMatrix
-
 def computeRegionResponses(brain, region_masks):
     """
     brain is xyzt
