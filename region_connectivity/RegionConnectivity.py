@@ -98,6 +98,8 @@ def filterRegionResponse(region_response, cutoff=None, fs=None):
     if fs is not None:
         sos = signal.butter(1, cutoff, 'hp', fs=fs, output='sos')
         region_response_filtered = signal.sosfilt(sos, region_response)
+    else:
+        region_response_filtered = region_response
 
     return region_response_filtered
 

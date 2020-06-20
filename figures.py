@@ -184,36 +184,53 @@ print('KS test lognormal: Count p = {:.4f}; weight p = {:.4f}'.format(p_ct, p_wt
 
 # %% FIGURE 2: Connectivity matrices and SC-FC correlation
 
+ind = 0
+
+fs = 1.2
+cutoff = 0.01
+
+x_start = 0
+x_end = 600
+
 colors = sns.color_palette("Set2", n_colors=20)
 
-# TODO: redo this using getProcessedRegionResponse
-t_lim = 1000
-ind = 0
 resp_fp = response_filepaths[ind]
-region_responses = pd.read_pickle(resp_fp)
-# region_responses = RegionConnectivity.filterRegionResponse(region_responses, cutoff=cutoff, fs=fs, t_start=t_start, t_end=t_end)
-new_dff = (region_responses.to_numpy() - np.mean(region_responses.to_numpy(), axis=1)[:, None]) / np.mean(region_responses.to_numpy(), axis=1)[:, None]
 
-region_dff = pd.DataFrame(data=new_dff, index=region_responses.index)
+file_id = resp_fp.split('/')[-1].replace('.pkl', '')
+region_response = pd.read_pickle(resp_fp)
+# convert to dF/F
+dff = (region_response.to_numpy() - np.mean(region_response.to_numpy(), axis=1)[:, None]) / np.mean(region_response.to_numpy(), axis=1)[:, None]
+
+# trim and filter
+#
+resp = RegionConnectivity.filterRegionResponse(dff, cutoff=cutoff, fs=fs)
+resp = RegionConnectivity.trimRegionResponse(file_id, resp)
+#
+# region_responses_processed = RegionConnectivity.getProcessedRegionResponse(resp_fp, cutoff=cutoff, fs=fs)
+#
+#
+# np.mean(region_responses_processed.to_numpy(), axis=1)[:, None]
+
+region_dff = pd.DataFrame(data=resp, index=region_response.index)
 
 pull_regions = ['MBML(L)', 'MBML(R)', 'MBVL(R)', 'CRE(R)', 'CRE(L)']
 fig2_0, ax = plt.subplots(5, 1, figsize=(12,8))
 ax = ax.ravel()
-[x.set_axis_off() for x in ax]
-[x.set_ylim([-0.5, 1.0]) for x in ax]
+# [x.set_axis_off() for x in ax]
+# [x.set_ylim([-0.3, 1.2]) for x in ax]
 for p_ind, pr in enumerate(pull_regions):
-    ax[p_ind].plot(region_dff.loc[pr, 100:t_lim], color=colors[p_ind])
-    ax[p_ind].annotate(pr, (100, 1))
+    ax[p_ind].plot(region_dff.loc[pr, x_start:x_end], color=colors[p_ind])
+    ax[p_ind].annotate(pr, (-20, 0) , rotation=90)
 
 
 pull_regions = ['LAL(R)', 'AL(R)', 'FB', 'VES(R)']
 fig2_1, ax = plt.subplots(4, 1, figsize=(12,8))
 ax = ax.ravel()
-[x.set_axis_off() for x in ax]
-[x.set_ylim([-0.2, 0.4]) for x in ax]
+# [x.set_axis_off() for x in ax]
+# [x.set_ylim([-0.3, 1.2]) for x in ax]
 for p_ind, pr in enumerate(pull_regions):
-    ax[p_ind].plot(region_dff.loc[pr, 100:t_lim], color=colors[p_ind])
-    ax[p_ind].annotate(pr, (100, 0.4))
+    ax[p_ind].plot(region_dff.loc[pr, x_start:x_end], color=colors[p_ind])
+    ax[p_ind].annotate(pr, (-20, 0), rotation=90)
 
 
 # %%
