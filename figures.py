@@ -15,6 +15,7 @@ from scipy.ndimage.measurements import center_of_mass
 from matplotlib.backends.backend_pdf import PdfPages
 import datetime
 from scipy.stats import kstest, lognorm, norm
+from dominance_analysis import Dominance
 
 from region_connectivity import RegionConnectivity
 
@@ -330,7 +331,7 @@ ax[1, 1].set_xlabel('Inter-ROI distance');
 ax[1, 1].set_yscale('log')
 
 # %% Dominance analysis
-from dominance_analysis import Dominance
+
 fig3_1, ax = plt.subplots(1, 2, figsize=(10, 5))
 
 # linear regression model prediction:
@@ -462,12 +463,8 @@ values, base = np.histogram(roi_size, bins=bins, density=True)
 cumulative = np.cumsum(values)
 
 # Load precomputed subsampled Cmats for each brain
-load_fn = os.path.join(data_dir, 'functional_connectivity', 'subsampled_cmats.npy')
+load_fn = os.path.join(data_dir, 'functional_connectivity', 'subsampled_cmats_20200619.npy')
 (cmats_pop, CorrelationMatrix_Full, subsampled_sizes) = np.load(load_fn, allow_pickle=True)
-
-# compute full region SC-FC corr
-functional_adjacency_full_ss = CorrelationMatrix_Full[upper_inds][keep_inds]
-full_r, _ = pearsonr(anatomical_adjacency, functional_adjacency_full_ss)
 
 # mean cmat over brains for each subsampledsize and iteration
 cmats_popmean = np.mean(cmats_pop, axis=4) # roi x roi x iterations x sizes
@@ -479,13 +476,13 @@ for s_ind, sz in enumerate(subsampled_sizes):
         scfc_r[it, s_ind] = new_r
 
 # plot mean+/-SEM results on top of region size cumulative histogram
-err_y = np.std(scfc_r, axis=0) / np.sqrt(scfc_r.shape[0])
+err_y = np.std(scfc_r, axis=0)
 mean_y = np.mean(scfc_r, axis=0)
 
 figS1, ax1 = plt.subplots(1, 1, figsize=(6,6))
 ax1.plot(subsampled_sizes, mean_y, 'ko')
 ax1.errorbar(subsampled_sizes, mean_y, yerr=err_y, color='k')
-ax1.hlines(full_r, subsampled_sizes.min(), subsampled_sizes.max(), color='k', linestyle='--')
+ax1.hlines(mean_y[-1], subsampled_sizes.min(), subsampled_sizes.max(), color='k', linestyle='--')
 ax1.set_xlabel('Region size (voxels)')
 ax1.set_ylabel('Correlation with anatomical connectivity')
 ax1.set_xscale('log')

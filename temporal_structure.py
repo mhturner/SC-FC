@@ -3,7 +3,9 @@ import glob
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.stats import pearsonr, zscore
+from sklearn.cluster import KMeans
 import pandas as pd
+
 
 from region_connectivity import RegionConnectivity
 
@@ -132,9 +134,3 @@ for c in range(n_clusters):
 
 ax.set_xlabel('Mean FC corr')
 ax.set_ylabel('SC-FC corr')
-
-# %%
-reducer = umap.UMAP(n_neighbors=10, min_dist=0.1, n_components=2, metric='correlation')
-embedding = reducer.fit_transform(cmats)
-embedding.shape
-plt.scatter(embedding[:, 0], embedding[:, 1], c=kmeans.labels_)

@@ -26,7 +26,7 @@ brain_filepaths = glob.glob(os.path.join(data_dir, '5d_atlas', 'func_volreg') + 
 subsampled_sizes = np.logspace(1, 4.4, 16) # voxels
 n_iter = 10 # num iterations for randomly subsampling regions
 
-# Get full region SC-FC correlation, avg across flies
+# Get full cmat, avg across flies
 t0 = time.time()
 cmats = []
 for brain_fp in brain_filepaths:
