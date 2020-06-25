@@ -135,6 +135,19 @@ def getProcessedRegionResponse(resp_fp, cutoff=None, fs=None):
     region_responses_processed = pd.DataFrame(data=resp, index=region_responses.index)
     return region_responses_processed
 
+def getBehavingBinary(motion_filepath):
+    motion_df = pd.read_csv(motion_filepath, sep='\t')
+    num_frames = 2000 # imaging frames
+    total_time = motion_df.loc[0, 'Total length'] #total time, synced to imaging start/stop
+    starts = (num_frames*(motion_df.loc[:,'Start (s)'].to_numpy() / total_time)).astype(int) # in imaging frames
+    stops = (num_frames*(motion_df.loc[:,'Stop (s)'].to_numpy() / total_time)).astype(int) # in imaging frames
+
+    is_behaving = np.zeros(num_frames)
+    for st_ind, start in enumerate(starts):
+        is_behaving[start : stops[st_ind]] = 1
+
+    return is_behaving
+
 def getFunctionalConnectivity(response_filepaths, cutoff=None, fs=None):
     cmats_z = []
     for resp_fp in response_filepaths:
