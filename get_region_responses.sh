@@ -1,5 +1,6 @@
 #!/bin/bash
 #
+#SBATCH --mail-type=END,FAIL
 #SBATCH --job-name=get_region_responses
 #SBATCH --partition=trc
 #SBATCH --time=4:00:00
