@@ -103,13 +103,14 @@ def filterRegionResponse(region_response, cutoff=None, fs=None):
 
     return region_response_filtered
 
-def trimRegionResponse(file_id, region_response):
+def trimRegionResponse(file_id, region_response, start_include=100, end_include=None):
     """
     file_id is string
-    region_response is pd np array
+    region_response is np array
+        either:
+            nrois x frames (region responses)
+            1 x frames (binary behavior response)
     """
-    default_start_exclude = 100
-    default_end_exclude = None
 
     # Key: brain file id
     # Val: time inds to include
@@ -119,9 +120,15 @@ def trimRegionResponse(file_id, region_response):
 
     if file_id in brains_to_trim.keys():
         include_inds = brains_to_trim[file_id]
-        region_response_trimmed = region_response[:, include_inds]
-    else:
-        region_response_trimmed = region_response[:, default_start_exclude:default_end_exclude]
+        if len(region_response.shape) == 2:
+            region_response_trimmed = region_response[:, include_inds]
+        elif len(region_response.shape) == 1:
+            region_response_trimmed = region_response[include_inds]
+    else: # use default start / end
+        if len(region_response.shape) == 2:
+            region_response_trimmed = region_response[:, start_include:end_include]
+        elif len(region_response.shape) == 1:
+            region_response_trimmed = region_response[start_include:end_include]
 
     return region_response_trimmed
 
@@ -136,6 +143,7 @@ def getProcessedRegionResponse(resp_fp, cutoff=None, fs=None):
     return region_responses_processed
 
 def getBehavingBinary(motion_filepath):
+
     motion_df = pd.read_csv(motion_filepath, sep='\t')
     num_frames = 2000 # imaging frames
     total_time = motion_df.loc[0, 'Total length'] #total time, synced to imaging start/stop
