@@ -20,7 +20,7 @@ rois.sort()
 for brain_fp in brain_filepaths:
     t0 = time.time()
     suffix = brain_fp.split('func_volreg_')[-1]
-    atlas_fp = os.path.join(data_dir, 'vfb_68_' + suffix)
+    atlas_fp = os.path.join(data_dir, '5d_atlas', 'vfb_68_' + suffix)
 
     functional_brain = np.asanyarray(nib.load(brain_fp).dataobj).astype('uint16')
 
