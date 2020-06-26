@@ -1,0 +1,6 @@
+Finished full region cmat (time = 125.0 sec)
+Starting brain 2017-10-30_2.nii.gz
+Finished brain 2017-10-30_2.nii.gz (time = 103.8 sec)
+Starting brain 2017-10-26_1.nii.gz
+Finished brain 2017-10-26_1.nii.gz (time = 93.6 sec)
+Finished all brains, saved full and population cmats at /oak/stanford/groups/trc/data/Max/flynet/analysis/subsampled_cmats.npy

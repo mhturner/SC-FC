@@ -1,0 +1,6 @@
+Traceback (most recent call last):
+  File "/home/users/mhturner/SC-FC/compute_subsampled_cmats.py", line 43, in <module>
+    region_responses_full = RegionConnectivity.filterRegionResponse(region_responses_full, cutoff=cutoff, fs=fs, t_start=t_start, t_end=t_end)
+  File "/home/users/mhturner/SC-FC/region_connectivity/RegionConnectivity.py", line 96, in filterRegionResponse
+    resp = pd.DataFrame(data=resp, index=region_response.index)
+AttributeError: 'numpy.ndarray' object has no attribute 'index'
