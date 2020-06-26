@@ -50,7 +50,6 @@ Functional connectivity and atlas data
 """
 roinames_path = os.path.join(data_dir, 'atlas_data', 'Original_Index_panda_full.csv')
 atlas_path = os.path.join(data_dir, 'atlas_data', 'vfb_68_Original.nii.gz')
-
 response_filepaths = glob.glob(os.path.join(data_dir, 'region_responses') + '/' + '*.pkl')
 fs = 1.2 # Hz
 cutoff = 0.01 # Hz
@@ -259,7 +258,7 @@ for z_ind, z in enumerate(zslices):
     # ax.set_title(z)
 
 
-ind = 7
+ind = 11
 fs = 1.2
 cutoff = 0.01
 
@@ -349,7 +348,6 @@ for c_ind in range(cmats.shape[2]):
 
     r_new, _ = pearsonr(anatomical_adjacency, functional_adjacency_new)
     r_vals.append(r_new)
-
 
 fig2_2, ax = plt.subplots(1,1,figsize=(3,6))
 fig2_2.tight_layout(pad=4)

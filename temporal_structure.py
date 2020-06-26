@@ -2,9 +2,10 @@ import os
 import glob
 import numpy as np
 import matplotlib.pyplot as plt
-from scipy.stats import pearsonr, zscore
+from scipy.stats import pearsonr, zscore, ttest_rel, kstest, wilcoxon
 from sklearn.cluster import KMeans
 import pandas as pd
+import seaborn as sns
 
 
 from region_connectivity import RegionConnectivity
@@ -26,6 +27,7 @@ roi_names = conn_mat.index
 tmp_mat = conn_mat.to_numpy().copy()
 np.fill_diagonal(tmp_mat, np.nan)
 # symmetrize anatomical adjacency matrix by just adding it to its transpose and dividing by 2. Ignores directionality
+ConnectivityCount = pd.DataFrame(data=tmp_mat, index=conn_mat.index, columns=conn_mat.index)
 ConnectivityMatrix_Symmetrized = pd.DataFrame(data=(tmp_mat + tmp_mat.T)/2, index=roi_names, columns=roi_names)
 upper_inds = np.triu_indices(ConnectivityMatrix_Symmetrized.shape[0], k=1) # k=1 excludes main diagonal
 keep_inds = np.where(ConnectivityMatrix_Symmetrized.to_numpy()[upper_inds] > 0) # for log-transforming anatomical connectivity, toss zero values
@@ -37,9 +39,10 @@ anatomical_adjacency = np.log10(ConnectivityMatrix_Symmetrized.to_numpy().copy()
 fs = 1.2 # Hz
 cutoff = 0.01 # Hz
 
-fh, ax = plt.subplots(2, 6, figsize=(24, 8))
-ax = ax.ravel()
-[x.set_axis_off() for x in ax]
+eg_ind = 0
+
+fh, ax = plt.subplots(2, 1, figsize=(12, 4))
+
 
 cmats_full = []
 r_full = []
@@ -50,6 +53,8 @@ r_behaving = []
 cmats_nonbehaving = []
 r_nonbehaving = []
 
+time_behaving = []
+
 for ind, motion_fp in enumerate(motion_filepaths):
     suffix = motion_fp.split('motion_events_')[-1].split('.')[0]
 
@@ -58,43 +63,117 @@ for ind, motion_fp in enumerate(motion_filepaths):
     # filter behaving binary
     is_behaving = RegionConnectivity.trimRegionResponse(suffix, is_behaving)
 
+    time_behaving = np.sum(is_behaving)
+
     # load region responses for this fly
     resp_fp = os.path.join(data_dir, 'region_responses', suffix + '.pkl')
     region_responses = RegionConnectivity.getProcessedRegionResponse(resp_fp, cutoff=cutoff, fs=fs)
+    behaving_responses = region_responses.iloc[:, np.where(is_behaving)[0]]
+    nonbehaving_responses = region_responses.iloc[:, np.where(np.logical_not(is_behaving))[0]].iloc[:, :int(time_behaving)] # include equal time spent in each state
+    # nonbehaving_responses = region_responses.iloc[:, np.where(np.logical_not(is_behaving))[0]]
 
     # full response trace
     cmat_full = np.corrcoef(region_responses)
-    functional_adjacency_full = cmat_full.to_numpy().copy()[upper_inds][keep_inds]
+    np.fill_diagonal(cmat_full, 0)
+    np.arctanh(cmat_full)
+    functional_adjacency_full = cmat_full.copy()[upper_inds][keep_inds]
     r_new, _ = pearsonr(anatomical_adjacency, functional_adjacency_full)
     r_full.append(r_new)
     cmats_full.append(cmat_full)
 
-    # responses while behaving
-    behaving_responses = region_responses[:, np.where(is_behaving)]
+    # cmat while behaving
     cmat_behaving = np.corrcoef(behaving_responses)
-    functional_adjacency_behaving = cmat_behaving.to_numpy().copy()[upper_inds][keep_inds]
+    np.fill_diagonal(cmat_behaving, 0)
+    np.arctanh(cmat_behaving)
+    functional_adjacency_behaving = cmat_behaving.copy()[upper_inds][keep_inds]
     r_new, _ = pearsonr(anatomical_adjacency, functional_adjacency_behaving)
     r_behaving.append(r_new)
     cmats_behaving.append(cmat_behaving)
 
-    # responses while nonbehaving
-    nonbehaving_responses = region_responses[:, np.where(np.logical_not(is_behaving))]
+    # cmat while nonbehaving
     cmat_nonbehaving = np.corrcoef(nonbehaving_responses)
-    functional_adjacency_nonbehaving = cmat_nonbehaving.to_numpy().copy()[upper_inds][keep_inds]
+    np.fill_diagonal(cmat_nonbehaving, 0)
+    np.arctanh(cmat_nonbehaving)
+    functional_adjacency_nonbehaving = cmat_nonbehaving.copy()[upper_inds][keep_inds]
     r_new, _ = pearsonr(anatomical_adjacency, functional_adjacency_nonbehaving)
     r_nonbehaving.append(r_new)
-    cmats_nonbehaving.append(cmat_behaving)
+    cmats_nonbehaving.append(cmat_nonbehaving)
 
     # plot resp / behavior
-    ax[0, ind].plot(is_behaving)
-    ax[1, ind].plot(region_responses)
+    if ind == eg_ind:
+        ax[0].plot(is_behaving)
+        ax[1].plot(region_responses.T)
 
 
-fh, ax = plt.subplots(1, 1, figsize=(6, 6))
+_, p = ttest_rel(r_nonbehaving, r_behaving)
+fh, ax = plt.subplots(1, 1, figsize=(4, 4))
 ax.plot(r_nonbehaving, r_behaving, 'ko')
 ax.plot([0, 1], [0, 1], 'k--')
+ax.set_xlabel('Nonbehaving')
+ax.set_ylabel('Behaving')
+ax.set_title('p = {:.3f}'.format(p))
 
-#
+print((np.array(r_behaving) - np.array(r_nonbehaving)))
+
+# %%
+
+cmat_full = pd.DataFrame(data=np.mean(np.stack(cmats_full, axis=2), axis=2), index=roi_names, columns=roi_names)
+cmat_behaving = pd.DataFrame(data=np.mean(np.stack(cmats_behaving, axis=2), axis=2), index=roi_names, columns=roi_names)
+cmat_nonbehaving = pd.DataFrame(data=np.mean(np.stack(cmats_nonbehaving, axis=2), axis=2), index=roi_names, columns=roi_names)
+vmin = np.min((cmat_behaving.to_numpy().min(), cmat_nonbehaving.to_numpy().min()))
+vmax = np.max((cmat_behaving.to_numpy().max(), cmat_nonbehaving.to_numpy().max()))
+
+fh, ax = plt.subplots(1, 2, figsize=(16, 8))
+sns.heatmap(cmat_behaving, ax=ax[0], xticklabels=True, cbar_kws={'label': 'Functional Correlation (z)','shrink': .8}, cmap="cividis", rasterized=True, vmin=vmin, vmax=vmax)
+ax[0].set_aspect('equal')
+ax[0].set_title('Behaving')
+
+sns.heatmap(cmat_nonbehaving, ax=ax[1], xticklabels=True, cbar_kws={'label': 'Functional Correlation (z)','shrink': .8}, cmap="cividis", rasterized=True, vmin=vmin, vmax=vmax)
+ax[1].set_aspect('equal')
+ax[1].set_title('NonBehaving')
+
+
+# %%
+functional_adjacency_behaving = cmat_behaving.to_numpy().copy()[upper_inds][keep_inds]
+functional_adjacency_nonbehaving = cmat_nonbehaving.to_numpy().copy()[upper_inds][keep_inds]
+
+fh, ax = plt.subplots(1, 2, figsize=(8, 4))
+ax[0].plot(anatomical_adjacency, functional_adjacency_behaving, 'ko')
+r, _ = pearsonr(anatomical_adjacency, functional_adjacency_behaving)
+ax[0].set_title('Behaving, r = {:.3f}'.format(r))
+ax[0].set_ylabel('Correlation (z)')
+ax[0].set_xlabel('Anatomical connectivity (log10')
+
+ax[1].plot(anatomical_adjacency, functional_adjacency_nonbehaving, 'ko')
+r, _ = pearsonr(anatomical_adjacency, functional_adjacency_nonbehaving)
+ax[1].set_title('Nonbehaving, r = {:.3f}'.format(r))
+ax[1].set_xlabel('Anatomical connectivity (log10')
+
+# %%
+h, p = wilcoxon(functional_adjacency_behaving, functional_adjacency_nonbehaving)
+fh, ax = plt.subplots(1, 1, figsize=(4, 4))
+ax.plot(functional_adjacency_behaving, functional_adjacency_nonbehaving, marker='.', color='b', alpha=1.0, LineStyle='None')
+ax.plot([-0.2, 1], [-0.2, 1], 'k-')
+ax.set_xlabel('Behaving')
+ax.set_ylabel('Nonbehaving')
+ax.set_title('p = {}'.format(p))
+
+# %%
+DifferenceMatrix = cmat_behaving - cmat_nonbehaving
+
+
+diff_by_region = DifferenceMatrix.mean()
+sort_inds = np.argsort(diff_by_region)
+sort_keys = DifferenceMatrix.index[sort_inds]
+sorted_diff = pd.DataFrame(data=np.zeros_like(DifferenceMatrix),columns=sort_keys, index=sort_keys)
+for r_ind, r_key in enumerate(sort_keys):
+    for c_ind, c_key in enumerate(sort_keys):
+        sorted_diff.iloc[r_ind, c_ind]=DifferenceMatrix.loc[[r_key], [c_key]].to_numpy()
+
+lim = np.nanmax(np.abs(DifferenceMatrix.to_numpy().ravel()))
+fh, ax = plt.subplots(1, 1, figsize=(8,8))
+sns.heatmap(sorted_diff, ax=ax, xticklabels=True, cbar_kws={'label': 'Behaving - Nonbehaving','shrink': .75}, cmap="RdBu", rasterized=True, vmin=-lim, vmax=lim)
+ax.set_aspect('equal')
 # # %%
 # fs = 1.2
 # cutoff = 0.01
