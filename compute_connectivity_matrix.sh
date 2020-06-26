@@ -1,5 +1,5 @@
 #!/bin/bash
-#
+#SBATCH --mail-type=END,FAIL
 #SBATCH --job-name=comp_conn_mat
 #SBATCH --partition=trc
 #SBATCH --time=4:00:00

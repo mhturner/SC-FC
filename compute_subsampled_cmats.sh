@@ -1,5 +1,5 @@
 #!/bin/bash
-#
+#SBATCH --mail-type=END,FAIL
 #SBATCH --job-name=cmats_subsampled
 #SBATCH --partition=trc
 #SBATCH --time=48:00:00

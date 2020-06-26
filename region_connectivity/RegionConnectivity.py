@@ -13,7 +13,7 @@ def getRoiMapping():
     """
     # keys of mapping are roi names to use in analysis, based on functional data atlas
     #   values are lists of corresponding roi names in neuprint data
-    mapping = {'AL(R)':['AL(R)'], # 83% in EM volume
+    mapping =  {'AL(R)':['AL(R)'], # 83% in EM volume
                 'AOTU(R)':['AOTU(R)'],
                 'ATL(R)': ['ATL(R)'],
                 'ATL(L)': ['ATL(L)'],
@@ -28,7 +28,7 @@ def getRoiMapping():
                 'FB': ['AB(R)', 'AB(L)', 'FB'],
                 'GOR(R)': ['GOR(R)'],
                 'GOR(L)': ['GOR(L)'], # ~60% in volume
-                # 'IB(R)': ['IB'], # This is lateralized in functional data but not EM. Can we smoosh IB_R and IB_L in fxnal?
+                'IB': ['IB'], # This is lateralized in functional data but not EM. Smoosh IB_R and IB_L together in fxnal to match, see loadAtlasData
                 'ICL(R)': ['ICL(R)'],
                 'LAL(R)': ['LAL(R)'],
                 'LH(R)': ['LH(R)'],
@@ -76,6 +76,18 @@ def loadAtlasData(atlas_path, roinames_path, mapping=None):
         new_roi_mask = mask_brain == (pull_inds[r_ind] + 1) # mask values start at 1, not 0
         roi_mask.append(new_roi_mask) #bool
         roi_size.append(np.sum(new_roi_mask>0))
+
+    # combine IB(R) and IB(L) in fxnal atlas
+    ibr_ind = np.where(np.array(roi_names)=='IB(R)')[0][0]
+    ibl_ind = np.where(np.array(roi_names)=='IB(L)')[0][0]
+    # merge into IB(R) slot
+    roi_mask[ibr_ind] = np.logical_or(roi_mask[ibr_ind], roi_mask[ibl_ind])
+    roi_size[ibr_ind] = roi_size[ibr_ind] + roi_size[ibl_ind]
+    roi_names[ibr_ind] = 'IB'
+    # remove IB(L) slot
+    roi_mask.pop(ibl_ind);
+    roi_size.pop(ibl_ind);
+    roi_names.pop(ibl_ind);
 
     if mapping is not None: #filter atlas data to only include rois in mapping, sort by sorted mapping rois
         rois = list(mapping.keys())
@@ -143,7 +155,6 @@ def getProcessedRegionResponse(resp_fp, cutoff=None, fs=None):
     return region_responses_processed
 
 def getBehavingBinary(motion_filepath):
-
     motion_df = pd.read_csv(motion_filepath, sep='\t')
     num_frames = 2000 # imaging frames
     total_time = motion_df.loc[0, 'Total length'] #total time, synced to imaging start/stop
@@ -188,6 +199,8 @@ def computeRegionResponses(brain, region_masks):
 
     return np.vstack(region_responses)
 
+
+# # # # # # # # # # # # Anatomical connectivity stuff # # # # # # # # # # # # # # #
 def getRoiCompleteness(neuprint_client, mapping):
     rois = list(mapping.keys())
     rois.sort()
