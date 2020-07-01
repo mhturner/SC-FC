@@ -15,7 +15,9 @@ from scipy.ndimage.measurements import center_of_mass
 from matplotlib.backends.backend_pdf import PdfPages
 import datetime
 from scipy.stats import kstest, lognorm, norm
+from scipy.signal import correlate
 from dominance_analysis import Dominance
+from visanalysis import plot_tools
 
 from matplotlib import rcParams
 rcParams.update({'figure.autolayout': True})
@@ -200,6 +202,7 @@ ax.plot(10**bin_ctrs, val, LineWidth=3)
 xx = np.linspace(bin_ctrs.min(), bin_ctrs.max(), 100)
 yy = norm(loc=np.mean(np.log10(ct)), scale=np.std(np.log10(ct))).pdf(xx)
 ax.plot(10**xx, yy, 'k', alpha=1, LineWidth=3)
+ax.set_ylim([0, 0.5])
 
 p_ct, _ = kstest(zscore(log_ct), 'norm')
 ax.set_xlabel('Connectivity (Cell count)')
@@ -248,7 +251,7 @@ for p, pr in enumerate(pull_regions):
 zslices = [9, 21, 45]
 # zslices = np.arange(5, 75, 4)
 # fig1_2 = plt.figure(figsize=(15,12))
-fig1_2 = plt.figure(figsize=(3,9))
+fig1_2 = plt.figure(figsize=(2,6))
 for z_ind, z in enumerate(zslices):
     # ax = fig1_2.add_subplot(4, 5, z_ind+1)
     ax = fig1_2.add_subplot(3, 1, z_ind+1)
@@ -259,7 +262,7 @@ for z_ind, z in enumerate(zslices):
 
 
 ind = 11
-fs = 1.2
+fs = 1.2 # Hz
 cutoff = 0.01
 
 x_start = 200
@@ -278,41 +281,65 @@ resp = RegionConnectivity.filterRegionResponse(dff, cutoff=cutoff, fs=fs)
 resp = RegionConnectivity.trimRegionResponse(file_id, resp)
 region_dff = pd.DataFrame(data=resp, index=region_response.index)
 
-fig1_3, ax = plt.subplots(4, 1, figsize=(12, 8))
-fig1_3.tight_layout(pad=4)
+fig1_3, ax = plt.subplots(4, 1, figsize=(9, 6))
+fig1_3.tight_layout(pad=2)
 ax = ax.ravel()
 [x.set_axis_off() for x in ax]
 [x.set_ylim([-0.2, 0.29]) for x in ax]
+[x.set_xlim([-15, timevec[-1]]) for x in ax]
 for p_ind, pr in enumerate(pull_regions):
     ax[p_ind].plot(timevec, region_dff.loc[pr, x_start:(x_start+dt-1)], color=colors[p_ind])
     ax[p_ind].annotate(pr, (-10, 0) , rotation=90)
 
+plot_tools.addScaleBars(ax[0], dT=5, dF=0.10, T_value=-2.5, F_value=-0.10)
 
-fig1_4, ax = plt.subplots(1, 3, figsize=(15, 5))
+# %%
+
+fig1_4, ax = plt.subplots(4, 4, figsize=(6, 6))
 fig1_4.tight_layout(h_pad=4, w_pad=4)
-eg1 = 'AL(R)'
-eg2 = 'LH(R)'
-r, p = pearsonr(region_dff.loc[eg1, :], region_dff.loc[eg2, :])
-ax[0].plot(region_dff.loc[eg1, :], region_dff.loc[eg2, :], 'ko')
-ax[0].set_title('r={:.2f}'.format(r))
-ax[0].set_xlabel('{} (dF/F)'.format(eg1))
-ax[0].set_ylabel('{} (dF/F)'.format(eg2))
+[x.set_xticks([]) for x in ax.ravel()]
+[x.set_yticks([]) for x in ax.ravel()]
+for ind_1, eg1 in enumerate(pull_regions):
+    for ind_2, eg2 in enumerate(pull_regions):
+        if ind_1 > ind_2:
 
-eg1 = 'AL(R)'
-eg2 = 'CAN(R)'
-r, p = pearsonr(region_dff.loc[eg1, :], region_dff.loc[eg2, :])
-ax[1].plot(region_dff.loc[eg1, :], region_dff.loc[eg2, :], 'ko')
-ax[1].set_title('r={:.2f}'.format(r))
-ax[1].set_xlabel('{} (dF/F)'.format(eg1))
-ax[1].set_ylabel('{} (dF/F)'.format(eg2))
+            r, p = pearsonr(region_dff.loc[eg1, :], region_dff.loc[eg2, :])
+            print('{}/{}: r = {}'.format(eg2, eg1, r))
 
-eg1 = 'CAN(R)'
-eg2 = 'SPS(R)'
-r, p = pearsonr(region_dff.loc[eg1, :], region_dff.loc[eg2, :])
-ax[2].plot(region_dff.loc[eg1, :], region_dff.loc[eg2, :], 'ko')
-ax[2].set_title('r={:.2f}'.format(r))
-ax[2].set_xlabel('{} (dF/F)'.format(eg1))
-ax[2].set_ylabel('{} (dF/F)'.format(eg2))
+            # normed xcorr plot
+            window_size = 180
+            total_len = len(region_dff.loc[eg1, :])
+
+            a = (region_dff.loc[eg1, :] - np.mean(region_dff.loc[eg1, :])) / (np.std(region_dff.loc[eg1, :]) * len(region_dff.loc[eg1, :]))
+            b = (region_dff.loc[eg2, :] - np.mean(region_dff.loc[eg2, :])) / (np.std(region_dff.loc[eg2, :]))
+            c = np.correlate(a, b, 'same')
+            time = np.arange(-window_size/2, window_size/2) / fs # sec
+            ax[ind_1, ind_2].plot(time, c[int(total_len/2-window_size/2): int(total_len/2+window_size/2)], 'k')
+            ax[ind_1, ind_2].set_ylim([-0.2, 1])
+            ax[ind_1, ind_2].axhline(0, color='k', alpha=0.5, LineStyle='-')
+            ax[ind_1, ind_2].axvline(0, color='k', alpha=0.5, LineStyle='-')
+            if ind_2==0:
+                ax[ind_1, ind_2].set_ylabel(eg1)
+            if ind_1==3:
+                ax[ind_1, ind_2].set_xlabel(eg2)
+
+plot_tools.addScaleBars(ax[3, 0], dT=30, dF=0.25, T_value=time[0], F_value=-0.15)
+sns.despine(top=True, right=True, left=True, bottom=True)
+
+    # scatter plot
+    # coef = np.polyfit(region_dff.loc[eg1, :], region_dff.loc[eg2, :], 1)
+    # linfit = np.poly1d(coef)
+    # xx = np.linspace(region_dff.loc[eg1, :].min(), region_dff.loc[eg1, :].max(), 100)
+    # ax[eg].plot(xx, linfit(xx), color='k', LineWidth=2)
+    # ax[eg].scatter(region_dff.loc[eg1, range(0, 1900, 10)], region_dff.loc[eg2, range(0, 1900, 10)], color='k', alpha=0.2, marker='.', rasterized=True)
+    # ax[eg].set_xlabel('{}'.format(eg1))
+    # ax[eg].set_ylabel('{}'.format(eg2))
+    # ax[eg].axhline(0, color='k', alpha=0.5, LineStyle='--')
+    # ax[eg].axvline(0, color='k', alpha=0.5, LineStyle='--')
+    # ax[eg].spines['right'].set_visible(False)
+    # ax[eg].spines['top'].set_visible(False)
+    # ax[eg].set_xticks([])
+    # ax[eg].set_yticks([])
 
 # %%
 
@@ -332,10 +359,10 @@ r, p = pearsonr(anatomical_adjacency, functional_adjacency)
 coef = np.polyfit(anatomical_adjacency, functional_adjacency, 1)
 linfit = np.poly1d(coef)
 
-fig2_1, ax = plt.subplots(1,1,figsize=(3.5, 3.5))
+fig2_1, ax = plt.subplots(1,1,figsize=(4.5, 4.5))
 ax.scatter(10**anatomical_adjacency, functional_adjacency, color='k')
 xx = np.linspace(anatomical_adjacency.min(), anatomical_adjacency.max(), 100)
-ax.plot(10**xx, linfit(xx), 'k-')
+ax.plot(10**xx, linfit(xx), color='k', LineWidth=2, marker=None)
 ax.set_xscale('log')
 ax.set_xlabel('Anatomical adjacency (Connecting cells)')
 ax.set_ylabel('Functional correlation (z)')
@@ -349,11 +376,12 @@ for c_ind in range(cmats.shape[2]):
     r_new, _ = pearsonr(anatomical_adjacency, functional_adjacency_new)
     r_vals.append(r_new)
 
-fig2_2, ax = plt.subplots(1,1,figsize=(3,6))
+fig2_2, ax = plt.subplots(1,1,figsize=(2,3))
 fig2_2.tight_layout(pad=4)
 sns.swarmplot(x=np.ones_like(r_vals), y=r_vals, color='k')
 sns.violinplot(y=r_vals)
 ax.set_ylabel('Correlation coefficient (z)')
+ax.set_xticks([])
 ax.set_ylim([0, 1]);
 # %% Other determinants of FC
 # Corrs with size, distance etc
@@ -500,7 +528,7 @@ for r_ind, r_key in enumerate(sort_keys):
 fig4_0, ax = plt.subplots(1, 1, figsize=(6,6))
 lim = np.nanmax(np.abs(DifferenceMatrix.to_numpy().ravel()))
 ax.scatter(A_zscore, F_zscore, alpha=1, c=diff, cmap="RdBu",  vmin=-lim, vmax=lim, edgecolors='k', linewidths=0.5)
-ax.plot([-3, 3], [-3, 3], 'k-')
+ax.plot([-4, 4], [-4, 4], 'k-')
 ax.set_xlabel('Anatomical connectivity (log10, zscore)')
 ax.set_ylabel('Functional correlation (zscore)');
 
@@ -543,7 +571,7 @@ values, base = np.histogram(roi_size, bins=bins, density=True)
 cumulative = np.cumsum(values)
 
 # Load precomputed subsampled Cmats for each brain
-load_fn = os.path.join(data_dir, 'functional_connectivity', 'subsampled_cmats_20200619.npy')
+load_fn = os.path.join(data_dir, 'functional_connectivity', 'subsampled_cmats_20200626.npy')
 (cmats_pop, CorrelationMatrix_Full, subsampled_sizes) = np.load(load_fn, allow_pickle=True)
 
 # mean cmat over brains for each subsampledsize and iteration
