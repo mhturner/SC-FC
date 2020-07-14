@@ -42,9 +42,7 @@ shifted_control = False
 fs = 1.2 # Hz
 cutoff = 0.01 # Hz
 
-eg_ind = 0
-
-fh, ax = plt.subplots(2, 1, figsize=(12, 4))
+eg_ind = 3
 
 cmats_full = []
 r_full = []
@@ -80,7 +78,7 @@ for ind, motion_fp in enumerate(motion_filepaths):
 
     # cmat while behaving
     cmat_behaving = np.corrcoef(behaving_responses)
-    np.fill_diagonal(cmat_behaving, 0)
+    np.fill_diagonal(cmat_behaving, np.nan)
     cmat_behaving = np.arctanh(cmat_behaving)
     functional_adjacency_behaving = cmat_behaving.copy()[upper_inds][keep_inds]
     r_new, _ = pearsonr(anatomical_adjacency, functional_adjacency_behaving)
@@ -89,7 +87,7 @@ for ind, motion_fp in enumerate(motion_filepaths):
 
     # cmat while nonbehaving
     cmat_nonbehaving = np.corrcoef(nonbehaving_responses)
-    np.fill_diagonal(cmat_nonbehaving, 0)
+    np.fill_diagonal(cmat_nonbehaving, np.nan)
     cmat_nonbehaving = np.arctanh(cmat_nonbehaving)
     functional_adjacency_nonbehaving = cmat_nonbehaving.copy()[upper_inds][keep_inds]
     r_new, _ = pearsonr(anatomical_adjacency, functional_adjacency_nonbehaving)
@@ -98,9 +96,27 @@ for ind, motion_fp in enumerate(motion_filepaths):
 
     # plot resp / behavior
     if ind == eg_ind:
-        ax[0].plot(is_behaving)
-        ax[1].plot(region_responses.T)
+        fh, ax = plt.subplots(1, 1, figsize=(8, 4))
+        file_id = resp_fp.split('/')[-1].replace('.pkl', '')
+        region_response = pd.read_pickle(resp_fp)
+        # convert to dF/F
+        dff = (region_response.to_numpy() - np.mean(region_response.to_numpy(), axis=1)[:, None]) / np.mean(region_response.to_numpy(), axis=1)[:, None]
 
+        # trim and filter
+        resp = RegionConnectivity.filterRegionResponse(dff, cutoff=cutoff, fs=fs)
+        resp = RegionConnectivity.trimRegionResponse(file_id, resp)
+        region_dff = pd.DataFrame(data=resp, index=region_response.index)
+
+        st = 200
+        eg_show = 600
+        time_vec = np.arange(0, eg_show) / fs
+        yarr = np.vstack((is_behaving[st:(st+eg_show)],))
+
+        ax.imshow(yarr, extent=(min(time_vec), max(time_vec), -0.3, 0.5), cmap='binary', clim=[0, 2])
+        ax.plot(time_vec, region_dff.iloc[:, st:(st+eg_show)].T, alpha=0.4)
+        ax.set_aspect(100)
+        ax.set_xlabel('Time (s)')
+        ax.set_ylabel('dF/F')
 
 _, p = ttest_rel(r_nonbehaving, r_behaving)
 fh, ax = plt.subplots(1, 1, figsize=(4, 4))
@@ -117,9 +133,9 @@ print((np.array(r_behaving) - np.array(r_nonbehaving)))
 
 cmat_behaving = pd.DataFrame(data=np.mean(np.stack(cmats_behaving, axis=2), axis=2), index=roi_names, columns=roi_names)
 cmat_nonbehaving = pd.DataFrame(data=np.mean(np.stack(cmats_nonbehaving, axis=2), axis=2), index=roi_names, columns=roi_names)
-vmin = np.min((cmat_behaving.to_numpy().min(), cmat_nonbehaving.to_numpy().min()))
-vmax = np.max((cmat_behaving.to_numpy().max(), cmat_nonbehaving.to_numpy().max()))
-
+vmin = np.nanmin((np.nanmin(cmat_behaving.to_numpy()), np.nanmin(cmat_nonbehaving.to_numpy())))
+vmax = np.nanmax((np.nanmax(cmat_behaving.to_numpy()), np.nanmax(cmat_nonbehaving.to_numpy())))
+cmat_behaving
 fh, ax = plt.subplots(1, 2, figsize=(16, 8))
 sns.heatmap(cmat_behaving, ax=ax[0], xticklabels=True, cbar_kws={'label': 'Functional Correlation (z)','shrink': .8}, cmap="cividis", rasterized=True, vmin=vmin, vmax=vmax)
 ax[0].set_aspect('equal')
@@ -153,9 +169,8 @@ ax.plot(functional_adjacency_behaving, functional_adjacency_nonbehaving, marker=
 ax.plot([-0.2, 1], [-0.2, 1], 'k-')
 ax.set_xlabel('Behaving')
 ax.set_ylabel('Nonbehaving')
+functional_adjacency_behaving.shape
 
-
-# %%
 
 # %%
 mapping = RegionConnectivity.getRoiMapping()
@@ -199,79 +214,3 @@ for z_ind, z in enumerate(zslices):
 cb = fh2.colorbar(img, ax=ax)
 cb.set_label(label='Behaving - Nonbehaving', weight='bold', color='k')
 cb.ax.tick_params(labelsize=12, color='k')
-# # %%
-# fs = 1.2
-# cutoff = 0.01
-#
-# ind = 2
-#
-# dt = 5
-# ws = 100
-#
-# resp_fp = response_filepaths[ind]
-#
-# fh, ax = plt.subplots(2, 1, figsize=(16, 8))
-#
-#
-# region_responses_processed = RegionConnectivity.getProcessedRegionResponse(resp_fp, cutoff=cutoff, fs=fs)
-# ax[0].plot(region_responses_processed.T)
-#
-# window_centers = np.arange(ws/2, region_responses_processed.shape[1]-ws/2, dt)
-# r = []
-# act = []
-# cmats = []
-# corr = []
-# for t in window_centers:
-#     correlation_matrix = np.corrcoef(region_responses_processed.to_numpy()[:, int(t-ws/2):int(t+ws/2)])
-#     cmats.append(correlation_matrix[upper_inds])
-#
-#     corr.append(np.mean(correlation_matrix[upper_inds]))
-#
-#     r_new, _ = pearsonr(anatomical_adjacency, correlation_matrix[upper_inds])
-#     r.append(r_new)
-#
-#     activity = np.var(region_responses_processed.to_numpy()[:, int(t-ws/2):int(t+ws/2)], axis=1) / np.mean(region_responses_processed.to_numpy()[:, int(t-ws/2):int(t+ws/2)], axis=1)
-#     act.append(np.mean(activity))
-#
-# rr, _ = pearsonr(corr, r)
-#
-# ax[1].plot(window_centers, r, LineStyle='-', c='k', label='SC-FC corr')
-# ax[1].plot(window_centers, corr, LineStyle='-', c='r', label='Mean FC')
-# # ax[1].set_ylim([0, 1])
-# ax[1].set_title('r={:.2f}'.format(rr))
-# # ax2 = plt.twinx(ax[1])
-# # ax2.plot(window_centers, act, LineStyle='--', label='activity_{}'.format(ws), color='b')
-#
-#
-# cmats = np.vstack(cmats)
-#
-# # fh.savefig(os.path.join(analysis_dir, 'SCFC_MeanCorr_TimeEvolved.png'))
-#
-# # %%
-# fh, ax = plt.subplots(1,1, figsize=(6,6))
-# ax.scatter(corr, r, c='k')
-# rr, _ = pearsonr(corr, r)
-# ax.set_xlabel('FC corr')
-# ax.set_ylabel('SC-FC correlation')
-# ax.set_title('r = {}'.format(rr))
-#
-#
-#
-# # %%
-#
-# n_clusters = 3
-# kmeans = KMeans(n_clusters=n_clusters, random_state=0).fit(cmats)
-#
-# FC_corr = []
-# SC_FC = []
-# fh, ax = plt.subplots(1,1, figsize=(6,6))
-# for c in range(n_clusters):
-#     mean_x = np.mean(np.array(corr)[np.where(kmeans.labels_==c)])
-#     err_x = np.std(np.array(corr)[np.where(kmeans.labels_==c)]) / np.sqrt(np.sum(kmeans.labels_==c))
-#
-#     mean_y = np.mean(np.array(r)[np.where(kmeans.labels_==c)])
-#     err_y = np.std(np.array(r)[np.where(kmeans.labels_==c)]) / np.sqrt(np.sum(kmeans.labels_==c))
-#     ax.errorbar(mean_x, mean_y, xerr=err_x, yerr=err_y, color='k')
-#
-# ax.set_xlabel('Mean FC corr')
-# ax.set_ylabel('SC-FC corr')

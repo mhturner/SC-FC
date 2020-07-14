@@ -122,7 +122,6 @@ ConnectivityWeight_precomputed_Symmetrized = pd.DataFrame(data=(tmp_mat + tmp_ma
 ConnectivityWeight_precomputed = pd.DataFrame(data=tmp_mat, index=pcweight_mat.index, columns=pcweight_mat.index)
 
 # compute two-step count connectivity matrix
-# TODO: remove AAC and ACC connections - check this
 A = ConnectivityCount.to_numpy().copy()
 two_steps = np.zeros_like(A)
 for source in range(ConnectivityCount.shape[0]):
@@ -378,11 +377,13 @@ for c_ind in range(cmats.shape[2]):
 
 fig2_2, ax = plt.subplots(1,1,figsize=(2,3))
 fig2_2.tight_layout(pad=4)
-sns.swarmplot(x=np.ones_like(r_vals), y=r_vals, color='k')
+
+sns.stripplot(x=np.ones_like(r_vals), y=r_vals, color='k')
 sns.violinplot(y=r_vals)
 ax.set_ylabel('Correlation coefficient (z)')
 ax.set_xticks([])
 ax.set_ylim([0, 1]);
+
 # %% Other determinants of FC
 # Corrs with size, distance etc
 
@@ -448,7 +449,7 @@ regressor.fit(X[:, :-1], X[:, -1]);
 pred = regressor.predict(X[:, :-1])
 score = regressor.score(X[:, :-1], fc)
 ax[0].plot(pred, fc, 'ko')
-ax[0].plot([0, 1.4], [0, 1.4], 'k--')
+ax[0].plot([-0.2, 1.25], [-0.2, 1.25], 'k--')
 ax[0].annotate('$r^2$={:.2f}'.format(score), (0, 1));
 ax[0].set_xlabel('Predicted functional conectivity (z)')
 ax[0].set_ylabel('Measured functional conectivity (z)');
@@ -528,7 +529,7 @@ for r_ind, r_key in enumerate(sort_keys):
 fig4_0, ax = plt.subplots(1, 1, figsize=(6,6))
 lim = np.nanmax(np.abs(DifferenceMatrix.to_numpy().ravel()))
 ax.scatter(A_zscore, F_zscore, alpha=1, c=diff, cmap="RdBu",  vmin=-lim, vmax=lim, edgecolors='k', linewidths=0.5)
-ax.plot([-4, 4], [-4, 4], 'k-')
+ax.plot([-3, 4], [-3, 4], 'k-')
 ax.set_xlabel('Anatomical connectivity (log10, zscore)')
 ax.set_ylabel('Functional correlation (zscore)');
 

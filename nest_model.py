@@ -22,7 +22,7 @@ data_dir = '/home/mhturner/Dropbox/ClandininLab/Analysis/SC-FC/data'
 
 dt = 1.0 # msec
 dt_rec = 10.0 # msec
-time_stop = 20 * 1000  #sec -> msec
+time_stop = 10 * 1000  #sec -> msec
 gi = 0
 ge = 100
 
@@ -36,17 +36,15 @@ meas_cmat, _ = RegionConnectivity.getFunctionalConnectivity(response_filepaths, 
 upper_inds = np.triu_indices(meas_cmat.shape[0], k=1) # k=1 excludes main diagonal
 
 
-
 # Load anatomical stuff:
 WeakConnections = pd.read_pickle(os.path.join(data_dir, 'connectome_connectivity', 'WeakConnections_computed_20200626.pkl'))
 MediumConnections = pd.read_pickle(os.path.join(data_dir, 'connectome_connectivity', 'MediumConnections_computed_20200626.pkl'))
 StrongConnections = pd.read_pickle(os.path.join(data_dir, 'connectome_connectivity', 'StrongConnections_computed_20200626.pkl'))
 conn_mat = WeakConnections + MediumConnections + StrongConnections
 roi_names = conn_mat.index
-# set diag to nan
+# set diag
 tmp_mat = conn_mat.to_numpy().copy()
 np.fill_diagonal(tmp_mat, 0)
-# symmetrize anatomical adjacency matrix by just adding it to its transpose and dividing by 2. Ignores directionality
 ConnectivityCount = pd.DataFrame(data=tmp_mat, index=conn_mat.index, columns=conn_mat.index)
 
 C = ConnectivityCount.to_numpy() / ConnectivityCount.to_numpy().max()
@@ -58,14 +56,27 @@ nest.SetKernelStatus({'resolution': dt})
 nodes = C.shape[0]
 node_pops = nest.Create("gif_pop_psc_exp", nodes, {"tau_m": 20.0, "len_kernel": -1})
 
-# voltmeter = nest.Create('voltmeter')
 nest_mm = nest.Create('multimeter', params={'record_from': ['mean', 'n_events'], 'interval': dt_rec})
 nez = nest.Create('noise_generator', nodes)
 
-for n_ind, nod in enumerate(node_pops):
-    nest.SetStatus([nez[n_ind]], {'mean': 0.0, 'std': 0.5, 'dt': 100.0})
-    nest.Connect([nez[n_ind]], [nod])
+# step input
+step_amplitude = 10.0
+step_on = 2000.0
+step_off = step_on + 1000
+step_times = list(np.sort(np.hstack([step_on, step_off])))
+step_values = list(np.array([+1., 0]) * step_amplitude)
 
+step_input = nest.Create('step_current_generator', nodes)
+nest.SetStatus(step_input, {'amplitude_times': step_times, 'amplitude_values': step_values})
+
+input_region = 'MBVL(R)'
+input_ind = np.where(input_region == ConnectivityCount.index)[0][0]
+
+for n_ind, nod in enumerate(node_pops):
+    nest.SetStatus([nez[n_ind]], {'mean': 0.0, 'std': 0.75, 'dt': 100.0})
+    nest.Connect([nez[n_ind]], [nod])
+    if n_ind == input_ind:
+        nest.Connect([step_input[n_ind]], [nod])
 
 for i, nest_i in enumerate(node_pops):
     for j, nest_j in enumerate(node_pops):
@@ -92,7 +103,7 @@ cut_frac = dt_rec / cutoff_period # number of dt_recs in the cutoff sample perio
 data_mm = nest.GetStatus(nest_mm)[0]['events']
 node_responses = np.zeros((len(node_pops), int(time_stop/dt_rec-1)))
 for i, nest_i in enumerate(node_pops):
-    a_i = data_mm['mean'][data_mm['senders'] == nest_i]
+    a_i = data_mm['mean'][data_mm['senders'] == nest_i] / (dt/1000) # -> Spikes/sec
 
     # rectify and lp filter
     a_i[a_i<0] = 0
@@ -103,6 +114,7 @@ for i, nest_i in enumerate(node_pops):
 time_vec = np.arange(0, time_stop, dt_rec)[:-1] / 1000
 
 trim_start = int(node_responses.shape[1]/10)
+# trim_start = 0
 node_responses = node_responses[:, trim_start:]
 time_vec = time_vec[trim_start:]
 
