@@ -413,7 +413,7 @@ fig3_0, ax = plt.subplots(1, 2, figsize=(8, 4))
 clust_fxn = list(nx.clustering(G_fxn, weight='weight').values())
 clust_anat = list(nx.clustering(G_anat, weight='weight').values())
 r, p = spearmanr(clust_anat, clust_fxn)
-ax[0].set_title('Clustering, r = {:.3f}'.format(r))
+ax[0].set_title('Clustering, $\\rho$ = {:.3f}'.format(r))
 ax[0].plot(clust_anat, clust_fxn, 'ko')
 ax[0].set_xlabel('Structural')
 ax[0].set_ylabel('Functional')
@@ -421,7 +421,7 @@ ax[0].set_ylabel('Functional')
 deg_fxn = [val for (node, val) in G_fxn.degree(weight='weight')]
 deg_anat = [val for (node, val) in G_anat.degree(weight='weight')]
 r, p = spearmanr(deg_anat, deg_fxn)
-ax[1].set_title('Degree, r = {:.3f}'.format(r))
+ax[1].set_title('Degree, $\\rho$ = {:.3f}'.format(r))
 ax[1].plot(deg_anat, deg_fxn, 'ko')
 ax[1].set_xlabel('Structural')
 ax[1].set_ylabel('Functional')
@@ -429,16 +429,13 @@ ax[1].set_ylabel('Functional')
 # # # # # plot network graph with top x% of connections
 take_top_pct = 0.2 # top fraction to include in network graphs
 roilabels_to_skip = ['LAL(R)', 'CRE(R)', 'CRE(L)', 'EPA(R)','BU(R)']
-cmap = plt.get_cmap('Greys')
-
+cmap = plt.get_cmap('Blues')
 
 cutoff = np.quantile(adjacency_anat, 1-take_top_pct)
 print('Threshold included {} of {} regions in anatomical connectivity matrix'.format((adjacency_anat>=cutoff).sum(), adjacency_anat.size))
 temp_adj_anat = adjacency_anat.copy()
 temp_adj_anat[temp_adj_anat<cutoff] = 0
 G_anat = nx.from_numpy_matrix(temp_adj_anat/temp_adj_anat.max())
-
-
 
 cutoff = np.quantile(adjacency_fxn[adjacency_fxn>0], 1-take_top_pct)
 print('Threshold included {} of {} sig regions in functional connectivity matrix'.format((adjacency_fxn>=cutoff).sum(), (adjacency_fxn>0).sum()))
