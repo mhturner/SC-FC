@@ -8,7 +8,7 @@ import pickle
 import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.linear_model import LinearRegression, Ridge, ARDRegression, BayesianRidge
-from scipy.stats import pearsonr, spearmanr
+from scipy.stats import pearsonr, spearmanr, ttest_1samp
 from scipy.spatial.distance import pdist
 from scipy.stats import zscore
 from scipy.ndimage.measurements import center_of_mass
@@ -18,6 +18,7 @@ from scipy.stats import kstest, lognorm, norm
 from scipy.signal import correlate
 from dominance_analysis import Dominance
 from visanalysis import plot_tools
+import networkx as nx
 
 from matplotlib import rcParams
 rcParams.update({'figure.autolayout': True})
@@ -292,8 +293,6 @@ for p_ind, pr in enumerate(pull_regions):
 
 plot_tools.addScaleBars(ax[0], dT=5, dF=0.10, T_value=-2.5, F_value=-0.10)
 
-# %%
-
 fig1_4, ax = plt.subplots(4, 4, figsize=(6, 6))
 fig1_4.tight_layout(h_pad=4, w_pad=4)
 [x.set_xticks([]) for x in ax.ravel()]
@@ -384,6 +383,120 @@ ax.set_ylabel('Correlation coefficient (z)')
 ax.set_xticks([])
 ax.set_ylim([0, 1]);
 
+# %%
+
+anat_position = {}
+for r in range(len(coms)):
+    anat_position[r] = coms[r, :]
+
+# # # # STRUCTURAL ADJACENCY MATRIX # # # #
+adjacency_anat = ConnectivityCount_Symmetrized.to_numpy().copy()
+np.fill_diagonal(adjacency_anat, 0)
+
+# # # # FUNCTIONAL ADJACENCY MATRIX  # # # #
+adjacency_fxn = CorrelationMatrix_Functional.to_numpy().copy()
+np.fill_diagonal(adjacency_fxn, 0)
+
+# significance test on fxnal cmat
+num_comparisons = len(upper_inds[0])
+p_cutoff = 0.01 / num_comparisons # bonferroni
+t, p = ttest_1samp(cmats, 0, axis=2) # ttest against 0
+np.fill_diagonal(p, 1) # replace nans in diag with p=1
+adjacency_fxn[p>p_cutoff] = 0 # set nonsig regions to 0
+print('Ttest included {} significant of {} total regions in fxnal connectivity matrix'.format((p<p_cutoff).sum(), p.size))
+
+# Plot clustering and degree using full adjacency to make graphs
+G_anat = nx.from_numpy_matrix(adjacency_anat/adjacency_anat.max())
+G_fxn = nx.from_numpy_matrix(adjacency_fxn/adjacency_fxn.max())
+
+fig3_0, ax = plt.subplots(1, 2, figsize=(8, 4))
+clust_fxn = list(nx.clustering(G_fxn, weight='weight').values())
+clust_anat = list(nx.clustering(G_anat, weight='weight').values())
+r, p = spearmanr(clust_anat, clust_fxn)
+ax[0].set_title('Clustering, r = {:.3f}'.format(r))
+ax[0].plot(clust_anat, clust_fxn, 'ko')
+ax[0].set_xlabel('Structural')
+ax[0].set_ylabel('Functional')
+
+deg_fxn = [val for (node, val) in G_fxn.degree(weight='weight')]
+deg_anat = [val for (node, val) in G_anat.degree(weight='weight')]
+r, p = spearmanr(deg_anat, deg_fxn)
+ax[1].set_title('Degree, r = {:.3f}'.format(r))
+ax[1].plot(deg_anat, deg_fxn, 'ko')
+ax[1].set_xlabel('Structural')
+ax[1].set_ylabel('Functional')
+
+# # # # # plot network graph with top x% of connections
+take_top_pct = 0.2 # top fraction to include in network graphs
+roilabels_to_skip = ['LAL(R)', 'CRE(R)', 'CRE(L)', 'EPA(R)','BU(R)']
+cmap = plt.get_cmap('Greys')
+
+
+cutoff = np.quantile(adjacency_anat, 1-take_top_pct)
+print('Threshold included {} of {} regions in anatomical connectivity matrix'.format((adjacency_anat>=cutoff).sum(), adjacency_anat.size))
+temp_adj_anat = adjacency_anat.copy()
+temp_adj_anat[temp_adj_anat<cutoff] = 0
+G_anat = nx.from_numpy_matrix(temp_adj_anat/temp_adj_anat.max())
+
+
+
+cutoff = np.quantile(adjacency_fxn[adjacency_fxn>0], 1-take_top_pct)
+print('Threshold included {} of {} sig regions in functional connectivity matrix'.format((adjacency_fxn>=cutoff).sum(), (adjacency_fxn>0).sum()))
+temp_adj_fxn = adjacency_fxn.copy()
+temp_adj_fxn[temp_adj_fxn<cutoff] = 0
+G_fxn = nx.from_numpy_matrix(temp_adj_fxn/temp_adj_fxn.max())
+
+fig3_1 = plt.figure(figsize=(12,6))
+ax_anat = fig3_1.add_subplot(1, 2, 1, projection='3d')
+ax_fxn = fig3_1.add_subplot(1, 2, 2, projection='3d')
+
+ax_anat.view_init(-145, -95)
+ax_anat.set_axis_off()
+ax_anat.set_title('Structural', fontweight='bold', fontsize=12)
+
+ax_fxn.view_init(-145, -95)
+ax_fxn.set_axis_off()
+ax_fxn.set_title('Functional', fontweight='bold', fontsize=12)
+
+for key, value in anat_position.items():
+    xi = value[0]
+    yi = value[1]
+    zi = value[2]
+
+    # Plot nodes
+    ax_anat.scatter(xi, yi, zi, c='b', s=5+40*G_anat.degree(weight='weight')[key], edgecolors='k', alpha=0.25)
+    ax_fxn.scatter(xi, yi, zi, c='b', s=5+20*G_fxn.degree(weight='weight')[key], edgecolors='k', alpha=0.25)
+    if rois[key] not in roilabels_to_skip:
+        ax_anat.text(xi, yi, zi+2, rois[key], zdir=(0,0,0), fontsize=8, fontweight='bold')
+        ax_fxn.text(xi, yi, zi+2, rois[key], zdir=(0,0,0), fontsize=8, fontweight='bold')
+
+    ctr = [15, 70, 60]
+    dstep=10
+    ax_anat.plot([ctr[0], ctr[0]+dstep], [ctr[1], ctr[1]], [ctr[2], ctr[2]], 'r') # x
+    ax_anat.plot([ctr[0], ctr[0]], [ctr[1], ctr[1]-dstep], [ctr[2], ctr[2]], 'g') # y
+    ax_anat.plot([ctr[0], ctr[0]], [ctr[1], ctr[1]], [ctr[2], ctr[2]-dstep], 'b') # z
+
+    ax_fxn.plot([ctr[0], ctr[0]+dstep], [ctr[1], ctr[1]], [ctr[2], ctr[2]], 'r') # x
+    ax_fxn.plot([ctr[0], ctr[0]], [ctr[1], ctr[1]-dstep], [ctr[2], ctr[2]], 'g') # y
+    ax_fxn.plot([ctr[0], ctr[0]], [ctr[1], ctr[1]], [ctr[2], ctr[2]-dstep], 'b') # z
+
+
+# plot connections
+for i,j in enumerate(G_anat.edges()):
+    x = np.array((anat_position[j[0]][0], anat_position[j[1]][0]))
+    y = np.array((anat_position[j[0]][1], anat_position[j[1]][1]))
+    z = np.array((anat_position[j[0]][2], anat_position[j[1]][2]))
+
+    # Plot the connecting lines
+    line_wt = (G_anat.get_edge_data(j[0], j[1], default={'weight':0})['weight'] + G_anat.get_edge_data(j[1], j[0], default={'weight':0})['weight'])/2
+    color = cmap(line_wt)
+    ax_anat.plot(x, y, z, c=color, alpha=line_wt, linewidth=2)
+
+    line_wt = (G_fxn.get_edge_data(j[0], j[1], default={'weight':0})['weight'] + G_fxn.get_edge_data(j[1], j[0], default={'weight':0})['weight'])/2
+    color = cmap(line_wt)
+    ax_fxn.plot(x, y, z, c=color, alpha=line_wt, linewidth=2)
+
+
 # %% Other determinants of FC
 # Corrs with size, distance etc
 
@@ -396,7 +509,7 @@ fc = CorrelationMatrix_Functional.to_numpy()[upper_inds][keep_inds]
 
 X = np.vstack([connectivity, size, dist, completeness, fc]).T
 
-fig3_0, ax = plt.subplots(2, 2, figsize=(8,8))
+fig4_0, ax = plt.subplots(2, 2, figsize=(8,8))
 r, p = pearsonr(size, fc)
 ax[0, 0].scatter(size, fc, color='k', alpha=0.5)
 coef = np.polyfit(size, fc, 1)
@@ -441,7 +554,7 @@ ax[1, 1].set_yscale('log')
 
 # %% Dominance analysis
 
-fig3_1, ax = plt.subplots(1, 2, figsize=(8, 4))
+fig4_1, ax = plt.subplots(1, 2, figsize=(8, 4))
 
 # linear regression model prediction:
 regressor = LinearRegression()
@@ -526,14 +639,14 @@ for r_ind, r_key in enumerate(sort_keys):
     for c_ind, c_key in enumerate(sort_keys):
         sorted_diff.iloc[r_ind, c_ind]=DifferenceMatrix.loc[[r_key], [c_key]].to_numpy()
 
-fig4_0, ax = plt.subplots(1, 1, figsize=(6,6))
+fig5_0, ax = plt.subplots(1, 1, figsize=(6,6))
 lim = np.nanmax(np.abs(DifferenceMatrix.to_numpy().ravel()))
 ax.scatter(A_zscore, F_zscore, alpha=1, c=diff, cmap="RdBu",  vmin=-lim, vmax=lim, edgecolors='k', linewidths=0.5)
 ax.plot([-3, 4], [-3, 4], 'k-')
 ax.set_xlabel('Anatomical connectivity (log10, zscore)')
 ax.set_ylabel('Functional correlation (zscore)');
 
-fig4_1, ax = plt.subplots(1, 1, figsize=(8,8))
+fig5_1, ax = plt.subplots(1, 1, figsize=(8,8))
 sns.heatmap(sorted_diff, ax=ax, xticklabels=True, cbar_kws={'label': 'Anat - Fxnal connectivity','shrink': .75}, cmap="RdBu", rasterized=True, vmin=-lim, vmax=lim)
 ax.set_aspect('equal')
 
@@ -550,14 +663,14 @@ for r_ind, r in enumerate(roi_mask):
 zslices = np.arange(5, 65, 12)
 lim = np.nanmax(np.abs(diff_brain.ravel()))
 
-fig4_2 = plt.figure(figsize=(15,3))
+fig5_2 = plt.figure(figsize=(15,3))
 for z_ind, z in enumerate(zslices):
-    ax = fig4_2.add_subplot(1, 5, z_ind+1)
+    ax = fig5_2.add_subplot(1, 5, z_ind+1)
     img = ax.imshow(diff_brain[:, :, z].T, cmap="RdBu", rasterized=True, vmin=-lim, vmax=lim)
     ax.set_axis_off()
     ax.set_aspect('equal')
 
-cb = fig4_2.colorbar(img, ax=ax)
+cb = fig5_2.colorbar(img, ax=ax)
 cb.set_label(label='Anat - Fxnal connectivity', weight='bold', color='k')
 cb.ax.tick_params(labelsize=12, color='k')
 
@@ -618,7 +731,10 @@ with PdfPages(os.path.join(analysis_dir, 'SC_FC_figs.pdf')) as pdf:
 
     pdf.savefig(fig4_0)
     pdf.savefig(fig4_1)
-    pdf.savefig(fig4_2)
+
+    pdf.savefig(fig5_0)
+    pdf.savefig(fig5_1)
+    pdf.savefig(fig5_2)
 
     pdf.savefig(figS1)
 
