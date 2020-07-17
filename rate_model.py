@@ -16,20 +16,21 @@ https://elifesciences.org/articles/22425#s4
 
 data_dir = '/home/mhturner/Dropbox/ClandininLab/Analysis/SC-FC/data'
 
-tdim = 500
+tdim = 1000
 
-tau_i = 2 # msec
-tau_e = 10 # msec
-beta = 1.0 # adaptation current in exc populations
-w_ee = 5 # w_ are within subnetwork weights
-w_ei = 1
-w_ie = 10
-w_ii = 0.4
+tau_i = 2 # msec (2)
+tau_e = 10 # msec (10)
+beta = 0.0 # adaptation current in exc populations (1.0)
+# w_: within subnetwork weights
+w_ee = 5 # e self drive (5)
+w_ei = 2 # i to e (1)
+w_ie = 10 # e to i (10)
+w_ii = 0.0 # i self drive (0.4)
 
-w_internode = 0.4 # weights between excitatory populations
+w_internode = 0.8 # weights between excitatory populations
 
 nez_mean = 0.0
-nez_scale = 5
+nez_scale = 0.8
 
 # # # load measured fxnal connectivity
 roinames_path = os.path.join(data_dir, 'atlas_data', 'Original_Index_panda_full.csv')
@@ -73,7 +74,7 @@ def dXdt(X, t, tau_e, tau_i):
     a = X[2*n_nodes:]
 
     internode_inputs = C_internode.T @ r_e
-    exc_inputs = w_ee*r_e - w_ei*r_i + a + nez_e[:, int(t)]
+    exc_inputs = w_ee*r_e - w_ei*r_i - a + nez_e[:, int(t)]
     edot = (-r_e + threshlinear(internode_inputs + exc_inputs)) / tau_e
 
     inh_inputs = w_ie*r_e - w_ii*r_i + nez_i[:, int(t)]
@@ -97,7 +98,7 @@ fh, ax = plt.subplots(3, 1, figsize=(12,6))
 ax[0].plot(t, r_e, linewidth=2)
 ax[0].set_ylabel('r exc')
 
-ax[1].plot(t, nez_e[0,:], linewidth=2)
+ax[1].plot(t, r_i, linewidth=2)
 ax[1].set_ylabel('r inh')
 
 ax[2].plot(t, a, linewidth=2)
