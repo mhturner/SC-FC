@@ -16,21 +16,19 @@ https://elifesciences.org/articles/22425#s4
 
 data_dir = '/home/mhturner/Dropbox/ClandininLab/Analysis/SC-FC/data'
 
-tdim = 1000
+tdim = 5000
 
 tau_i = 2 # msec (2)
 tau_e = 10 # msec (10)
-beta = 0.0 # adaptation current in exc populations (1.0)
 # w_: within subnetwork weights
-w_ee = 5 # e self drive (5)
-w_ei = 2 # i to e (1)
-w_ie = 10 # e to i (10)
-w_ii = 0.0 # i self drive (0.4)
+w_ee = 4 # e self drive (5)
+w_ei = 8 # i to e (1)
+w_ie = 8 # e to i (10)
 
-w_internode = 0.8 # weights between excitatory populations
+w_internode = 4.0 # weights between excitatory populations
 
-nez_mean = 0.0
-nez_scale = 0.8
+pulse_size = 25
+spike_rate = 2 #hz
 
 # # # load measured fxnal connectivity
 roinames_path = os.path.join(data_dir, 'atlas_data', 'Original_Index_panda_full.csv')
@@ -50,14 +48,17 @@ C = C / C.max()
 n_nodes = C.shape[0]
 
 
-nez_e = np.random.normal(loc=nez_mean, scale=nez_scale, size=(n_nodes, tdim))
-nez_i = np.random.normal(loc=nez_mean, scale=nez_scale, size=(n_nodes, tdim))
+cutoff_prob = spike_rate / 1000 # spikes per msec bin
+spikes = np.random.uniform(low=0, high=1, size=(n_nodes, tdim)) <= cutoff_prob
+nez_e = pulse_size * spikes
 
 C_internode = w_internode * C
 
-r0 = np.hstack([nez_scale*np.random.rand(n_nodes),
-      nez_scale*np.random.rand(n_nodes),
-      0 * np.ones(n_nodes)])
+# IC stats from end of run
+# r_i[-1, :].mean()
+r0 = np.hstack([1+1*np.random.rand(n_nodes), # exc initial conditions
+                8+8*np.random.rand(n_nodes)]) # inh initial conditions
+
 
 def threshlinear(input):
     output = np.array(input)
@@ -66,49 +67,42 @@ def threshlinear(input):
 
 def dXdt(X, t, tau_e, tau_i):
     """
-    Input is X := r_exc, r_inh, and a... at time t
+    Input is X := r_exc, r_inh... at time t
     Output is dX/dt
     """
     r_e = X[:n_nodes]
     r_i = X[n_nodes:2*n_nodes]
-    a = X[2*n_nodes:]
 
     internode_inputs = C_internode.T @ r_e
-    exc_inputs = w_ee*r_e - w_ei*r_i - a + nez_e[:, int(t)]
+    exc_inputs = w_ee*r_e - w_ei*r_i + nez_e[:, int(t)]
     edot = (-r_e + threshlinear(internode_inputs + exc_inputs)) / tau_e
 
-    inh_inputs = w_ie*r_e - w_ii*r_i + nez_i[:, int(t)]
+    inh_inputs = w_ie*r_e
     idot = (-r_i + threshlinear(inh_inputs)) / tau_i
 
-    adot = (-a + beta * r_e)
+    return np.hstack([edot, idot])
 
-    return np.hstack([edot, idot, adot])
-
+# solve
 t = np.arange(0, tdim) # sec
-
-# solve ODEs
 X = odeint(dXdt, r0, t, args=(tau_e, tau_i,))
 r_e = X[:, :n_nodes]
 r_i = X[:, n_nodes:2*n_nodes]
-a = X[:, 2*n_nodes:]
-
 
 # %% plot responses
 fh, ax = plt.subplots(3, 1, figsize=(12,6))
-ax[0].plot(t, r_e, linewidth=2)
-ax[0].set_ylabel('r exc')
+ax[0].imshow(nez_e, rasterized=True)
+ax[0].set_xlim([0, tdim])
+ax[0].set_aspect(20)
 
-ax[1].plot(t, r_i, linewidth=2)
-ax[1].set_ylabel('r inh')
+ax[1].plot(t, r_e, linewidth=2)
+ax[1].set_ylabel('r exc')
 
-ax[2].plot(t, a, linewidth=2)
-ax[2].set_ylabel('a')
+ax[2].plot(t, r_i, linewidth=2)
+ax[2].set_ylabel('r inh')
 
-cmat = np.arctanh(np.corrcoef(r_e.T))
+cmat = np.arctanh(np.corrcoef(r_e[100:, :].T))
 np.fill_diagonal(cmat, np.nan)
 pred_cmat = pd.DataFrame(data=cmat, index=conn_mat.index, columns=conn_mat.columns)
-
-
 
 fh, ax = plt.subplots(1, 2, figsize=(14,6))
 sns.heatmap(pred_cmat, ax=ax[0], xticklabels=True, cbar_kws={'label': 'Functional Correlation (z)','shrink': .8}, cmap="cividis", rasterized=True)
@@ -121,4 +115,8 @@ ax.plot(pred_cmat.to_numpy()[upper_inds], meas_cmat.to_numpy()[upper_inds], 'ko'
 ax.plot([-0.2, 1.0], [-0.2, 1.0], 'k--')
 ax.set_xlabel('Predicted')
 ax.set_ylabel('Measured')
-ax.set_title('r = {:.3f}'.format(r))
+ax.set_title('r = {:.3f}'.format(r));
+
+
+
+# %% nullclines
