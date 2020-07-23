@@ -6,8 +6,8 @@ from scipy.stats import pearsonr, zscore, ttest_rel, kstest, wilcoxon
 from sklearn.cluster import KMeans
 import pandas as pd
 import seaborn as sns
-from matplotlib.backends.backend_pdf import PdfPages
-import datetime
+from matplotlib import rcParams
+rcParams['svg.fonttype'] = 'none'
 
 from region_connectivity import RegionConnectivity
 
@@ -173,20 +173,10 @@ ax.set_ylabel('Nonbehaving')
 functional_adjacency_behaving.shape
 
 # %% save figs
-with PdfPages(os.path.join(analysis_dir, 'behavior_analysis_figs.pdf')) as pdf:
-    pdf.savefig(fig1)
-    pdf.savefig(fig2)
-    pdf.savefig(fig3)
-    pdf.savefig(fig4)
-    pdf.savefig(fig5)
 
-
-    d = pdf.infodict()
-    d['Author'] = 'Max Turner'
-    d['ModDate'] = datetime.datetime.today()
-
-plt.close('all')
-
+figs_to_save = [fig1, fig2, fig3, fig4, fig5]
+for f_ind, fh in enumerate(figs_to_save):
+    fh.savefig(os.path.join(analysis_dir, 'figpanels', 'BehaviorFig{}.svg'.format(f_ind)))
 
 # %%
 mapping = RegionConnectivity.getRoiMapping()

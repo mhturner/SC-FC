@@ -12,8 +12,6 @@ from scipy.stats import pearsonr, spearmanr, ttest_1samp
 from scipy.spatial.distance import pdist
 from scipy.stats import zscore
 from scipy.ndimage.measurements import center_of_mass
-from matplotlib.backends.backend_pdf import PdfPages
-import datetime
 from scipy.stats import kstest, lognorm, norm
 from scipy.signal import correlate
 from dominance_analysis import Dominance
@@ -21,6 +19,7 @@ from visanalysis import plot_tools
 import networkx as nx
 
 from matplotlib import rcParams
+rcParams['svg.fonttype'] = 'none'
 rcParams.update({'figure.autolayout': True})
 
 from region_connectivity import RegionConnectivity
@@ -255,7 +254,7 @@ fig1_2 = plt.figure(figsize=(2,6))
 for z_ind, z in enumerate(zslices):
     # ax = fig1_2.add_subplot(4, 5, z_ind+1)
     ax = fig1_2.add_subplot(3, 1, z_ind+1)
-    img = ax.imshow(np.swapaxes(region_map[:, :, z, :], 0, 1), rasterized=True)
+    img = ax.imshow(np.swapaxes(region_map[:, :, z, :], 0, 1), rasterized=False)
     ax.set_axis_off()
     ax.set_aspect('equal')
     # ax.set_title(z)
@@ -345,12 +344,12 @@ sns.despine(top=True, right=True, left=True, bottom=True)
 fig2_0, ax = plt.subplots(1, 2, figsize=(14, 7))
 
 df = np.log10(ConnectivityCount).replace([np.inf, -np.inf], 0)
-sns.heatmap(df, ax=ax[0], xticklabels=True, cbar_kws={'label': 'Connection strength (log10(Connecting cells))', 'shrink': .8}, cmap="cividis", rasterized=True)
+sns.heatmap(df, ax=ax[0], xticklabels=True, cbar_kws={'label': 'Connection strength (log10(Connecting cells))', 'shrink': .8}, cmap="cividis", rasterized=False)
 ax[0].set_xlabel('Target');
 ax[0].set_ylabel('Source');
 ax[0].set_aspect('equal')
 
-sns.heatmap(CorrelationMatrix_Functional, ax=ax[1], xticklabels=True, cbar_kws={'label': 'Functional Correlation (z)','shrink': .8}, cmap="cividis", rasterized=True)
+sns.heatmap(CorrelationMatrix_Functional, ax=ax[1], xticklabels=True, cbar_kws={'label': 'Functional Correlation (z)','shrink': .8}, cmap="cividis", rasterized=False)
 ax[1].set_aspect('equal')
 
 r, p = pearsonr(anatomical_adjacency, functional_adjacency)
@@ -644,7 +643,7 @@ ax.set_xlabel('Anatomical connectivity (log10, zscore)')
 ax.set_ylabel('Functional correlation (zscore)');
 
 fig5_1, ax = plt.subplots(1, 1, figsize=(8,8))
-sns.heatmap(sorted_diff, ax=ax, xticklabels=True, cbar_kws={'label': 'Anat - Fxnal connectivity','shrink': .75}, cmap="RdBu", rasterized=True, vmin=-lim, vmax=lim)
+sns.heatmap(sorted_diff, ax=ax, xticklabels=True, cbar_kws={'label': 'Anat - Fxnal connectivity','shrink': .75}, cmap="RdBu", rasterized=False, vmin=-lim, vmax=lim)
 ax.set_aspect('equal')
 
 
@@ -663,7 +662,7 @@ lim = np.nanmax(np.abs(diff_brain.ravel()))
 fig5_2 = plt.figure(figsize=(15,3))
 for z_ind, z in enumerate(zslices):
     ax = fig5_2.add_subplot(1, 5, z_ind+1)
-    img = ax.imshow(diff_brain[:, :, z].T, cmap="RdBu", rasterized=True, vmin=-lim, vmax=lim)
+    img = ax.imshow(diff_brain[:, :, z].T, cmap="RdBu", rasterized=False, vmin=-lim, vmax=lim)
     ax.set_axis_off()
     ax.set_aspect('equal')
 
@@ -711,33 +710,11 @@ ax2.set_ylabel('Cumulative fraction')
 ax2.set_ylim([0, 1.05])
 
 # %%
-
-with PdfPages(os.path.join(analysis_dir, 'SC_FC_figs.pdf')) as pdf:
-    pdf.savefig(fig1_0)
-    pdf.savefig(fig1_1)
-    pdf.savefig(fig1_2)
-    pdf.savefig(fig1_3)
-    pdf.savefig(fig1_4)
-
-    pdf.savefig(fig2_0)
-    pdf.savefig(fig2_1)
-    pdf.savefig(fig2_2)
-
-    pdf.savefig(fig3_0)
-    pdf.savefig(fig3_1)
-
-    pdf.savefig(fig4_0)
-    pdf.savefig(fig4_1)
-
-    pdf.savefig(fig5_0)
-    pdf.savefig(fig5_1)
-    pdf.savefig(fig5_2)
-
-    pdf.savefig(figS1)
-
-    d = pdf.infodict()
-    d['Title'] = 'SC-FC early figs'
-    d['Author'] = 'Max Turner'
-    d['ModDate'] = datetime.datetime.today()
-
-plt.close('all')
+figs_to_save = [fig1_0, fig1_1, fig1_2, fig1_3, fig1_4,
+                fig2_0, fig2_1, fig2_2,
+                fig3_0, fig3_1,
+                fig4_0, fig4_1,
+                fig5_0, fig5_1, fig5_2,
+                figS1]
+for f_ind, fh in enumerate(figs_to_save):
+    fh.savefig(os.path.join(analysis_dir, 'figpanels', 'Fig{}.svg'.format(f_ind)))

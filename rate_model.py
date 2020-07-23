@@ -9,8 +9,8 @@ import glob
 from scipy.stats import pearsonr
 from sklearn.metrics import explained_variance_score
 from region_connectivity import RegionConnectivity
-from matplotlib.backends.backend_pdf import PdfPages
-import datetime
+from matplotlib import rcParams
+rcParams['svg.fonttype'] = 'none'
 
 """
 See coupled ei model here:
@@ -115,14 +115,16 @@ events = []
 for e in range(nez_e.shape[0]):
     events.append(np.where(nez_e[e, :] > 0)[0])
 
-fig1, ax = plt.subplots(3, 1, figsize=(18,6))
+fig1, ax = plt.subplots(3, 1, figsize=(8,4))
 ax[0].eventplot(events, color='k')
 ax[0].set_xlim([2000, 3000])
 ax[0].set_ylabel('Noise')
+ax[0].set_xticks([])
 
 ax[1].plot(t, r_e, linewidth=2)
 ax[1].set_xlim([2000, 3000])
 ax[1].set_ylabel('r exc')
+ax[1].set_xticks([])
 
 ax[2].plot(t, r_i, linewidth=2)
 
@@ -133,13 +135,17 @@ cmat = np.arctanh(np.corrcoef(r_e[100:, :].T))
 np.fill_diagonal(cmat, np.nan)
 pred_cmat = pd.DataFrame(data=cmat, index=conn_mat.index, columns=conn_mat.columns)
 
-fig2, ax = plt.subplots(1, 2, figsize=(20,8))
-sns.heatmap(pred_cmat, ax=ax[0], xticklabels=True, cbar_kws={'label': 'Functional Correlation (z)','shrink': .8}, cmap="cividis", rasterized=True)
-sns.heatmap(meas_cmat, ax=ax[1], xticklabels=True, cbar_kws={'label': 'Functional Correlation (z)','shrink': .8}, cmap="cividis", rasterized=True)
+fig2, ax = plt.subplots(1, 2, figsize=(14, 7))
+sns.heatmap(pred_cmat, ax=ax[0], xticklabels=True, cbar_kws={'label': 'Functional Correlation (z)','shrink': .75}, cmap="cividis", rasterized=True)
+ax[0].set_aspect('equal')
+ax[0].set_title('Predicted')
+sns.heatmap(meas_cmat, ax=ax[1], xticklabels=True, cbar_kws={'label': 'Functional Correlation (z)','shrink': .75}, cmap="cividis", rasterized=True)
+ax[1].set_aspect('equal')
+ax[1].set_title('Measured')
 
 r2 = explained_variance_score(pred_cmat.to_numpy()[upper_inds], meas_cmat.to_numpy()[upper_inds])
 r, _ = pearsonr(pred_cmat.to_numpy()[upper_inds], meas_cmat.to_numpy()[upper_inds])
-fig3, ax = plt.subplots(1, 1, figsize=(6,6))
+fig3, ax = plt.subplots(1, 1, figsize=(4, 4))
 ax.plot(pred_cmat.to_numpy()[upper_inds], meas_cmat.to_numpy()[upper_inds], 'ko')
 ax.plot([-0.2, 1.0], [-0.2, 1.0], 'k--')
 ax.set_xlabel('Predicted')
@@ -167,12 +173,13 @@ node_responses = np.max(r_e[200:250, :], axis=0)
 sort_inds = np.argsort(node_responses)[::-1]
 
 # plot responses
-fig4, ax = plt.subplots(3, 1, figsize=(12,6))
+fig4, ax = plt.subplots(3, 1, figsize=(8,5))
 
 ax[0].plot(t, r_e, linewidth=2)
 ax[0].set_ylabel('r exc')
 ax[0].annotate('Inject into {}'.format(target_region), (400, 1))
 ax[0].set_xlim([50, 500])
+ax[0].set_xticks([])
 
 ax[1].plot(t, r_i, linewidth=2)
 ax[1].set_ylabel('r inh')
@@ -185,15 +192,7 @@ ax[2].set_ylim([0, 1.25*node_responses[sort_inds][1]])
 ax[2].set_ylabel('Peak response (a.u.)')
 
 # %% save figs
-with PdfPages(os.path.join(analysis_dir, 'rate_model_figs_rand_cw{}.pdf'.format(w_internode))) as pdf:
-    pdf.savefig(fig1)
-    pdf.savefig(fig2)
-    pdf.savefig(fig3)
-    pdf.savefig(fig4)
 
-
-    d = pdf.infodict()
-    d['Author'] = 'Max Turner'
-    d['ModDate'] = datetime.datetime.today()
-
-plt.close('all')
+figs_to_save = [fig1, fig2, fig3, fig4]
+for f_ind, fh in enumerate(figs_to_save):
+    fh.savefig(os.path.join(analysis_dir, 'figpanels', 'RateModelFig{}_{}.svg'.format(f_ind, w_internode)))
