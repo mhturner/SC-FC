@@ -6,7 +6,8 @@ from scipy.stats import pearsonr, zscore, ttest_rel, kstest, wilcoxon
 from sklearn.cluster import KMeans
 import pandas as pd
 import seaborn as sns
-
+from matplotlib.backends.backend_pdf import PdfPages
+import datetime
 
 from region_connectivity import RegionConnectivity
 
@@ -96,7 +97,7 @@ for ind, motion_fp in enumerate(motion_filepaths):
 
     # plot resp / behavior
     if ind == eg_ind:
-        fh, ax = plt.subplots(1, 1, figsize=(8, 4))
+        fig1, ax = plt.subplots(1, 1, figsize=(8, 4))
         file_id = resp_fp.split('/')[-1].replace('.pkl', '')
         region_response = pd.read_pickle(resp_fp)
         # convert to dF/F
@@ -112,14 +113,14 @@ for ind, motion_fp in enumerate(motion_filepaths):
         time_vec = np.arange(0, eg_show) / fs
         yarr = np.vstack((is_behaving[st:(st+eg_show)],))
 
-        ax.imshow(yarr, extent=(min(time_vec), max(time_vec), -0.3, 0.5), cmap='binary', clim=[0, 2])
+        ax.imshow(yarr, extent=(min(time_vec), max(time_vec), -0.3, 0.5), cmap='binary', clim=[0, 2], interpolation='nearest')
         ax.plot(time_vec, region_dff.iloc[:, st:(st+eg_show)].T, alpha=0.4)
         ax.set_aspect(100)
         ax.set_xlabel('Time (s)')
         ax.set_ylabel('dF/F')
 
 _, p = ttest_rel(r_nonbehaving, r_behaving)
-fh, ax = plt.subplots(1, 1, figsize=(4, 4))
+fig2, ax = plt.subplots(1, 1, figsize=(4, 4))
 ax.plot(r_nonbehaving, r_behaving, 'ko')
 ax.plot([0, 1], [0, 1], 'k--')
 ax.set_xlabel('Nonbehaving')
@@ -136,7 +137,7 @@ cmat_nonbehaving = pd.DataFrame(data=np.mean(np.stack(cmats_nonbehaving, axis=2)
 vmin = np.nanmin((np.nanmin(cmat_behaving.to_numpy()), np.nanmin(cmat_nonbehaving.to_numpy())))
 vmax = np.nanmax((np.nanmax(cmat_behaving.to_numpy()), np.nanmax(cmat_nonbehaving.to_numpy())))
 cmat_behaving
-fh, ax = plt.subplots(1, 2, figsize=(16, 8))
+fig3, ax = plt.subplots(1, 2, figsize=(16, 8))
 sns.heatmap(cmat_behaving, ax=ax[0], xticklabels=True, cbar_kws={'label': 'Functional Correlation (z)','shrink': .8}, cmap="cividis", rasterized=True, vmin=vmin, vmax=vmax)
 ax[0].set_aspect('equal')
 ax[0].set_title('Behaving')
@@ -150,7 +151,7 @@ ax[1].set_title('NonBehaving')
 functional_adjacency_behaving = cmat_behaving.to_numpy().copy()[upper_inds][keep_inds]
 functional_adjacency_nonbehaving = cmat_nonbehaving.to_numpy().copy()[upper_inds][keep_inds]
 
-fh, ax = plt.subplots(1, 2, figsize=(8, 4))
+fig4, ax = plt.subplots(1, 2, figsize=(8, 4))
 ax[0].plot(anatomical_adjacency, functional_adjacency_behaving, 'ko')
 r, _ = pearsonr(anatomical_adjacency, functional_adjacency_behaving)
 ax[0].set_title('Behaving, r = {:.3f}'.format(r))
@@ -164,12 +165,27 @@ ax[1].set_xlabel('Anatomical connectivity (log10)')
 
 # %%
 
-fh, ax = plt.subplots(1, 1, figsize=(4, 4))
+fig5, ax = plt.subplots(1, 1, figsize=(4, 4))
 ax.plot(functional_adjacency_behaving, functional_adjacency_nonbehaving, marker='.', color='b', alpha=1.0, LineStyle='None')
 ax.plot([-0.2, 1], [-0.2, 1], 'k-')
 ax.set_xlabel('Behaving')
 ax.set_ylabel('Nonbehaving')
 functional_adjacency_behaving.shape
+
+# %% save figs
+with PdfPages(os.path.join(analysis_dir, 'behavior_analysis_figs.pdf')) as pdf:
+    pdf.savefig(fig1)
+    pdf.savefig(fig2)
+    pdf.savefig(fig3)
+    pdf.savefig(fig4)
+    pdf.savefig(fig5)
+
+
+    d = pdf.infodict()
+    d['Author'] = 'Max Turner'
+    d['ModDate'] = datetime.datetime.today()
+
+plt.close('all')
 
 
 # %%

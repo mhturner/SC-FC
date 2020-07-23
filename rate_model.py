@@ -1,5 +1,6 @@
 import numpy as np
 from scipy.integrate import odeint
+from scipy.special import erf
 import matplotlib.pyplot as plt
 import pandas as pd
 import os
@@ -20,23 +21,21 @@ https://elifesciences.org/articles/22425#s4
 data_dir = '/home/mhturner/Dropbox/ClandininLab/Analysis/SC-FC/data'
 analysis_dir = '/home/mhturner/Dropbox/ClandininLab/Analysis/SC-FC'
 
-do_log_transform = False # (True, False)
 tdim = 10000
 
-tau_i = 2 # msec (2, 2)
-tau_e = 10 # msec (10, 10)
+tau_i = 2 # msec (2)
+tau_e = 10 # msec (10)
 # w_: within subnetwork weights
-w_ee = 2 # e self drive (2, 2)
-w_ei = 2 # i to e (2, 2)
-w_ie = 2 # e to i (2, 2)
+w_ee = 2 # e self drive (2)
+w_ei = 4 # i to e (4)
+w_ie = 4 # e to i (4)
 
- # scaling of weights between excitatory populations (1.10, 4)
- #  Log weights: 0.13 = close to measured
- #  Raw weigihts: 0.52
-w_internode = 0.52
+ # scaling of weights between excitatory populations
+ # 2: close to measured
+w_internode = 2.0
 
-pulse_size = 25
-spike_rate = 2 #hz
+pulse_size = 5 # (5)
+spike_rate = 5 #hz (5)
 
 # # # load measured fxnal connectivity
 roinames_path = os.path.join(data_dir, 'atlas_data', 'Original_Index_panda_full.csv')
@@ -51,11 +50,12 @@ MediumConnections = pd.read_pickle(os.path.join(data_dir, 'connectome_connectivi
 StrongConnections = pd.read_pickle(os.path.join(data_dir, 'connectome_connectivity', 'StrongConnections_computed_20200626.pkl'))
 conn_mat = WeakConnections + MediumConnections + StrongConnections
 C = conn_mat.to_numpy()
-if do_log_transform:
-    C = np.log10(C)
-    C[np.isinf(C)] = 0
 np.fill_diagonal(C, 0)
 C = C / C.max()
+
+# C = np.random.rand(C.shape[0], C.shape[1])
+# np.fill_diagonal(C, 0)
+
 n_nodes = C.shape[0]
 
 # poisson noise in all nodes
@@ -68,13 +68,17 @@ stimulus = None
 C_internode = w_internode * C
 
 # IC stats from end of run
-# r_i[-1, :].mean()
-r0 = np.hstack([1+1*np.random.rand(n_nodes), # exc initial conditions
-                8+8*np.random.rand(n_nodes)]) # inh initial conditions
-
+# r_i[-1, :].std()
+r0 = np.hstack([0.3+0.3*np.random.rand(n_nodes), # exc initial conditions
+                3+3*np.random.rand(n_nodes)]) # inh initial conditions
 
 def threshlinear(input):
     output = np.array(input)
+    output[output < 0] = 0
+    return output
+
+def sigmoid(input, thresh=0, scale=5):
+    output = scale*erf((np.array(input)-thresh)/scale)
     output[output < 0] = 0
     return output
 
@@ -91,11 +95,11 @@ def dXdt(X, t, nez_e, stimulus):
         stim = 0
 
     internode_inputs = C_internode.T @ r_e
-    exc_inputs = w_ee*r_e - w_ei*r_i + nez_e[:, int(t)] + stim
-    edot = (-r_e + threshlinear(internode_inputs + exc_inputs)) / tau_e
+    exc_inputs = w_ee*r_e - w_ei*r_i
+    edot = (-r_e + sigmoid(internode_inputs + exc_inputs) + nez_e[:, int(t)] + stim) / tau_e
 
-    inh_inputs = w_ie*r_e + stim
-    idot = (-r_i + threshlinear(inh_inputs)) / tau_i
+    inh_inputs = w_ie*r_e
+    idot = (-r_i + sigmoid(inh_inputs) + stim) / tau_i
 
     return np.hstack([edot, idot])
 
@@ -105,23 +109,31 @@ X = odeint(dXdt, r0, t, args=(nez_e, stimulus))
 r_e = X[:, :n_nodes]
 r_i = X[:, n_nodes:2*n_nodes]
 
+# %%
 # # plot responses
-fig1, ax = plt.subplots(3, 1, figsize=(12,6))
-ax[0].imshow(nez_e, rasterized=True)
-ax[0].set_xlim([0, tdim])
-ax[0].set_aspect(20)
+events = []
+for e in range(nez_e.shape[0]):
+    events.append(np.where(nez_e[e, :] > 0)[0])
+
+fig1, ax = plt.subplots(3, 1, figsize=(18,6))
+ax[0].eventplot(events, color='k')
+ax[0].set_xlim([2000, 3000])
+ax[0].set_ylabel('Noise')
 
 ax[1].plot(t, r_e, linewidth=2)
+ax[1].set_xlim([2000, 3000])
 ax[1].set_ylabel('r exc')
 
 ax[2].plot(t, r_i, linewidth=2)
+
+ax[2].set_xlim([2000, 3000])
 ax[2].set_ylabel('r inh')
 
 cmat = np.arctanh(np.corrcoef(r_e[100:, :].T))
 np.fill_diagonal(cmat, np.nan)
 pred_cmat = pd.DataFrame(data=cmat, index=conn_mat.index, columns=conn_mat.columns)
 
-fig2, ax = plt.subplots(1, 2, figsize=(14,6))
+fig2, ax = plt.subplots(1, 2, figsize=(20,8))
 sns.heatmap(pred_cmat, ax=ax[0], xticklabels=True, cbar_kws={'label': 'Functional Correlation (z)','shrink': .8}, cmap="cividis", rasterized=True)
 sns.heatmap(meas_cmat, ax=ax[1], xticklabels=True, cbar_kws={'label': 'Functional Correlation (z)','shrink': .8}, cmap="cividis", rasterized=True)
 
@@ -138,7 +150,7 @@ ax.set_title('r = {:.3f}'.format(r));
 # %% pulse and measure predictions
 target_region = 'MBML(R)'
 tdim = 500
-stim_amplitude = 500
+stim_amplitude = 2
 stim_node_index = np.where(conn_mat.index==target_region)[0][0]
 stimulus = np.zeros_like(nez_e)
 nez_e = np.zeros_like(nez_e) # cut the noise
@@ -159,9 +171,12 @@ fig4, ax = plt.subplots(3, 1, figsize=(12,6))
 
 ax[0].plot(t, r_e, linewidth=2)
 ax[0].set_ylabel('r exc')
+ax[0].annotate('Inject into {}'.format(target_region), (400, 1))
+ax[0].set_xlim([50, 500])
 
 ax[1].plot(t, r_i, linewidth=2)
 ax[1].set_ylabel('r inh')
+ax[1].set_xlim([50, 500])
 
 ax[2].plot(node_responses[sort_inds][1:], 'kx')
 ax[2].set_xticks(list(range(n_nodes-1)))
@@ -170,7 +185,7 @@ ax[2].set_ylim([0, 1.25*node_responses[sort_inds][1]])
 ax[2].set_ylabel('Peak response (a.u.)')
 
 # %% save figs
-with PdfPages(os.path.join(analysis_dir, 'rate_model_figs.pdf')) as pdf:
+with PdfPages(os.path.join(analysis_dir, 'rate_model_figs_rand_cw{}.pdf'.format(w_internode))) as pdf:
     pdf.savefig(fig1)
     pdf.savefig(fig2)
     pdf.savefig(fig3)
