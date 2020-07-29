@@ -73,3 +73,24 @@ ax[1].set_ylabel('S');
 
 
 corrmat = np.corrcoef(R)
+
+# %%
+from neuprint import (Client, fetch_neurons, NeuronCriteria)
+import numpy as np
+
+neuprint_client = Client('neuprint.janelia.org', dataset='hemibrain:v1.1', token='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6Im1heHdlbGxob2x0ZXR1cm5lckBnbWFpbC5jb20iLCJsZXZlbCI6Im5vYXV0aCIsImltYWdlLXVybCI6Imh0dHBzOi8vbGgzLmdvb2dsZXVzZXJjb250ZW50LmNvbS9hLS9BT2gxNEdpMHJRX0M4akliX0ZrS2h2OU5DSElsWlpnRDY5YUMtVGdNLWVWM3lRP3N6PTUwP3N6PTUwIiwiZXhwIjoxNzY2MTk1MzcwfQ.Q-57D4tX2sXMjWym2LFhHaUGHgHiUsIM_JI9xekxw_0')
+
+sour = 'AL(R)'
+targ = 'LH(R)'
+
+Neur, Syn = fetch_neurons(NeuronCriteria(inputRois=sour, outputRois=targ, status='Traced'))
+
+x = 1
+Neur.roiInfo[x][targ]['pre']
+Neur.roiInfo[x][sour]['post']
+Neur.loc[x, 'post']
+
+weighted_synapses = [Neur.roiInfo[x][targ]['pre'] * Neur.roiInfo[x][sour]['post'] / Neur.loc[x, 'post'] for x in range(len(Neur))]
+weighted_synapses = [x.roiInfo[targ]['pre'] * (x.roiInfo[sour]['post']/x[1, 'post']) for x in Neur]
+
+Neur

@@ -61,6 +61,7 @@ roi_mask, roi_size = RegionConnectivity.loadAtlasData(atlas_path=atlas_path, roi
 
 # indices for connectivity and correlation matrices
 upper_inds = np.triu_indices(CorrelationMatrix_Functional.shape[0], k=1) # k=1 excludes main diagonal
+lower_inds = np.tril_indices(CorrelationMatrix_Functional.shape[0], k=1) # k=1 excludes main diagonal
 
 # find center of mass for each roi
 coms = np.vstack([center_of_mass(x) for x in roi_mask])
@@ -141,6 +142,11 @@ keep_inds = np.where(ConnectivityCount_Symmetrized.to_numpy()[upper_inds] > 0) #
 anatomical_adjacency = np.log10(ConnectivityCount_Symmetrized.to_numpy().copy()[upper_inds][keep_inds])
 functional_adjacency = CorrelationMatrix_Functional.to_numpy().copy()[upper_inds][keep_inds]
 
+# %%
+TwoStep_Symmetrized.mean(axis=0)
+
+plt.plot(ConnectivityCount_Symmetrized.mean(axis=0), TwoStep_Symmetrized.mean(axis=0),  'x')
+
 # %% Lognormal distribtution of connection strengths
 
 # pull_regions = ['MBML(L)', 'MBML(R)', 'MBVL(R)', 'CRE(R)', 'CRE(L)', 'LAL(R)', 'AL(R)', 'FB', 'VES(R)']
@@ -150,9 +156,10 @@ pull_regions = ['AL(R)', 'CAN(R)', 'LH(R)', 'SPS(R)']
 fig1_0, ax = plt.subplots(int(len(pull_regions)/2), 2, figsize=(12,6))
 fig1_0.tight_layout(w_pad=2, h_pad=8)
 ax = ax.ravel()
-
-for p_ind, pr in enumerate(pull_regions):
-    outbound = ConnectivityCount.loc[pull_regions[p_ind],:]
+outside_CI = []
+for p_ind, pr in enumerate(CorrelationMatrix_Functional.index):
+    # ConnectivityCount.loc[pr,:] = np.sort(np.random.rand(36))[::-1]
+    outbound = ConnectivityCount.loc[pr,:]
     outbound = outbound.sort_values(ascending=False)
     ki = np.where(outbound > 0)
     ct = outbound.iloc[ki]
@@ -167,24 +174,37 @@ for p_ind, pr in enumerate(pull_regions):
     samples = np.vstack(samples)
 
     # Note order of operations matters here, get mean and std before going back out of log
-    mod_mean = 10**np.mean(samples, axis=0)
-    err_down = 10**(np.mean(samples, axis=0) - np.std(samples, axis=0))
-    err_up = 10**(np.mean(samples, axis=0) + np.std(samples, axis=0))
 
-    ax[p_ind].plot(ct, 'bo')
-    ax[p_ind].fill_between(list(range(len(mod_mean))), err_up, err_down, color='k', alpha=0.4)
-    ax[p_ind].plot(mod_mean, 'k--')
+    # mod_mean = 10**np.mean(samples, axis=0)
+    # err_down = 10**(np.mean(samples, axis=0) - np.std(samples, axis=0))
+    # err_up = 10**(np.mean(samples, axis=0) + np.std(samples, axis=0))
 
-    ax[p_ind].set_xticks(list(range(len(ct))))
-    ax[p_ind].set_xticklabels(ct.index)
-    ax[p_ind].set_yscale('log')
-    for tick in ax[p_ind].get_xticklabels():
-        tick.set_rotation(90)
+    mod_mean = 10**np.median(samples, axis=0)
+    err_down = 10**(np.quantile(samples, 0.1, axis=0))
+    err_up = 10**(np.quantile(samples, 0.9, axis=0))
 
-    ax[p_ind].annotate('Source: {}'.format(pr), (12, mod_mean[0]))
+    outside_CI.append(np.logical_or(ct > err_up, ct < err_down).sum())
+
+    if pr in pull_regions:
+        eg_ind = np.where(pr==np.array(pull_regions))[0][0]
+        ax[eg_ind].plot(ct, 'bo')
+        ax[eg_ind].fill_between(list(range(len(mod_mean))), err_up, err_down, color='k', alpha=0.4)
+        ax[eg_ind].plot(mod_mean, 'k--')
+
+        ax[eg_ind].set_xticks(list(range(len(ct))))
+        ax[eg_ind].set_xticklabels(ct.index)
+        ax[eg_ind].set_yscale('log')
+        for tick in ax[eg_ind].get_xticklabels():
+            tick.set_rotation(90)
+
+        ax[eg_ind].annotate('Source: {}'.format(pr), (12, mod_mean[0]))
+
+inside_CI = len(CorrelationMatrix_Functional.index) - np.array(outside_CI)
+print(inside_CI/36)
+
+print(np.sum(inside_CI) / (36*36))
 
 fig1_0.text(-0.02, 0.5, 'Outgoing connections (Cell count)', va='center', rotation='vertical', fontsize=14)
-
 
 fig1_1, ax = plt.subplots(1, 1, figsize=(5,4))
 #  ConnectivityCount:
@@ -209,25 +229,26 @@ ax.set_ylabel('Probability')
 ax.set_xscale('log')
 print('KS test lognormal: Count p = {:.4f}'.format(p_ct))
 
-# # ConnectivityWeight:
-# wt_mat = ConnectivityWeight.to_numpy().copy()
-# np.fill_diagonal(wt_mat, 0) # replace diag nan with 0
-# weights = wt_mat.ravel()
-# keep_inds_weight = np.where(weights > 0) # exclude 0 ct vals for log transform
-# wt = weights[keep_inds_weight]
-# log_wt = np.log10(weights[keep_inds_weight])
-#
-# val, bin = np.histogram(log_wt, 20, density=True)
-# bin_ctrs = bin[:-1]
-# ax[1].plot(10**bin_ctrs, val, LineWidth=2)
-# xx = np.linspace(bin_ctrs.min(), bin_ctrs.max(), 100)
-# yy = norm(loc=np.mean(np.log10(wt)), scale=np.std(np.log10(wt))).pdf(xx)
-# ax[1].plot(10**xx, yy, 'k', alpha=1)
-# p_wt, _ = kstest(zscore(log_wt), 'norm')
-# ax[1].set_xlabel('Connection weight')
-# ax[1].set_ylabel('Probability')
-# ax[1].set_xscale('log')
-# print('KS test lognormal: Weight p = {:.4f}'.format(p_wt))
+fig1_2, ax = plt.subplots(1, 1, figsize=(5,4))
+# ConnectivityWeight:
+wt_mat = ConnectivityWeight.to_numpy().copy()
+np.fill_diagonal(wt_mat, 0) # replace diag nan with 0
+weights = wt_mat.ravel()
+keep_inds_weight = np.where(weights > 0) # exclude 0 ct vals for log transform
+wt = weights[keep_inds_weight]
+log_wt = np.log10(weights[keep_inds_weight])
+
+val, bin = np.histogram(log_wt, 20, density=True)
+bin_ctrs = bin[:-1]
+ax.plot(10**bin_ctrs, val, LineWidth=2)
+xx = np.linspace(bin_ctrs.min(), bin_ctrs.max(), 100)
+yy = norm(loc=np.mean(np.log10(wt)), scale=np.std(np.log10(wt))).pdf(xx)
+ax.plot(10**xx, yy, 'k', alpha=1)
+p_wt, _ = kstest(zscore(log_wt), 'norm')
+ax.set_xlabel('Connection weight')
+ax.set_ylabel('Probability')
+ax.set_xscale('log')
+print('KS test lognormal: Weight p = {:.4f}'.format(p_wt))
 
 
 # %% Eg region traces and corr scatter plots
@@ -344,12 +365,12 @@ sns.despine(top=True, right=True, left=True, bottom=True)
 fig2_0, ax = plt.subplots(1, 2, figsize=(14, 7))
 
 df = np.log10(ConnectivityCount).replace([np.inf, -np.inf], 0)
-sns.heatmap(df, ax=ax[0], xticklabels=True, cbar_kws={'label': 'Connection strength (log10(Connecting cells))', 'shrink': .8}, cmap="cividis", rasterized=False)
+sns.heatmap(df, ax=ax[0], xticklabels=True, cbar_kws={'label': 'Connection strength (log10(Connecting cells))', 'shrink': .8}, cmap="cividis", rasterized=True)
 ax[0].set_xlabel('Target');
 ax[0].set_ylabel('Source');
 ax[0].set_aspect('equal')
 
-sns.heatmap(CorrelationMatrix_Functional, ax=ax[1], xticklabels=True, cbar_kws={'label': 'Functional Correlation (z)','shrink': .8}, cmap="cividis", rasterized=False)
+sns.heatmap(CorrelationMatrix_Functional, ax=ax[1], xticklabels=True, cbar_kws={'label': 'Functional Correlation (z)','shrink': .8}, cmap="cividis", rasterized=True)
 ax[1].set_aspect('equal')
 
 r, p = pearsonr(anatomical_adjacency, functional_adjacency)
@@ -599,6 +620,8 @@ diff_m = np.zeros_like(ConnectivityCount.to_numpy())
 diff_m[keep_inds_diff] = diff
 DifferenceMatrix = pd.DataFrame(data=diff_m, index=ConnectivityCount.index, columns=ConnectivityCount.index)
 
+
+
 # %% SUPP FIG: does completeness of reconstruction impact
 #
 #
@@ -643,7 +666,7 @@ ax.set_xlabel('Anatomical connectivity (log10, zscore)')
 ax.set_ylabel('Functional correlation (zscore)');
 
 fig5_1, ax = plt.subplots(1, 1, figsize=(8,8))
-sns.heatmap(sorted_diff, ax=ax, xticklabels=True, cbar_kws={'label': 'Anat - Fxnal connectivity','shrink': .75}, cmap="RdBu", rasterized=False, vmin=-lim, vmax=lim)
+sns.heatmap(sorted_diff, ax=ax, xticklabels=True, cbar_kws={'label': 'Anat - Fxnal connectivity','shrink': .75}, cmap="RdBu", rasterized=True, vmin=-lim, vmax=lim)
 ax.set_aspect('equal')
 
 

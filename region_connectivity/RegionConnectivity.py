@@ -273,6 +273,7 @@ def computeConnectivityMatrix(neuprint_client, mapping):
     MediumConnections = pd.DataFrame(data=np.zeros((len(rois), len(rois))), index=rois, columns=rois)
     StrongConnections = pd.DataFrame(data=np.zeros((len(rois), len(rois))), index=rois, columns=rois)
     Connectivity = pd.DataFrame(data=np.zeros((len(rois), len(rois))), index=rois, columns=rois)
+    WeightedSynapseNumber = pd.DataFrame(data=np.zeros((len(rois), len(rois))), index=rois, columns=rois)
     for roi_source in rois:
         for roi_target in rois:
             sources = mapping[roi_source]
@@ -282,6 +283,7 @@ def computeConnectivityMatrix(neuprint_client, mapping):
             medium_neurons = 0
             strong_neurons = 0
             summed_connectivity = 0
+            weighted_synapse_number = 0
             for s_ind, sour in enumerate(sources): # this multiple sources/targets is necessary for collapsing rois based on mapping
                 for targ in targets:
                     Neur, Syn = fetch_neurons(NeuronCriteria(inputRois=sour, outputRois=targ, status='Traced'))
@@ -296,8 +298,13 @@ def computeConnectivityMatrix(neuprint_client, mapping):
                     # Connection strength for each cell := sqrt(input PSDs in source x output tbars in target)
                     conn_strengths = [np.sqrt(x[targ]['pre'] * x[sour]['post']) for x in Neur.roiInfo]
 
+                    # weighted synapses, for each cell going from sour -> targ:
+                    #       := output tbars (presynapses) in targ * (input (post)synapses in sour)/(total (post)synapses onto that cell)
+                    weighted_synapses = [Neur.roiInfo[x][targ]['pre'] * (Neur.roiInfo[x][sour]['post'] / Neur.loc[x, 'post']) for x in range(len(Neur))]
+
                     if Neur.roiInfo.shape[0] > 0:
                         summed_connectivity += np.sum(conn_strengths)
+                        weighted_synapse_number += np.sum(weighted_synapses)
                         weak_neurons += n_weak
                         medium_neurons += n_medium
                         strong_neurons += n_strong
@@ -307,6 +314,7 @@ def computeConnectivityMatrix(neuprint_client, mapping):
             StrongConnections.loc[[roi_source], [roi_target]] = strong_neurons
 
             Connectivity.loc[[roi_source], [roi_target]] = summed_connectivity
+            WeightedSynapseNumber.loc[[roi_source], [roi_target]] = weighted_synapse_number
 
 
-    return WeakConnections, MediumConnections, StrongConnections, Connectivity
+    return WeakConnections, MediumConnections, StrongConnections, Connectivity, WeightedSynapseNumber
