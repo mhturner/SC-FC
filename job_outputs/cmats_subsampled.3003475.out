@@ -1,0 +1,43 @@
+Finished full region cmat (time = 1270.7 sec)
+Starting brain 2017-10-30_2.nii.gz
+Finished brain 2017-10-30_2.nii.gz (time = 1397.1 sec)
+Starting brain 2018-12-12_2.nii.gz
+Finished brain 2018-12-12_2.nii.gz (time = 1181.6 sec)
+Starting brain 2018-12-14_2.nii.gz
+Finished brain 2018-12-14_2.nii.gz (time = 940.3 sec)
+Starting brain 2018-12-14_1.nii.gz
+Finished brain 2018-12-14_1.nii.gz (time = 1238.2 sec)
+Starting brain 2017-10-26_1.nii.gz
+Finished brain 2017-10-26_1.nii.gz (time = 1222.7 sec)
+Starting brain 2018-11-03_2.nii.gz
+Finished brain 2018-11-03_2.nii.gz (time = 1103.7 sec)
+Starting brain 2017-11-16_1.nii.gz
+Finished brain 2017-11-16_1.nii.gz (time = 1509.8 sec)
+Starting brain 2018-12-12_3.nii.gz
+Finished brain 2018-12-12_3.nii.gz (time = 1228.7 sec)
+Starting brain 2018-10-20_1.nii.gz
+Finished brain 2018-10-20_1.nii.gz (time = 1133.3 sec)
+Starting brain 2018-11-03_4.nii.gz
+Finished brain 2018-11-03_4.nii.gz (time = 1182.1 sec)
+Starting brain 2018-11-03_5.nii.gz
+Finished brain 2018-11-03_5.nii.gz (time = 1148.8 sec)
+Starting brain 2018-10-19_2.nii.gz
+Finished brain 2018-10-19_2.nii.gz (time = 948.7 sec)
+Starting brain 2018-10-31_1.nii.gz
+Finished brain 2018-10-31_1.nii.gz (time = 1156.3 sec)
+Starting brain 2017-11-08_2.nii.gz
+Finished brain 2017-11-08_2.nii.gz (time = 4000.5 sec)
+Starting brain 2018-12-12_4.nii.gz
+Finished brain 2018-12-12_4.nii.gz (time = 995.0 sec)
+Starting brain 2018-10-19_1.nii.gz
+Finished brain 2018-10-19_1.nii.gz (time = 893.4 sec)
+Starting brain 2018-12-14_3.nii.gz
+Finished brain 2018-12-14_3.nii.gz (time = 901.1 sec)
+Starting brain 2017-11-08_1.nii.gz
+Finished brain 2017-11-08_1.nii.gz (time = 3272.0 sec)
+Starting brain 2018-11-03_3.nii.gz
+Finished brain 2018-11-03_3.nii.gz (time = 1054.7 sec)
+Starting brain 2017-10-30_1.nii.gz
+Finished brain 2017-10-30_1.nii.gz (time = 1417.7 sec)
+Finished all brains, saved full and population cmats at /oak/stanford/groups/trc/data/Max/flynet/analysis/subsampled_cmats_20200626.npy
+Total time = 29198.3 sec)
