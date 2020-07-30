@@ -7,7 +7,7 @@ import os
 import pickle
 import matplotlib.pyplot as plt
 import seaborn as sns
-from sklearn.linear_model import LinearRegression, Ridge, ARDRegression, BayesianRidge
+from sklearn.linear_model import LinearRegression
 from scipy.stats import pearsonr, spearmanr, ttest_1samp
 from scipy.spatial.distance import pdist
 from scipy.stats import zscore
@@ -92,9 +92,9 @@ Anatomical connectivity matrices and symmetrized versions of each
 """
 
 # 1) ConnectivityCount
-WeakConnections = pd.read_pickle(os.path.join(data_dir, 'connectome_connectivity', 'WeakConnections_computed_20200626.pkl'))
-MediumConnections = pd.read_pickle(os.path.join(data_dir, 'connectome_connectivity', 'MediumConnections_computed_20200626.pkl'))
-StrongConnections = pd.read_pickle(os.path.join(data_dir, 'connectome_connectivity', 'StrongConnections_computed_20200626.pkl'))
+WeakConnections = pd.read_pickle(os.path.join(data_dir, 'connectome_connectivity', 'WeakConnections_computed_20200729.pkl'))
+MediumConnections = pd.read_pickle(os.path.join(data_dir, 'connectome_connectivity', 'MediumConnections_computed_20200729.pkl'))
+StrongConnections = pd.read_pickle(os.path.join(data_dir, 'connectome_connectivity', 'StrongConnections_computed_20200729.pkl'))
 conn_mat = WeakConnections + MediumConnections + StrongConnections
 # set diag to nan
 tmp_mat = conn_mat.to_numpy().copy()
@@ -103,20 +103,30 @@ ConnectivityCount_Symmetrized = pd.DataFrame(data=(tmp_mat + tmp_mat.T)/2, index
 ConnectivityCount = pd.DataFrame(data=tmp_mat, index=conn_mat.index, columns=conn_mat.index)
 # - - - - - - - - - - - - - - - - #
 # 2) ConnectivityWeight
-weight_mat = pd.read_pickle(os.path.join(data_dir, 'connectome_connectivity', 'Connectivity_computed_20200626.pkl'))
+weight_mat = pd.read_pickle(os.path.join(data_dir, 'connectome_connectivity', 'Connectivity_computed_20200729.pkl'))
 # set diag to nan
 tmp_mat = weight_mat.to_numpy().copy()
 np.fill_diagonal(tmp_mat, np.nan)
 ConnectivityWeight_Symmetrized = pd.DataFrame(data=(tmp_mat + tmp_mat.T)/2, index=weight_mat.index, columns=weight_mat.index)
 ConnectivityWeight = pd.DataFrame(data=tmp_mat, index=weight_mat.index, columns=weight_mat.index)
+
 # - - - - - - - - - - - - - - - - #
-# 3) ConnectivityCount_precomputed
+# 3) WeightedSynapseCount
+syn_mat = pd.read_pickle(os.path.join(data_dir, 'connectome_connectivity', 'WeightedSynapseNumber_computed_20200729.pkl'))
+# set diag to nan
+tmp_mat = syn_mat.to_numpy().copy()
+np.fill_diagonal(tmp_mat, np.nan)
+WeightedSynapseCount_Symmetrized = pd.DataFrame(data=(tmp_mat + tmp_mat.T)/2, index=syn_mat.index, columns=syn_mat.index)
+WeightedSynapseCount = pd.DataFrame(data=tmp_mat, index=syn_mat.index, columns=syn_mat.index)
+
+# - - - - - - - - - - - - - - - - #
+# 4) ConnectivityCount_precomputed
 pccount_mat = RegionConnectivity.getPrecomputedConnectivityMatrix(neuprint_client, mapping, metric='count', diagonal='nan')
 tmp_mat = pccount_mat.to_numpy().copy()
 ConnectivityCount_precomputed_Symmetrized = pd.DataFrame(data=(tmp_mat + tmp_mat.T)/2, index=pccount_mat.index, columns=pccount_mat.index)
 ConnectivityCount_precomputed = pd.DataFrame(data=tmp_mat, index=pccount_mat.index, columns=pccount_mat.index)
 # - - - - - - - - - - - - - - - - #
-# 4) ConnectivityWeight_precomputed
+# 5) ConnectivityWeight_precomputed
 pcweight_mat = RegionConnectivity.getPrecomputedConnectivityMatrix(neuprint_client, mapping, metric='weight', diagonal='nan')
 tmp_mat = pcweight_mat.to_numpy().copy()
 ConnectivityWeight_precomputed_Symmetrized = pd.DataFrame(data=(tmp_mat + tmp_mat.T)/2, index=pcweight_mat.index, columns=pcweight_mat.index)
@@ -142,23 +152,29 @@ keep_inds = np.where(ConnectivityCount_Symmetrized.to_numpy()[upper_inds] > 0) #
 anatomical_adjacency = np.log10(ConnectivityCount_Symmetrized.to_numpy().copy()[upper_inds][keep_inds])
 functional_adjacency = CorrelationMatrix_Functional.to_numpy().copy()[upper_inds][keep_inds]
 
-# %%
-TwoStep_Symmetrized.mean(axis=0)
+# %% corr between weighted synapse count and cell count:
+FigS3, ax = plt.subplots(1, 1, figsize=(5,5))
+ax.plot(ConnectivityCount.to_numpy()[upper_inds], WeightedSynapseCount.to_numpy()[upper_inds], 'ko')
+ax.set_xlabel('Cell count')
+ax.set_ylabel('Weighted synapse count');
 
-plt.plot(ConnectivityCount_Symmetrized.mean(axis=0), TwoStep_Symmetrized.mean(axis=0),  'x')
+
+
 
 # %% Lognormal distribtution of connection strengths
-
-# pull_regions = ['MBML(L)', 'MBML(R)', 'MBVL(R)', 'CRE(R)', 'CRE(L)', 'LAL(R)', 'AL(R)', 'FB', 'VES(R)']
 
 pull_regions = ['AL(R)', 'CAN(R)', 'LH(R)', 'SPS(R)']
 
 fig1_0, ax = plt.subplots(int(len(pull_regions)/2), 2, figsize=(12,6))
-fig1_0.tight_layout(w_pad=2, h_pad=8)
 ax = ax.ravel()
+fig1_0.tight_layout(w_pad=2, h_pad=8)
+
+
+figS1, axS1 = plt.subplots(4, 9, figsize=(18,6))
+axS1 = axS1.ravel()
+
 outside_CI = []
-for p_ind, pr in enumerate(CorrelationMatrix_Functional.index):
-    # ConnectivityCount.loc[pr,:] = np.sort(np.random.rand(36))[::-1]
+for p_ind, pr in enumerate(ConnectivityCount.index):
     outbound = ConnectivityCount.loc[pr,:]
     outbound = outbound.sort_values(ascending=False)
     ki = np.where(outbound > 0)
@@ -174,16 +190,19 @@ for p_ind, pr in enumerate(CorrelationMatrix_Functional.index):
     samples = np.vstack(samples)
 
     # Note order of operations matters here, get mean and std before going back out of log
-
-    # mod_mean = 10**np.mean(samples, axis=0)
-    # err_down = 10**(np.mean(samples, axis=0) - np.std(samples, axis=0))
-    # err_up = 10**(np.mean(samples, axis=0) + np.std(samples, axis=0))
-
-    mod_mean = 10**np.median(samples, axis=0)
-    err_down = 10**(np.quantile(samples, 0.1, axis=0))
-    err_up = 10**(np.quantile(samples, 0.9, axis=0))
+    mod_mean = 10**np.mean(samples, axis=0)
+    err_down = 10**(np.mean(samples, axis=0) - 2*np.std(samples, axis=0))
+    err_up = 10**(np.mean(samples, axis=0) + 2*np.std(samples, axis=0))
 
     outside_CI.append(np.logical_or(ct > err_up, ct < err_down).sum())
+
+    axS1[p_ind].plot(ct, 'bo')
+    axS1[p_ind].fill_between(list(range(len(mod_mean))), err_up, err_down, color='k', alpha=0.4)
+    axS1[p_ind].plot(mod_mean, 'k--')
+    axS1[p_ind].set_xticks([])
+    axS1[p_ind].annotate('{}'.format(pr), (12, mod_mean[0]), fontsize=8)
+    axS1[p_ind].set_yscale('log')
+    axS1[p_ind].set_ylim([0.2, 5e4])
 
     if pr in pull_regions:
         eg_ind = np.where(pr==np.array(pull_regions))[0][0]
@@ -199,13 +218,14 @@ for p_ind, pr in enumerate(CorrelationMatrix_Functional.index):
 
         ax[eg_ind].annotate('Source: {}'.format(pr), (12, mod_mean[0]))
 
+fig1_0.text(-0.02, 0.5, 'Outgoing connections (Cell count)', va='center', rotation='vertical', fontsize=14)
+figS1.text(-0.02, 0.5, 'Outgoing connections (Cell count)', va='center', rotation='vertical', fontsize=14)
+
 inside_CI = len(CorrelationMatrix_Functional.index) - np.array(outside_CI)
-print(inside_CI/36)
 
 print(np.sum(inside_CI) / (36*36))
 
-fig1_0.text(-0.02, 0.5, 'Outgoing connections (Cell count)', va='center', rotation='vertical', fontsize=14)
-
+# %%
 fig1_1, ax = plt.subplots(1, 1, figsize=(5,4))
 #  ConnectivityCount:
 ct_mat = ConnectivityCount.to_numpy().copy()
@@ -231,7 +251,7 @@ print('KS test lognormal: Count p = {:.4f}'.format(p_ct))
 
 fig1_2, ax = plt.subplots(1, 1, figsize=(5,4))
 # ConnectivityWeight:
-wt_mat = ConnectivityWeight.to_numpy().copy()
+wt_mat = WeightedSynapseCount.to_numpy().copy()
 np.fill_diagonal(wt_mat, 0) # replace diag nan with 0
 weights = wt_mat.ravel()
 keep_inds_weight = np.where(weights > 0) # exclude 0 ct vals for log transform
@@ -251,7 +271,7 @@ ax.set_xscale('log')
 print('KS test lognormal: Weight p = {:.4f}'.format(p_wt))
 
 
-# %% Eg region traces and corr scatter plots
+# %% Eg region traces and cross corrs
 cmap = plt.get_cmap('Set3')
 colors = cmap(np.arange(len(pull_regions))/len(pull_regions))
 
@@ -720,7 +740,7 @@ for s_ind, sz in enumerate(subsampled_sizes):
 err_y = np.std(scfc_r, axis=0)
 mean_y = np.mean(scfc_r, axis=0)
 
-figS1, ax1 = plt.subplots(1, 1, figsize=(5,5))
+figS2, ax1 = plt.subplots(1, 1, figsize=(5,5))
 ax1.plot(subsampled_sizes, mean_y, 'ko')
 ax1.errorbar(subsampled_sizes, mean_y, yerr=err_y, color='k')
 ax1.hlines(mean_y[-1], subsampled_sizes.min(), subsampled_sizes.max(), color='k', linestyle='--')
@@ -738,6 +758,6 @@ figs_to_save = [fig1_0, fig1_1, fig1_2, fig1_3, fig1_4,
                 fig3_0, fig3_1,
                 fig4_0, fig4_1,
                 fig5_0, fig5_1, fig5_2,
-                figS1]
+                figS1, figS2]
 for f_ind, fh in enumerate(figs_to_save):
     fh.savefig(os.path.join(analysis_dir, 'figpanels', 'Fig{}.svg'.format(f_ind)))
