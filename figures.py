@@ -12,7 +12,7 @@ from scipy.stats import pearsonr, spearmanr, ttest_1samp
 from scipy.spatial.distance import pdist
 from scipy.stats import zscore
 from scipy.ndimage.measurements import center_of_mass
-from scipy.stats import kstest, lognorm, norm
+from scipy.stats import kstest, lognorm, norm, shapiro
 from scipy.signal import correlate
 from dominance_analysis import Dominance
 from visanalysis import plot_tools
@@ -84,17 +84,17 @@ SizeMatrix = pd.DataFrame(data=sz_mat, index=CorrelationMatrix_Functional.index,
 Anatomical connectivity matrices and symmetrized versions of each
     :ConnectivityCount: Total number of cells with any inputs in source and outputs in target
     :ConnectivityWeight: sqrt(input PSDs in source x output tbars in target)
-    :ConnectivityCount_precomputed: from Janelia computation
-    :ConnectivityWeight_precomputed: from Janelia computation
+    :WeightedSynapseCount: output tbars (presynapses) in target * (input (post)synapses in source)/(total (post)synapses onto that cell)
+    :CommonInputFraction: each fraction of total input cells to [row] that also project to region in [col]
 
         _Symmetrized: symmetrize each adjacency matrix by adding it to its
                       transpose and dividing by 2. Ignores directionality
 """
 
 # 1) ConnectivityCount
-WeakConnections = pd.read_pickle(os.path.join(data_dir, 'connectome_connectivity', 'WeakConnections_computed_20200729.pkl'))
-MediumConnections = pd.read_pickle(os.path.join(data_dir, 'connectome_connectivity', 'MediumConnections_computed_20200729.pkl'))
-StrongConnections = pd.read_pickle(os.path.join(data_dir, 'connectome_connectivity', 'StrongConnections_computed_20200729.pkl'))
+WeakConnections = pd.read_pickle(os.path.join(data_dir, 'connectome_connectivity', 'WeakConnections_computed_20200730.pkl'))
+MediumConnections = pd.read_pickle(os.path.join(data_dir, 'connectome_connectivity', 'MediumConnections_computed_20200730.pkl'))
+StrongConnections = pd.read_pickle(os.path.join(data_dir, 'connectome_connectivity', 'StrongConnections_computed_20200730.pkl'))
 conn_mat = WeakConnections + MediumConnections + StrongConnections
 # set diag to nan
 tmp_mat = conn_mat.to_numpy().copy()
@@ -103,8 +103,8 @@ ConnectivityCount_Symmetrized = pd.DataFrame(data=(tmp_mat + tmp_mat.T)/2, index
 ConnectivityCount = pd.DataFrame(data=tmp_mat, index=conn_mat.index, columns=conn_mat.index)
 # - - - - - - - - - - - - - - - - #
 # 2) ConnectivityWeight
-weight_mat = pd.read_pickle(os.path.join(data_dir, 'connectome_connectivity', 'Connectivity_computed_20200729.pkl'))
-# set diag to nan
+weight_mat = pd.read_pickle(os.path.join(data_dir, 'connectome_connectivity', 'Connectivity_computed_20200730.pkl'))
+# set diag to nannan
 tmp_mat = weight_mat.to_numpy().copy()
 np.fill_diagonal(tmp_mat, np.nan)
 ConnectivityWeight_Symmetrized = pd.DataFrame(data=(tmp_mat + tmp_mat.T)/2, index=weight_mat.index, columns=weight_mat.index)
@@ -112,7 +112,7 @@ ConnectivityWeight = pd.DataFrame(data=tmp_mat, index=weight_mat.index, columns=
 
 # - - - - - - - - - - - - - - - - #
 # 3) WeightedSynapseCount
-syn_mat = pd.read_pickle(os.path.join(data_dir, 'connectome_connectivity', 'WeightedSynapseNumber_computed_20200729.pkl'))
+syn_mat = pd.read_pickle(os.path.join(data_dir, 'connectome_connectivity', 'WeightedSynapseNumber_computed_20200730.pkl'))
 # set diag to nan
 tmp_mat = syn_mat.to_numpy().copy()
 np.fill_diagonal(tmp_mat, np.nan)
@@ -120,17 +120,13 @@ WeightedSynapseCount_Symmetrized = pd.DataFrame(data=(tmp_mat + tmp_mat.T)/2, in
 WeightedSynapseCount = pd.DataFrame(data=tmp_mat, index=syn_mat.index, columns=syn_mat.index)
 
 # - - - - - - - - - - - - - - - - #
-# 4) ConnectivityCount_precomputed
-pccount_mat = RegionConnectivity.getPrecomputedConnectivityMatrix(neuprint_client, mapping, metric='count', diagonal='nan')
-tmp_mat = pccount_mat.to_numpy().copy()
-ConnectivityCount_precomputed_Symmetrized = pd.DataFrame(data=(tmp_mat + tmp_mat.T)/2, index=pccount_mat.index, columns=pccount_mat.index)
-ConnectivityCount_precomputed = pd.DataFrame(data=tmp_mat, index=pccount_mat.index, columns=pccount_mat.index)
-# - - - - - - - - - - - - - - - - #
-# 5) ConnectivityWeight_precomputed
-pcweight_mat = RegionConnectivity.getPrecomputedConnectivityMatrix(neuprint_client, mapping, metric='weight', diagonal='nan')
-tmp_mat = pcweight_mat.to_numpy().copy()
-ConnectivityWeight_precomputed_Symmetrized = pd.DataFrame(data=(tmp_mat + tmp_mat.T)/2, index=pcweight_mat.index, columns=pcweight_mat.index)
-ConnectivityWeight_precomputed = pd.DataFrame(data=tmp_mat, index=pcweight_mat.index, columns=pcweight_mat.index)
+# 4) CommonInputFraction
+CommonInputFraction = pd.read_pickle(os.path.join(data_dir, 'connectome_connectivity', 'CommonInputFraction_computed_20200730.pkl'))
+# set diag to nan
+tmp_mat = CommonInputFraction.to_numpy().copy()
+np.fill_diagonal(tmp_mat, np.nan)
+CommonInputFraction_Symmetrized = pd.DataFrame(data=(tmp_mat + tmp_mat.T)/2, index=CommonInputFraction.index, columns=CommonInputFraction.index)
+CommonInputFraction = pd.DataFrame(data=tmp_mat, index=CommonInputFraction.index, columns=CommonInputFraction.index)
 
 # compute two-step count connectivity matrix
 A = ConnectivityCount.to_numpy().copy()
@@ -147,21 +143,51 @@ TwoStep = pd.DataFrame(data=two_steps, index=ConnectivityCount.index, columns=Co
 # indices for log transforming and comparing to log-transformed mats
 keep_inds = np.where(ConnectivityCount_Symmetrized.to_numpy()[upper_inds] > 0) # for log-transforming anatomical connectivity, toss zero values
 
-# Make adjacency matrices
-# Log transform anatomical connectivity
-anatomical_adjacency = np.log10(ConnectivityCount_Symmetrized.to_numpy().copy()[upper_inds][keep_inds])
-functional_adjacency = CorrelationMatrix_Functional.to_numpy().copy()[upper_inds][keep_inds]
+#
+# # Make adjacency matrices
+# # Log transform anatomical connectivity
+# anatomical_adjacency = np.log10(ConnectivityCount_Symmetrized.to_numpy().copy()[upper_inds][keep_inds])
+# functional_adjacency = CorrelationMatrix_Functional.to_numpy().copy()[upper_inds][keep_inds]
 
 # %% corr between weighted synapse count and cell count:
 FigS3, ax = plt.subplots(1, 1, figsize=(5,5))
-ax.plot(ConnectivityCount.to_numpy()[upper_inds], WeightedSynapseCount.to_numpy()[upper_inds], 'ko')
+ax.plot(ConnectivityCount.to_numpy(), WeightedSynapseCount.to_numpy(), 'ko')
 ax.set_xlabel('Cell count')
 ax.set_ylabel('Weighted synapse count');
 
+# %% corr between cell count and common input fraction
+FigS3, ax = plt.subplots(1, 1, figsize=(5,5))
+ax.plot(ConnectivityCount.to_numpy(), CommonInputFraction.to_numpy(), 'ko')
+ax.set_xlabel('Direct connecting cells')
+ax.set_ylabel('Common input fraction');
 
 
+# %% corr common input and functional connectivity
 
-# %% Lognormal distribtution of connection strengths
+
+FigS4, ax = plt.subplots(1, 1, figsize=(5,5))
+ax.plot(CommonInputFraction.to_numpy()[upper_inds], CorrelationMatrix_Functional.to_numpy()[upper_inds], 'ko')
+ax.set_xlabel('Common input fraction');
+ax.set_ylabel('Functional corr (z)')
+r, p = pearsonr(CommonInputFraction.to_numpy()[upper_inds], CorrelationMatrix_Functional.to_numpy()[upper_inds])
+
+# %%
+
+fh, ax = plt.subplots(1, 3, figsize=(21, 7))
+
+df = np.log10(ConnectivityCount).replace([np.inf, -np.inf], 0)
+sns.heatmap(ConnectivityCount, ax=ax[0], xticklabels=True, cbar_kws={'label': 'Connection strength (log10(Connecting cells))', 'shrink': .8}, cmap="cividis", rasterized=True)
+ax[0].set_xlabel('Target');
+ax[0].set_ylabel('Source');
+ax[0].set_aspect('equal')
+
+sns.heatmap(CommonInputFraction, ax=ax[1], xticklabels=True, cbar_kws={'label': 'Common input fraction','shrink': .8}, cmap="cividis", rasterized=True)
+ax[1].set_aspect('equal')
+
+sns.heatmap(CorrelationMatrix_Functional, ax=ax[2], xticklabels=True, cbar_kws={'label': 'Functional Correlation (z)','shrink': .8}, cmap="cividis", rasterized=True)
+ax[2].set_aspect('equal')
+
+# %% ~Lognormal distribtution of connection strengths
 
 pull_regions = ['AL(R)', 'CAN(R)', 'LH(R)', 'SPS(R)']
 
@@ -173,7 +199,7 @@ fig1_0.tight_layout(w_pad=2, h_pad=8)
 figS1, axS1 = plt.subplots(4, 9, figsize=(18,6))
 axS1 = axS1.ravel()
 
-outside_CI = []
+z_scored_data = []
 for p_ind, pr in enumerate(ConnectivityCount.index):
     outbound = ConnectivityCount.loc[pr,:]
     outbound = outbound.sort_values(ascending=False)
@@ -194,13 +220,13 @@ for p_ind, pr in enumerate(ConnectivityCount.index):
     err_down = 10**(np.mean(samples, axis=0) - 2*np.std(samples, axis=0))
     err_up = 10**(np.mean(samples, axis=0) + 2*np.std(samples, axis=0))
 
-    outside_CI.append(np.logical_or(ct > err_up, ct < err_down).sum())
+    z_scored_data.append(zscore(np.log10(ct)))
 
     axS1[p_ind].plot(ct, 'bo')
     axS1[p_ind].fill_between(list(range(len(mod_mean))), err_up, err_down, color='k', alpha=0.4)
     axS1[p_ind].plot(mod_mean, 'k--')
     axS1[p_ind].set_xticks([])
-    axS1[p_ind].annotate('{}'.format(pr), (12, mod_mean[0]), fontsize=8)
+    axS1[p_ind].annotate('{}'.format(pr), (12, 6e3), fontsize=8)
     axS1[p_ind].set_yscale('log')
     axS1[p_ind].set_ylim([0.2, 5e4])
 
@@ -221,55 +247,47 @@ for p_ind, pr in enumerate(ConnectivityCount.index):
 fig1_0.text(-0.02, 0.5, 'Outgoing connections (Cell count)', va='center', rotation='vertical', fontsize=14)
 figS1.text(-0.02, 0.5, 'Outgoing connections (Cell count)', va='center', rotation='vertical', fontsize=14)
 
-inside_CI = len(CorrelationMatrix_Functional.index) - np.array(outside_CI)
-
-print(np.sum(inside_CI) / (36*36))
-
 # %%
-fig1_1, ax = plt.subplots(1, 1, figsize=(5,4))
-#  ConnectivityCount:
-ct_mat = ConnectivityCount.to_numpy().copy()
-np.fill_diagonal(ct_mat, 0) # replace diag nan with 0
-counts = ct_mat.ravel()
-keep_inds_count = np.where(counts > 0) # exclude 0 ct vals for log transform
-ct = counts[keep_inds_count]
-log_ct = np.log10(counts[keep_inds_count])
+frac_inside_shading = np.sum(np.abs(np.hstack(z_scored_data)) <=2) / np.hstack(z_scored_data).size
 
-val, bin = np.histogram(log_ct, 20, density=True)
+p_vals = []
+for arr in z_scored_data:
+    _, p = kstest(arr, 'norm')
+    p_vals.append(p)
+
+fig1_1, ax = plt.subplots(1, 2, figsize=(7, 3))
+
+data = np.hstack(z_scored_data)
+
+# fit norm model on log transformed data
+params = norm.fit(data)
+norm_model = norm(loc=params[0], scale=params[1])
+theory_distr = []
+for iter in range(100):
+    theory_distr.append(norm_model.rvs(size=len(data)))
+theory_distr = np.vstack(theory_distr)
+
+val, bin = np.histogram(data, 20, density=True)
 bin_ctrs = bin[:-1]
-ax.plot(10**bin_ctrs, val, LineWidth=3)
-xx = np.linspace(bin_ctrs.min(), bin_ctrs.max(), 100)
-yy = norm(loc=np.mean(np.log10(ct)), scale=np.std(np.log10(ct))).pdf(xx)
-ax.plot(10**xx, yy, 'k', alpha=1, LineWidth=3)
-ax.set_ylim([0, 0.5])
+ax[0].plot(10**bin_ctrs, val, linewidth=3)
+xx = np.linspace(-3.5, 3.5)
+ax[0].plot(10**xx, norm_model.pdf(xx), linewidth=2, color='k', linestyle='--')
+ax[0].set_xscale('log')
+ax[0].set_xlabel('Cell count (z-scored)')
+ax[0].set_ylabel('Probability')
+ax[0].set_xscale('log')
 
-p_ct, _ = kstest(zscore(log_ct), 'norm')
-ax.set_xlabel('Connectivity (Cell count)')
-ax.set_ylabel('Probability')
-ax.set_xscale('log')
-print('KS test lognormal: Count p = {:.4f}'.format(p_ct))
-
-fig1_2, ax = plt.subplots(1, 1, figsize=(5,4))
-# ConnectivityWeight:
-wt_mat = WeightedSynapseCount.to_numpy().copy()
-np.fill_diagonal(wt_mat, 0) # replace diag nan with 0
-weights = wt_mat.ravel()
-keep_inds_weight = np.where(weights > 0) # exclude 0 ct vals for log transform
-wt = weights[keep_inds_weight]
-log_wt = np.log10(weights[keep_inds_weight])
-
-val, bin = np.histogram(log_wt, 20, density=True)
-bin_ctrs = bin[:-1]
-ax.plot(10**bin_ctrs, val, LineWidth=2)
-xx = np.linspace(bin_ctrs.min(), bin_ctrs.max(), 100)
-yy = norm(loc=np.mean(np.log10(wt)), scale=np.std(np.log10(wt))).pdf(xx)
-ax.plot(10**xx, yy, 'k', alpha=1)
-p_wt, _ = kstest(zscore(log_wt), 'norm')
-ax.set_xlabel('Connection weight')
-ax.set_ylabel('Probability')
-ax.set_xscale('log')
-print('KS test lognormal: Weight p = {:.4f}'.format(p_wt))
-
+# Q-Q plot of log-transformed data vs. fit normal distribution
+quants = np.linspace(0, 1, 20)
+for q in quants:
+    th_pts = np.quantile(theory_distr, q, axis=1) # quantile value for each iteration
+    ax[1].plot([10**np.quantile(data, q), 10**np.quantile(data, q)], [10**(np.mean(th_pts) - 2*np.std(th_pts)), 10**(np.mean(th_pts) + 2*np.std(th_pts))], 'k-')
+    ax[1].plot(10**np.quantile(data, q), 10**np.mean(th_pts), 'ko')
+ax[1].plot([10**-3.6, 10**3.5], [10**-3.5, 10**3.6], 'k--')
+ax[1].set_xlabel('Data quantile')
+ax[1].set_ylabel('Lognormal quantile')
+ax[1].set_xscale('log')
+ax[1].set_yscale('log')
 
 # %% Eg region traces and cross corrs
 cmap = plt.get_cmap('Set3')
@@ -364,20 +382,6 @@ for ind_1, eg1 in enumerate(pull_regions):
 plot_tools.addScaleBars(ax[3, 0], dT=30, dF=0.25, T_value=time[0], F_value=-0.15)
 sns.despine(top=True, right=True, left=True, bottom=True)
 
-    # scatter plot
-    # coef = np.polyfit(region_dff.loc[eg1, :], region_dff.loc[eg2, :], 1)
-    # linfit = np.poly1d(coef)
-    # xx = np.linspace(region_dff.loc[eg1, :].min(), region_dff.loc[eg1, :].max(), 100)
-    # ax[eg].plot(xx, linfit(xx), color='k', LineWidth=2)
-    # ax[eg].scatter(region_dff.loc[eg1, range(0, 1900, 10)], region_dff.loc[eg2, range(0, 1900, 10)], color='k', alpha=0.2, marker='.', rasterized=True)
-    # ax[eg].set_xlabel('{}'.format(eg1))
-    # ax[eg].set_ylabel('{}'.format(eg2))
-    # ax[eg].axhline(0, color='k', alpha=0.5, LineStyle='--')
-    # ax[eg].axvline(0, color='k', alpha=0.5, LineStyle='--')
-    # ax[eg].spines['right'].set_visible(False)
-    # ax[eg].spines['top'].set_visible(False)
-    # ax[eg].set_xticks([])
-    # ax[eg].set_yticks([])
 
 # %%
 
@@ -538,15 +542,14 @@ for i,j in enumerate(G_anat.edges()):
 # Corrs with size, distance etc
 
 connectivity = np.log10(ConnectivityCount_Symmetrized.to_numpy()[upper_inds][keep_inds])
+commoninput = CommonInputFraction.to_numpy()[upper_inds][keep_inds]
 size = SizeMatrix.to_numpy()[upper_inds][keep_inds]
 dist = DistanceMatrix.to_numpy()[upper_inds][keep_inds]
 completeness = CompletenessMatrix.to_numpy()[upper_inds][keep_inds]
 
 fc = CorrelationMatrix_Functional.to_numpy()[upper_inds][keep_inds]
 
-X = np.vstack([connectivity, size, dist, completeness, fc]).T
-
-fig4_0, ax = plt.subplots(2, 2, figsize=(8,8))
+fig4_0, ax = plt.subplots(3, 2, figsize=(8,12))
 r, p = pearsonr(size, fc)
 ax[0, 0].scatter(size, fc, color='k', alpha=0.5)
 coef = np.polyfit(size, fc, 1)
@@ -589,9 +592,31 @@ ax[1, 1].set_title('{:.3f}'.format(r))
 ax[1, 1].set_xlabel('Inter-ROI distance');
 ax[1, 1].set_yscale('log')
 
+r, p = pearsonr(size, commoninput)
+ax[2, 0].scatter(size, commoninput, color='k', alpha=0.5)
+coef = np.polyfit(size, commoninput, 1)
+linfit = np.poly1d(coef)
+xx = np.linspace(size.min(), size.max(), 100)
+ax[2, 0].plot(xx, linfit(xx), 'k-', LineWidth=3)
+ax[2, 0].set_title('{:.3f}'.format(r))
+ax[2, 0].set_ylabel('Common input fraction');
+ax[2, 0].set_xlabel('ROI pair size');
+
+r, p = pearsonr(dist, commoninput)
+ax[2, 1].scatter(dist, commoninput, color='k', alpha=0.5)
+coef = np.polyfit(dist, commoninput, 1)
+linfit = np.poly1d(coef)
+xx = np.linspace(dist.min(), dist.max(), 100)
+ax[2, 1].plot(xx, linfit(xx), 'k-', LineWidth=3)
+ax[2, 1].set_title('{:.3f}'.format(r))
+ax[2, 1].set_xlabel('Inter-ROI distance');
+
 # %% Dominance analysis
 
 fig4_1, ax = plt.subplots(1, 2, figsize=(8, 4))
+
+X = np.vstack([connectivity, commoninput, size, dist, completeness, fc]).T
+
 
 # linear regression model prediction:
 regressor = LinearRegression()
@@ -604,8 +629,7 @@ ax[0].annotate('$r^2$={:.2f}'.format(score), (0, 1));
 ax[0].set_xlabel('Predicted functional conectivity (z)')
 ax[0].set_ylabel('Measured functional conectivity (z)');
 
-
-fc_df = pd.DataFrame(data=X, columns=['Connectivity', 'ROI size', 'ROI Distance', 'Completeness', 'fc'])
+fc_df = pd.DataFrame(data=X, columns=['Connectivity', 'Common Input', 'ROI size', 'ROI Distance', 'Completeness', 'fc'])
 dominance_regression=Dominance(data=fc_df,target='fc',objective=1)
 
 incr_variable_rsquare=dominance_regression.incremental_rsquare()
@@ -641,32 +665,30 @@ diff_m[keep_inds_diff] = diff
 DifferenceMatrix = pd.DataFrame(data=diff_m, index=ConnectivityCount.index, columns=ConnectivityCount.index)
 
 
-
 # %% SUPP FIG: does completeness of reconstruction impact
 #
 #
-# comp_score = CompletenessMatrix.to_numpy().ravel()
-# # diff_score = np.abs(DifferenceMatrix.to_numpy().ravel())
-# diff_score = DifferenceMatrix.to_numpy().ravel()
-#
-# include_inds = np.where(diff_score != 0)[0]
-# comp_score  = comp_score[include_inds]
-# diff_score = diff_score[include_inds]
-# anat_conn = ConnectivityCount.to_numpy().ravel()[include_inds]
-#
-#
-# r, p = pearsonr(comp_score, diff_score)
-#
-# figS2, ax = plt.subplots(1, 2, figsize=(12,6))
-# ax[0].scatter(comp_score, diff_score, marker='o', color='k', alpha=0.5)
-#
-# ax[0].set_xlabel('Completeness of reconstruction')
-# ax[0].set_ylabel('abs(Anat. - Fxnal (z-score))')
-#
-# ax[1].scatter(comp_score, anat_conn, marker='o', color='k', alpha=0.5)
-#
-# ax[1].set_xlabel('Completeness of reconstruction')
-# ax[1].set_ylabel('Anat connectivity')
+comp_score = CompletenessMatrix.to_numpy().ravel()
+diff_score = DifferenceMatrix.to_numpy().ravel()
+
+include_inds = np.where(diff_score != 0)[0]
+comp_score  = comp_score[include_inds]
+diff_score = diff_score[include_inds]
+anat_conn = ConnectivityCount.to_numpy().ravel()[include_inds]
+
+
+r, p = pearsonr(comp_score, diff_score)
+
+figS2, ax = plt.subplots(1, 2, figsize=(8,4))
+ax[0].scatter(comp_score, diff_score, marker='o', color='k', alpha=0.5)
+
+ax[0].set_xlabel('Completeness of reconstruction')
+ax[0].set_ylabel('abs(Anat. - Fxnal (z-score))')
+
+ax[1].scatter(comp_score, anat_conn, marker='o', color='k', alpha=0.5)
+
+ax[1].set_xlabel('Completeness of reconstruction')
+ax[1].set_ylabel('Anat connectivity')
 
 
 # %% sort difference matrix by most to least different rois

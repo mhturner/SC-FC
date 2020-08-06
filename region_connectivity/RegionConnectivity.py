@@ -315,11 +315,14 @@ def computeConnectivityMatrix(neuprint_client, mapping):
                         strong_neurons += n_strong
 
                     # Common input fraction
-                    Neur_a, _ = fetch_neurons(NeuronCriteria(outputRois=sour, status='Traced')) # row
-                    Neur_b, _ = fetch_neurons(NeuronCriteria(outputRois=targ, status='Traced'))
+                    Neur_ab, _ = fetch_neurons(NeuronCriteria(outputRois=[sour, targ], status='Traced', min_roi_outputs=10, roi_req='all'))
+                    # Neur_a, _ = fetch_neurons(NeuronCriteria(outputRois=sour, status='Traced')) # row
+                    # Neur_b, _ = fetch_neurons(NeuronCriteria(outputRois=targ, status='Traced'))
+                    #
+                    # total_cells_to_a += len(Neur_a.bodyId)
+                    # shared_cells_to_ab += len(np.intersect1d(Neur_a.bodyId, Neur_b.bodyId))
 
-                    total_cells_to_a += len(Neur_a.bodyId)
-                    shared_cells_to_ab += len(np.intersect1d(Neur_a.bodyId, Neur_b.bodyId))
+                    shared_cells_to_ab += Neur_ab.shape[0]
 
 
             WeakConnections.loc[[roi_source], [roi_target]] = weak_neurons
@@ -329,7 +332,9 @@ def computeConnectivityMatrix(neuprint_client, mapping):
             Connectivity.loc[[roi_source], [roi_target]] = summed_connectivity
             WeightedSynapseNumber.loc[[roi_source], [roi_target]] = weighted_synapse_number
 
-            CommonInputFraction.loc[[roi_source], [roi_target]] = shared_cells_to_ab / total_cells_to_a
+            CommonInputFraction.loc[[roi_source], [roi_target]] = shared_cells_to_ab
+
+            # CommonInputFraction.loc[[roi_source], [roi_target]] = shared_cells_to_ab / total_cells_to_a
 
 
     return WeakConnections, MediumConnections, StrongConnections, Connectivity, WeightedSynapseNumber, CommonInputFraction

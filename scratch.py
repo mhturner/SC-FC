@@ -75,7 +75,7 @@ ax[1].set_ylabel('S');
 corrmat = np.corrcoef(R)
 
 # %%
-from neuprint import (Client, fetch_neurons, NeuronCriteria)
+from neuprint import (Client, fetch_neurons, fetch_adjacencies, NeuronCriteria)
 import numpy as np
 
 neuprint_client = Client('neuprint.janelia.org', dataset='hemibrain:v1.1', token='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6Im1heHdlbGxob2x0ZXR1cm5lckBnbWFpbC5jb20iLCJsZXZlbCI6Im5vYXV0aCIsImltYWdlLXVybCI6Imh0dHBzOi8vbGgzLmdvb2dsZXVzZXJjb250ZW50LmNvbS9hLS9BT2gxNEdpMHJRX0M4akliX0ZrS2h2OU5DSElsWlpnRDY5YUMtVGdNLWVWM3lRP3N6PTUwP3N6PTUwIiwiZXhwIjoxNzY2MTk1MzcwfQ.Q-57D4tX2sXMjWym2LFhHaUGHgHiUsIM_JI9xekxw_0')
@@ -86,10 +86,23 @@ rb = 'LH(R)'
 Neur_a, _ = fetch_neurons(NeuronCriteria(outputRois=ra, status='Traced'))
 Neur_b, _ = fetch_neurons(NeuronCriteria(outputRois=rb, status='Traced'))
 
-Neur_b.bodyId
-Neur_a.bodyId
+np.intersect1d(Neur_a.bodyId, Neur_b.bodyId).shape
+len(Neur_a.bodyId)
 
+Neur_ab, _ = fetch_neurons(NeuronCriteria(outputRois=[ra, rb], status='Traced', roi_req='all'))
 
+Neur_a.shape
 
+Neur_a, _ = fetch_neurons(NeuronCriteria(outputRois=ra, status='Traced'))
+Neur_a.shape
+Neur_a, _  = fetch_neurons(NeuronCriteria(outputRois=ra, status='Traced', min_roi_outputs=10))
+Neur_a.shape
 
-c = 10
+Neur_a.loc[0].roiInfo
+
+Neur_ab, _ = fetch_neurons(NeuronCriteria(outputRois=[ra, rb], status='Traced', min_roi_outputs=10, roi_req='all'))
+# %%
+Neur_ab.shape
+Neur_a, _ = fetch_neurons(NeuronCriteria(outputRois=[ra, rb], status='Traced'))
+Neur_a.shape
+Neur_a
