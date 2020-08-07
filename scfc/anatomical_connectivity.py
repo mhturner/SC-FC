@@ -3,7 +3,6 @@ import numpy as np
 import pandas as pd
 import os
 
-# # # # # # # # # # # # Anatomical connectivity stuff # # # # # # # # # # # # # # #
 def getRoiCompleteness(neuprint_client, mapping):
     rois = list(mapping.keys())
     rois.sort()
@@ -136,3 +135,89 @@ def computeConnectivityMatrix(neuprint_client, mapping):
 
 
     return WeakConnections, MediumConnections, StrongConnections, Connectivity, WeightedSynapseNumber, CommonInputFraction
+
+
+class AnatomicalConnectivity():
+    def __init__(self, data_dir, neuprint_client, mapping):
+        """
+        :data_dir:
+        :neuprint_client:
+        :mapping:
+        """
+        self.data_dir = data_dir
+        self.mapping = mapping
+
+        self.rois = list(self.mapping.keys())
+        self.rois.sort()
+        self.upper_inds = np.triu_indices(len(self.rois), k=1) # k=1 excludes main diagonal
+        self.lower_inds = np.tril_indices(len(self.rois), k=1) # k=1 excludes main diagonal
+
+        # get reconstruction completeness matrix
+        roi_completeness = getRoiCompleteness(neuprint_client, self.mapping)
+        self.CompletenessMatrix = pd.DataFrame(data=np.outer(roi_completeness['frac_post'], roi_completeness['frac_pre']), index=roi_completeness.index, columns=roi_completeness.index)
+
+    def getConnectivityMatrix(self, type, symmetrize=False, diag=None, computed_date=None):
+        if computed_date is None:
+            computed_date = '20200807'
+
+        if type == 'CellCount':
+            """
+            """
+            WeakConnections = pd.read_pickle(os.path.join(self.data_dir, 'connectome_connectivity', 'WeakConnections_computed_{}.pkl'.format(computed_date)))
+            MediumConnections = pd.read_pickle(os.path.join(self.data_dir, 'connectome_connectivity', 'MediumConnections_computed_{}.pkl'.format(computed_date)))
+            StrongConnections = pd.read_pickle(os.path.join(self.data_dir, 'connectome_connectivity', 'StrongConnections_computed_{}.pkl'.format(computed_date)))
+            conn_mat = WeakConnections + MediumConnections + StrongConnections
+
+        elif type == 'ConnectivityWeight':
+            """
+            """
+            conn_mat = pd.read_pickle(os.path.join(self.data_dir, 'connectome_connectivity', 'Connectivity_computed_{}.pkl'.format(computed_date)))
+
+        elif type == 'WeightedSynapseCount':
+            """
+            """
+            conn_mat = pd.read_pickle(os.path.join(self.data_dir, 'connectome_connectivity', 'WeightedSynapseNumber_computed_{}.pkl'.format(computed_date)))
+
+        elif type == 'CommonInputFraction':
+            """
+            """
+            conn_mat = pd.read_pickle(os.path.join(self.data_dir, 'connectome_connectivity', 'CommonInputFraction_computed_{}.pkl'.format(computed_date)))
+
+
+        tmp_mat = conn_mat.to_numpy().copy()
+        # set diagonal value
+        if diag is not None:
+            np.fill_diagonal(tmp_mat, diag)
+
+        if symmetrize:
+            return pd.DataFrame(data=(tmp_mat + tmp_mat.T)/2, index=conn_mat.index, columns=conn_mat.index)
+        else:
+            return pd.DataFrame(data=tmp_mat, index=conn_mat.index, columns=conn_mat.index)
+
+    def getTwoStepConnectivity(self, OneStepConnectivity, symmetrize=False):
+        """
+        """
+        A = OneStepConnectivity.to_numpy().copy()
+        two_steps = np.zeros_like(A)
+        for source in range(OneStepConnectivity.shape[0]):
+            for target in range(OneStepConnectivity.shape[1]):
+                if source != target:
+                    conns = [np.sqrt(A[source, x] * A[x, target]) for x in range(OneStepConnectivity.shape[0]) if x not in (source, target)]
+                    two_steps[source, target] = np.nansum(conns)
+
+        if symmetrize:
+            return pd.DataFrame(data=(two_steps + two_steps.T)/2, index=OneStepConnectivity.index, columns=OneStepConnectivity.index)
+        else:
+            return pd.DataFrame(data=two_steps, index=OneStepConnectivity.index, columns=OneStepConnectivity.index)
+
+    def getAdjacency(self, type, do_log=False):
+        ConnectivityMatrix = self.getConnectivityMatrix(type=type, symmetrize=True)
+
+        if do_log:
+            keep_inds = np.where(ConnectivityMatrix.to_numpy()[self.upper_inds] > 0) # for log-transforming anatomical connectivity, toss zero values
+            adjacency = np.log10(ConnectivityMatrix.to_numpy().copy()[self.upper_inds][keep_inds])
+        else:
+            keep_inds = None
+            adjacency = ConnectivityMatrix.to_numpy().copy()[self.upper_inds]
+
+        return adjacency, keep_inds
