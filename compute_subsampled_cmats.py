@@ -8,7 +8,7 @@ import time
 import glob
 import datetime
 
-from region_connectivity import RegionConnectivity
+from scfc import anatomical_connectivity, functional_connectivity
 
 # HP filtering responses
 fs = 1.2 #Hz
@@ -19,7 +19,7 @@ t_total_0 = time.time()
 analysis_dir = '/oak/stanford/groups/trc/data/Max/flynet/analysis'
 data_dir = '/oak/stanford/groups/trc/data/Max/flynet/data'
 roinames_path = os.path.join(data_dir, 'atlas_data', 'Original_Index_panda_full.csv')
-mapping = RegionConnectivity.getRoiMapping()
+mapping = functional_connectivity.getRoiMapping()
 
 brain_filepaths = glob.glob(os.path.join(data_dir, '5d_atlas', 'func_volreg') + '*')
 
@@ -33,15 +33,15 @@ for brain_fp in brain_filepaths:
     suffix = brain_fp.split('func_volreg_')[-1]
     file_id = suffix.replace('.nii.gz', '')
     atlas_fp = os.path.join(data_dir, '5d_atlas', 'vfb_68_' + suffix)
-    roi_mask, _ = RegionConnectivity.loadAtlasData(atlas_fp, roinames_path, mapping=mapping)
+    roi_mask, _ = functional_connectivity.loadAtlasData(atlas_fp, roinames_path, mapping=mapping)
 
     # Load functional brain
     functional_brain = np.asanyarray(nib.load(brain_fp).dataobj).astype('uint16')
 
     # get region responses and filter, trim
-    region_responses_full = RegionConnectivity.computeRegionResponses(functional_brain, roi_mask)
-    region_responses_full = RegionConnectivity.filterRegionResponse(region_responses_full, cutoff=cutoff, fs=fs)
-    region_responses_full = RegionConnectivity.trimRegionResponse(file_id, region_responses_full)
+    region_responses_full = functional_connectivity.computeRegionResponses(functional_brain, roi_mask)
+    region_responses_full = functional_connectivity.filterRegionResponse(region_responses_full, cutoff=cutoff, fs=fs)
+    region_responses_full = functional_connectivity.trimRegionResponse(file_id, region_responses_full)
 
     # compute cmat
     correlation_matrix = np.corrcoef(region_responses_full)
@@ -62,7 +62,7 @@ for brain_fp in brain_filepaths:
     print('Starting brain {}'.format(suffix))
     t0 = time.time()
     atlas_fp = os.path.join(data_dir, '5d_atlas', 'vfb_68_' + suffix)
-    roi_mask, _ = RegionConnectivity.loadAtlasData(atlas_fp, roinames_path, mapping=mapping)
+    roi_mask, _ = functional_connectivity.loadAtlasData(atlas_fp, roinames_path, mapping=mapping)
 
     # Load functional brain
     functional_brain = np.asanyarray(nib.load(brain_fp).dataobj).astype('uint16')
@@ -81,8 +81,8 @@ for brain_fp in brain_filepaths:
                     region_responses_subsampled.append(np.mean(functional_brain[mask, :], axis=0))
 
             # get region responses and filter, trim
-            region_responses_subsampled = RegionConnectivity.filterRegionResponse(np.vstack(region_responses_subsampled), cutoff=cutoff, fs=fs)
-            region_responses_subsampled = RegionConnectivity.trimRegionResponse(file_id, region_responses_subsampled)
+            region_responses_subsampled = functional_connectivity.filterRegionResponse(np.vstack(region_responses_subsampled), cutoff=cutoff, fs=fs)
+            region_responses_subsampled = functional_connectivity.trimRegionResponse(file_id, region_responses_subsampled)
 
             correlation_matrix = np.corrcoef(region_responses_subsampled) # roi x roi
             # set diag to 0

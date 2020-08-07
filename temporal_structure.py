@@ -9,8 +9,7 @@ import seaborn as sns
 from matplotlib import rcParams
 rcParams['svg.fonttype'] = 'none'
 
-from region_connectivity import RegionConnectivity
-
+from scfc import functional_connectivity
 
 
 analysis_dir = '/home/mhturner/Dropbox/ClandininLab/Analysis/SC-FC'
@@ -60,12 +59,12 @@ for ind, motion_fp in enumerate(motion_filepaths):
     suffix = motion_fp.split('motion_events_')[-1].split('.')[0]
     # load region responses for this fly
     resp_fp = os.path.join(data_dir, 'region_responses', suffix + '.pkl')
-    region_responses = RegionConnectivity.getProcessedRegionResponse(resp_fp, cutoff=cutoff, fs=fs)
+    region_responses = functional_connectivity.getProcessedRegionResponse(resp_fp, cutoff=cutoff, fs=fs)
 
     # get behavior binary
-    is_behaving = RegionConnectivity.getBehavingBinary(motion_fp)
+    is_behaving = functional_connectivity.getBehavingBinary(motion_fp)
     # filter behaving binary
-    is_behaving = RegionConnectivity.trimRegionResponse(suffix, is_behaving)
+    is_behaving = functional_connectivity.trimRegionResponse(suffix, is_behaving)
 
     if shifted_control:
         is_behaving = np.roll(is_behaving, int(len(is_behaving)/2))
@@ -104,8 +103,8 @@ for ind, motion_fp in enumerate(motion_filepaths):
         dff = (region_response.to_numpy() - np.mean(region_response.to_numpy(), axis=1)[:, None]) / np.mean(region_response.to_numpy(), axis=1)[:, None]
 
         # trim and filter
-        resp = RegionConnectivity.filterRegionResponse(dff, cutoff=cutoff, fs=fs)
-        resp = RegionConnectivity.trimRegionResponse(file_id, resp)
+        resp = functional_connectivity.filterRegionResponse(dff, cutoff=cutoff, fs=fs)
+        resp = functional_connectivity.trimRegionResponse(file_id, resp)
         region_dff = pd.DataFrame(data=resp, index=region_response.index)
 
         st = 200
@@ -179,10 +178,10 @@ for f_ind, fh in enumerate(figs_to_save):
     fh.savefig(os.path.join(analysis_dir, 'figpanels', 'BehaviorFig{}.svg'.format(f_ind)))
 
 # %%
-mapping = RegionConnectivity.getRoiMapping()
+mapping = functional_connectivity.getRoiMapping()
 roinames_path = os.path.join(data_dir, 'atlas_data', 'Original_Index_panda_full.csv')
 atlas_path = os.path.join(data_dir, 'atlas_data', 'vfb_68_Original.nii.gz')
-roi_mask, roi_size = RegionConnectivity.loadAtlasData(atlas_path=atlas_path, roinames_path=roinames_path, mapping=mapping)
+roi_mask, roi_size = functional_connectivity.loadAtlasData(atlas_path=atlas_path, roinames_path=roinames_path, mapping=mapping)
 
 DifferenceMatrix = cmat_behaving - cmat_nonbehaving
 

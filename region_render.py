@@ -8,7 +8,7 @@ from moderngl_window.scene.camera import KeyboardCamera
 
 import numpy as np
 import os
-from region_connectivity import RegionConnectivity
+from scfc import functional_connectivity
 
 
 class CameraWindow(mglw.WindowConfig):
@@ -49,7 +49,7 @@ class CubeModel(CameraWindow):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-        mapping = RegionConnectivity.getRoiMapping()
+        mapping = functional_connectivity.getRoiMapping()
 
         self.scenes = []
         # for key in mapping:

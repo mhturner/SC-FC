@@ -8,7 +8,8 @@ import seaborn as sns
 import glob
 from scipy.stats import pearsonr
 from sklearn.metrics import explained_variance_score
-from region_connectivity import RegionConnectivity
+
+from scfc import functional_connectivity
 from matplotlib import rcParams
 rcParams['svg.fonttype'] = 'none'
 
@@ -41,7 +42,7 @@ spike_rate = 5 #hz (5)
 roinames_path = os.path.join(data_dir, 'atlas_data', 'Original_Index_panda_full.csv')
 atlas_path = os.path.join(data_dir, 'atlas_data', 'vfb_68_Original.nii.gz')
 response_filepaths = glob.glob(os.path.join(data_dir, 'region_responses') + '/' + '*.pkl')
-meas_cmat, _ = RegionConnectivity.getFunctionalConnectivity(response_filepaths, cutoff=0.01, fs=1.2)
+meas_cmat, _ = functional_connectivity.getFunctionalConnectivity(response_filepaths, cutoff=0.01, fs=1.2)
 upper_inds = np.triu_indices(meas_cmat.shape[0], k=1) # k=1 excludes main diagonal
 
 # # # anatomical connectivity matrix

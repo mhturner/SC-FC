@@ -3,7 +3,7 @@ from neuprint import (Client, fetch_neurons, NeuronCriteria)
 import numpy as np
 import pandas as pd
 import os
-from region_connectivity import RegionConnectivity
+from scfc import anatomical_connectivity, functional_connectivity
 import datetime
 import time
 import socket
@@ -20,9 +20,9 @@ elif 'sh' in socket.gethostname():
 neuprint_client = Client('neuprint.janelia.org', dataset='hemibrain:v1.1', token='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6Im1heHdlbGxob2x0ZXR1cm5lckBnbWFpbC5jb20iLCJsZXZlbCI6Im5vYXV0aCIsImltYWdlLXVybCI6Imh0dHBzOi8vbGgzLmdvb2dsZXVzZXJjb250ZW50LmNvbS9hLS9BT2gxNEdpMHJRX0M4akliX0ZrS2h2OU5DSElsWlpnRDY5YUMtVGdNLWVWM3lRP3N6PTUwP3N6PTUwIiwiZXhwIjoxNzY2MTk1MzcwfQ.Q-57D4tX2sXMjWym2LFhHaUGHgHiUsIM_JI9xekxw_0')
 
 # get rois of interest
-mapping = RegionConnectivity.getRoiMapping()
+mapping = functional_connectivity.getRoiMapping()
 
-WeakConnections, MediumConnections, StrongConnections, Connectivity, WeightedSynapseNumber, CommonInputFraction = RegionConnectivity.computeConnectivityMatrix(neuprint_client, mapping)
+WeakConnections, MediumConnections, StrongConnections, Connectivity, WeightedSynapseNumber, CommonInputFraction = anatomical_connectivity.computeConnectivityMatrix(neuprint_client, mapping)
 
 print('Finished computing connectivity matrix (total time = {:.1f} sec)'.format(time.time()-t0))
 

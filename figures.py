@@ -22,7 +22,7 @@ from matplotlib import rcParams
 rcParams['svg.fonttype'] = 'none'
 rcParams.update({'figure.autolayout': True})
 
-from region_connectivity import RegionConnectivity
+from scfc import anatomical_connectivity, functional_connectivity, plotting
 
 """
 References:
@@ -36,11 +36,11 @@ analysis_dir = '/home/mhturner/Dropbox/ClandininLab/Analysis/SC-FC'
 
 # start client
 neuprint_client = Client('neuprint.janelia.org', dataset='hemibrain:v1.1', token='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6Im1heHdlbGxob2x0ZXR1cm5lckBnbWFpbC5jb20iLCJsZXZlbCI6Im5vYXV0aCIsImltYWdlLXVybCI6Imh0dHBzOi8vbGgzLmdvb2dsZXVzZXJjb250ZW50LmNvbS9hLS9BT2gxNEdpMHJRX0M4akliX0ZrS2h2OU5DSElsWlpnRDY5YUMtVGdNLWVWM3lRP3N6PTUwP3N6PTUwIiwiZXhwIjoxNzY2MTk1MzcwfQ.Q-57D4tX2sXMjWym2LFhHaUGHgHiUsIM_JI9xekxw_0')
-mapping = RegionConnectivity.getRoiMapping()
+mapping = functional_connectivity.getRoiMapping()
 rois = list(mapping.keys())
 rois.sort()
 
-roi_completeness = RegionConnectivity.getRoiCompleteness(neuprint_client, mapping)
+roi_completeness = anatomical_connectivity.getRoiCompleteness(neuprint_client, mapping)
 CompletenessMatrix = pd.DataFrame(data=np.outer(roi_completeness['frac_post'], roi_completeness['frac_pre']), index=roi_completeness.index, columns=roi_completeness.index)
 
 # %% LOAD FUNCTIONAL DATA, FILTER IT ACCORDING TO MAPPING, COMPUTE SOME GEOMETRY STUFF
@@ -56,8 +56,8 @@ response_filepaths = glob.glob(os.path.join(data_dir, 'region_responses') + '/' 
 fs = 1.2 # Hz
 cutoff = 0.01 # Hz
 
-CorrelationMatrix_Functional, cmats = RegionConnectivity.getFunctionalConnectivity(response_filepaths, cutoff=cutoff, fs=fs)
-roi_mask, roi_size = RegionConnectivity.loadAtlasData(atlas_path=atlas_path, roinames_path=roinames_path, mapping=mapping)
+CorrelationMatrix_Functional, cmats = functional_connectivity.getFunctionalConnectivity(response_filepaths, cutoff=cutoff, fs=fs)
+roi_mask, roi_size = functional_connectivity.loadAtlasData(atlas_path=atlas_path, roinames_path=roinames_path, mapping=mapping)
 
 # indices for connectivity and correlation matrices
 upper_inds = np.triu_indices(CorrelationMatrix_Functional.shape[0], k=1) # k=1 excludes main diagonal
@@ -92,9 +92,9 @@ Anatomical connectivity matrices and symmetrized versions of each
 """
 
 # 1) ConnectivityCount
-WeakConnections = pd.read_pickle(os.path.join(data_dir, 'connectome_connectivity', 'WeakConnections_computed_20200806.pkl'))
-MediumConnections = pd.read_pickle(os.path.join(data_dir, 'connectome_connectivity', 'MediumConnections_computed_20200806.pkl'))
-StrongConnections = pd.read_pickle(os.path.join(data_dir, 'connectome_connectivity', 'StrongConnections_computed_20200806.pkl'))
+WeakConnections = pd.read_pickle(os.path.join(data_dir, 'connectome_connectivity', 'WeakConnections_computed_20200730.pkl'))
+MediumConnections = pd.read_pickle(os.path.join(data_dir, 'connectome_connectivity', 'MediumConnections_computed_20200730.pkl'))
+StrongConnections = pd.read_pickle(os.path.join(data_dir, 'connectome_connectivity', 'StrongConnections_computed_20200730.pkl'))
 conn_mat = WeakConnections + MediumConnections + StrongConnections
 # set diag to nan
 tmp_mat = conn_mat.to_numpy().copy()
@@ -103,7 +103,7 @@ ConnectivityCount_Symmetrized = pd.DataFrame(data=(tmp_mat + tmp_mat.T)/2, index
 ConnectivityCount = pd.DataFrame(data=tmp_mat, index=conn_mat.index, columns=conn_mat.index)
 # - - - - - - - - - - - - - - - - #
 # 2) ConnectivityWeight
-weight_mat = pd.read_pickle(os.path.join(data_dir, 'connectome_connectivity', 'Connectivity_computed_20200806.pkl'))
+weight_mat = pd.read_pickle(os.path.join(data_dir, 'connectome_connectivity', 'Connectivity_computed_20200730.pkl'))
 # set diag to nannan
 tmp_mat = weight_mat.to_numpy().copy()
 np.fill_diagonal(tmp_mat, np.nan)
@@ -112,7 +112,7 @@ ConnectivityWeight = pd.DataFrame(data=tmp_mat, index=weight_mat.index, columns=
 
 # - - - - - - - - - - - - - - - - #
 # 3) WeightedSynapseCount
-syn_mat = pd.read_pickle(os.path.join(data_dir, 'connectome_connectivity', 'WeightedSynapseNumber_computed_20200806.pkl'))
+syn_mat = pd.read_pickle(os.path.join(data_dir, 'connectome_connectivity', 'WeightedSynapseNumber_computed_20200730.pkl'))
 # set diag to nan
 tmp_mat = syn_mat.to_numpy().copy()
 np.fill_diagonal(tmp_mat, np.nan)
@@ -121,7 +121,7 @@ WeightedSynapseCount = pd.DataFrame(data=tmp_mat, index=syn_mat.index, columns=s
 
 # - - - - - - - - - - - - - - - - #
 # 4) CommonInputFraction
-CommonInputFraction = pd.read_pickle(os.path.join(data_dir, 'connectome_connectivity', 'CommonInputFraction_computed_20200806.pkl'))
+CommonInputFraction = pd.read_pickle(os.path.join(data_dir, 'connectome_connectivity', 'CommonInputFraction_computed_20200730.pkl'))
 # set diag to nan
 tmp_mat = CommonInputFraction.to_numpy().copy()
 np.fill_diagonal(tmp_mat, np.nan)
@@ -146,8 +146,8 @@ keep_inds = np.where(ConnectivityCount_Symmetrized.to_numpy()[upper_inds] > 0) #
 #
 # # Make adjacency matrices
 # # Log transform anatomical connectivity
-# anatomical_adjacency = np.log10(ConnectivityCount_Symmetrized.to_numpy().copy()[upper_inds][keep_inds])
-# functional_adjacency = CorrelationMatrix_Functional.to_numpy().copy()[upper_inds][keep_inds]
+anatomical_adjacency = np.log10(ConnectivityCount_Symmetrized.to_numpy().copy()[upper_inds][keep_inds])
+functional_adjacency = CorrelationMatrix_Functional.to_numpy().copy()[upper_inds][keep_inds]
 
 # %% corr between weighted synapse count and cell count:
 FigS3, ax = plt.subplots(1, 1, figsize=(5,5))
@@ -166,26 +166,15 @@ ax.set_ylabel('Common input');
 
 
 FigS4, ax = plt.subplots(1, 1, figsize=(5,5))
-ax.plot(CommonInputFraction.to_numpy()[upper_inds], CorrelationMatrix_Functional.to_numpy()[upper_inds], 'ko')
+ax.plot(CommonInputFraction_Symmetrized.to_numpy()[upper_inds], CorrelationMatrix_Functional.to_numpy()[upper_inds], 'ko')
 ax.set_xlabel('Common input fraction');
 ax.set_ylabel('Functional corr (z)')
-r, p = pearsonr(CommonInputFraction.to_numpy()[upper_inds], CorrelationMatrix_Functional.to_numpy()[upper_inds])
+r, p = pearsonr(CommonInputFraction_Symmetrized.to_numpy()[upper_inds], CorrelationMatrix_Functional.to_numpy()[upper_inds])
 
 # %%
 
-fh, ax = plt.subplots(1, 3, figsize=(21, 7))
+plt.hist
 
-df = np.log10(ConnectivityCount).replace([np.inf, -np.inf], 0)
-sns.heatmap(ConnectivityCount, ax=ax[0], xticklabels=True, cbar_kws={'label': 'Connection strength (log10(Connecting cells))', 'shrink': .8}, cmap="cividis", rasterized=True)
-ax[0].set_xlabel('Target');
-ax[0].set_ylabel('Source');
-ax[0].set_aspect('equal')
-
-sns.heatmap(CommonInputFraction, ax=ax[1], xticklabels=True, cbar_kws={'label': 'Common input fraction','shrink': .8}, cmap="cividis", rasterized=True)
-ax[1].set_aspect('equal')
-
-sns.heatmap(CorrelationMatrix_Functional, ax=ax[2], xticklabels=True, cbar_kws={'label': 'Functional Correlation (z)','shrink': .8}, cmap="cividis", rasterized=True)
-ax[2].set_aspect('equal')
 
 # %% ~Lognormal distribtution of connection strengths
 
@@ -342,8 +331,8 @@ region_response = pd.read_pickle(resp_fp)
 dff = (region_response.to_numpy() - np.mean(region_response.to_numpy(), axis=1)[:, None]) / np.mean(region_response.to_numpy(), axis=1)[:, None]
 
 # trim and filter
-resp = RegionConnectivity.filterRegionResponse(dff, cutoff=cutoff, fs=fs)
-resp = RegionConnectivity.trimRegionResponse(file_id, resp)
+resp = functional_connectivity.filterRegionResponse(dff, cutoff=cutoff, fs=fs)
+resp = functional_connectivity.trimRegionResponse(file_id, resp)
 region_dff = pd.DataFrame(data=resp, index=region_response.index)
 
 fig1_3, ax = plt.subplots(4, 1, figsize=(9, 6))
@@ -454,7 +443,7 @@ p_cutoff = 0.01 / num_comparisons # bonferroni
 t, p = ttest_1samp(cmats, 0, axis=2) # ttest against 0
 np.fill_diagonal(p, 1) # replace nans in diag with p=1
 adjacency_fxn[p>p_cutoff] = 0 # set nonsig regions to 0
-print('Ttest included {} significant of {} total regions in fxnal connectivity matrix'.format((p<p_cutoff).sum(), p.size))
+print('Ttest included {} significant of {} total edges in fxnal connectivity matrix'.format((p<p_cutoff).sum(), p.size))
 
 # Plot clustering and degree using full adjacency to make graphs
 G_anat = nx.from_numpy_matrix(adjacency_anat/adjacency_anat.max())
@@ -463,33 +452,34 @@ G_fxn = nx.from_numpy_matrix(adjacency_fxn/adjacency_fxn.max())
 fig3_0, ax = plt.subplots(1, 2, figsize=(8, 4))
 clust_fxn = list(nx.clustering(G_fxn, weight='weight').values())
 clust_anat = list(nx.clustering(G_anat, weight='weight').values())
-r, p = spearmanr(clust_anat, clust_fxn)
 ax[0].set_title('Clustering, $\\rho$ = {:.3f}'.format(r))
 ax[0].plot(clust_anat, clust_fxn, 'ko')
+plotting.addLinearFit(ax, clust_anat, clust_fxn)
 ax[0].set_xlabel('Structural')
 ax[0].set_ylabel('Functional')
 
 deg_fxn = [val for (node, val) in G_fxn.degree(weight='weight')]
 deg_anat = [val for (node, val) in G_anat.degree(weight='weight')]
-r, p = spearmanr(deg_anat, deg_fxn)
+r, p = paersonr(deg_anat, deg_fxn)
 ax[1].set_title('Degree, $\\rho$ = {:.3f}'.format(r))
 ax[1].plot(deg_anat, deg_fxn, 'ko')
 ax[1].set_xlabel('Structural')
 ax[1].set_ylabel('Functional')
 
+# %%
 # # # # # plot network graph with top x% of connections
 take_top_pct = 0.2 # top fraction to include in network graphs
 roilabels_to_skip = ['LAL(R)', 'CRE(R)', 'CRE(L)', 'EPA(R)','BU(R)']
 cmap = plt.get_cmap('Blues')
 
 cutoff = np.quantile(adjacency_anat, 1-take_top_pct)
-print('Threshold included {} of {} regions in anatomical connectivity matrix'.format((adjacency_anat>=cutoff).sum(), adjacency_anat.size))
+print('Threshold included {} of {} edges in anatomical connectivity matrix'.format((adjacency_anat>=cutoff).sum(), adjacency_anat.size))
 temp_adj_anat = adjacency_anat.copy()
 temp_adj_anat[temp_adj_anat<cutoff] = 0
 G_anat = nx.from_numpy_matrix(temp_adj_anat/temp_adj_anat.max())
 
 cutoff = np.quantile(adjacency_fxn[adjacency_fxn>0], 1-take_top_pct)
-print('Threshold included {} of {} sig regions in functional connectivity matrix'.format((adjacency_fxn>=cutoff).sum(), (adjacency_fxn>0).sum()))
+print('Threshold included {} of {} sig edges in functional connectivity matrix'.format((adjacency_fxn>=cutoff).sum(), (adjacency_fxn>0).sum()))
 temp_adj_fxn = adjacency_fxn.copy()
 temp_adj_fxn[temp_adj_fxn<cutoff] = 0
 G_fxn = nx.from_numpy_matrix(temp_adj_fxn/temp_adj_fxn.max())

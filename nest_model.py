@@ -15,7 +15,8 @@ from scipy.ndimage.measurements import center_of_mass
 from scipy.spatial.distance import pdist
 from scipy.stats import pearsonr, spearmanr
 from sklearn.metrics import explained_variance_score
-from region_connectivity import RegionConnectivity
+
+from scfc import functional_connectivity
 
 analysis_dir = '/home/mhturner/Dropbox/ClandininLab/Analysis/SC-FC'
 data_dir = '/home/mhturner/Dropbox/ClandininLab/Analysis/SC-FC/data'
@@ -32,7 +33,7 @@ atlas_path = os.path.join(data_dir, 'atlas_data', 'vfb_68_Original.nii.gz')
 response_filepaths = glob.glob(os.path.join(data_dir, 'region_responses') + '/' + '*.pkl')
 fs = 1.2 # Hz
 cutoff = 0.01 # Hz
-meas_cmat, _ = RegionConnectivity.getFunctionalConnectivity(response_filepaths, cutoff=cutoff, fs=fs)
+meas_cmat, _ = functional_connectivity.getFunctionalConnectivity(response_filepaths, cutoff=cutoff, fs=fs)
 upper_inds = np.triu_indices(meas_cmat.shape[0], k=1) # k=1 excludes main diagonal
 
 

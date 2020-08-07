@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 import time
 
-from region_connectivity import RegionConnectivity
+from scfc import anatomical_connectivity, functional_connectivity
 t_total_0 = time.time()
 
 data_dir = '/oak/stanford/groups/trc/data/Max/flynet/data'
@@ -13,7 +13,7 @@ data_dir = '/oak/stanford/groups/trc/data/Max/flynet/data'
 brain_filepaths = glob.glob(os.path.join(data_dir, '5d_atlas', 'func_volreg') + '*')
 roinames_path = os.path.join(data_dir, 'atlas_data', 'Original_Index_panda_full.csv')
 
-mapping = RegionConnectivity.getRoiMapping()
+mapping = functional_connectivity.getRoiMapping()
 rois = list(mapping.keys())
 rois.sort()
 
@@ -24,10 +24,10 @@ for brain_fp in brain_filepaths:
 
     functional_brain = np.asanyarray(nib.load(brain_fp).dataobj).astype('uint16')
 
-    roi_mask, _ = RegionConnectivity.loadAtlasData(atlas_fp, roinames_path, mapping=mapping)
+    roi_mask, _ = functional_connectivity.loadAtlasData(atlas_fp, roinames_path, mapping=mapping)
 
     # region_responses: n_rois x n_timepoints np array, mean voxel response in each region
-    region_responses = RegionConnectivity.computeRegionResponses(functional_brain, roi_mask)
+    region_responses = functional_connectivity.computeRegionResponses(functional_brain, roi_mask)
 
     # make a pandas series to associate ROI names
     RegionResponses = pd.DataFrame(data=region_responses, index=rois)
