@@ -92,9 +92,9 @@ Anatomical connectivity matrices and symmetrized versions of each
 """
 
 # 1) ConnectivityCount
-WeakConnections = pd.read_pickle(os.path.join(data_dir, 'connectome_connectivity', 'WeakConnections_computed_20200730.pkl'))
-MediumConnections = pd.read_pickle(os.path.join(data_dir, 'connectome_connectivity', 'MediumConnections_computed_20200730.pkl'))
-StrongConnections = pd.read_pickle(os.path.join(data_dir, 'connectome_connectivity', 'StrongConnections_computed_20200730.pkl'))
+WeakConnections = pd.read_pickle(os.path.join(data_dir, 'connectome_connectivity', 'WeakConnections_computed_20200806.pkl'))
+MediumConnections = pd.read_pickle(os.path.join(data_dir, 'connectome_connectivity', 'MediumConnections_computed_20200806.pkl'))
+StrongConnections = pd.read_pickle(os.path.join(data_dir, 'connectome_connectivity', 'StrongConnections_computed_20200806.pkl'))
 conn_mat = WeakConnections + MediumConnections + StrongConnections
 # set diag to nan
 tmp_mat = conn_mat.to_numpy().copy()
@@ -103,7 +103,7 @@ ConnectivityCount_Symmetrized = pd.DataFrame(data=(tmp_mat + tmp_mat.T)/2, index
 ConnectivityCount = pd.DataFrame(data=tmp_mat, index=conn_mat.index, columns=conn_mat.index)
 # - - - - - - - - - - - - - - - - #
 # 2) ConnectivityWeight
-weight_mat = pd.read_pickle(os.path.join(data_dir, 'connectome_connectivity', 'Connectivity_computed_20200730.pkl'))
+weight_mat = pd.read_pickle(os.path.join(data_dir, 'connectome_connectivity', 'Connectivity_computed_20200806.pkl'))
 # set diag to nannan
 tmp_mat = weight_mat.to_numpy().copy()
 np.fill_diagonal(tmp_mat, np.nan)
@@ -112,7 +112,7 @@ ConnectivityWeight = pd.DataFrame(data=tmp_mat, index=weight_mat.index, columns=
 
 # - - - - - - - - - - - - - - - - #
 # 3) WeightedSynapseCount
-syn_mat = pd.read_pickle(os.path.join(data_dir, 'connectome_connectivity', 'WeightedSynapseNumber_computed_20200730.pkl'))
+syn_mat = pd.read_pickle(os.path.join(data_dir, 'connectome_connectivity', 'WeightedSynapseNumber_computed_20200806.pkl'))
 # set diag to nan
 tmp_mat = syn_mat.to_numpy().copy()
 np.fill_diagonal(tmp_mat, np.nan)
@@ -121,7 +121,7 @@ WeightedSynapseCount = pd.DataFrame(data=tmp_mat, index=syn_mat.index, columns=s
 
 # - - - - - - - - - - - - - - - - #
 # 4) CommonInputFraction
-CommonInputFraction = pd.read_pickle(os.path.join(data_dir, 'connectome_connectivity', 'CommonInputFraction_computed_20200730.pkl'))
+CommonInputFraction = pd.read_pickle(os.path.join(data_dir, 'connectome_connectivity', 'CommonInputFraction_computed_20200806.pkl'))
 # set diag to nan
 tmp_mat = CommonInputFraction.to_numpy().copy()
 np.fill_diagonal(tmp_mat, np.nan)
@@ -159,7 +159,7 @@ ax.set_ylabel('Weighted synapse count');
 FigS3, ax = plt.subplots(1, 1, figsize=(5,5))
 ax.plot(ConnectivityCount.to_numpy(), CommonInputFraction.to_numpy(), 'ko')
 ax.set_xlabel('Direct connecting cells')
-ax.set_ylabel('Common input fraction');
+ax.set_ylabel('Common input');
 
 
 # %% corr common input and functional connectivity
@@ -255,7 +255,8 @@ for arr in z_scored_data:
     _, p = kstest(arr, 'norm')
     p_vals.append(p)
 
-fig1_1, ax = plt.subplots(1, 2, figsize=(7, 3))
+print(p_vals)
+fig1_1, ax = plt.subplots(1, 2, figsize=(6, 3))
 
 data = np.hstack(z_scored_data)
 
@@ -283,15 +284,21 @@ for q in quants:
     th_pts = np.quantile(theory_distr, q, axis=1) # quantile value for each iteration
     ax[1].plot([10**np.quantile(data, q), 10**np.quantile(data, q)], [10**(np.mean(th_pts) - 2*np.std(th_pts)), 10**(np.mean(th_pts) + 2*np.std(th_pts))], 'k-')
     ax[1].plot(10**np.quantile(data, q), 10**np.mean(th_pts), 'ko')
-ax[1].plot([10**-3.6, 10**3.5], [10**-3.5, 10**3.6], 'k--')
+ax[1].plot([10**-4, 10**4], [10**-4, 10**4], 'k--')
 ax[1].set_xlabel('Data quantile')
 ax[1].set_ylabel('Lognormal quantile')
 ax[1].set_xscale('log')
 ax[1].set_yscale('log')
+ticks = [1e-4, 1e-2, 1, 1e2, 1e4]
+ax[1].set_xticks(ticks)
+ax[1].set_yticks(ticks)
+ax[1].set_aspect('equal')
 
 # %% Eg region traces and cross corrs
 cmap = plt.get_cmap('Set3')
 colors = cmap(np.arange(len(pull_regions))/len(pull_regions))
+
+colors
 
 x, y, z = roi_mask[0].shape
 region_map = np.zeros(shape=(x, y, z, 4))

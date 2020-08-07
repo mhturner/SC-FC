@@ -60,7 +60,7 @@ def loadAtlasData(atlas_path, roinames_path, mapping=None):
     pull_inds = np.where([type(x) is str for x in roi_names])[0]
     delete_inds = np.where([type(x) is not str for x in roi_names])[0]
 
-    # filter region names
+    # filter region namesfraction
     roi_names = np.array([x for x in roi_names if type(x) is str]) # cut out nan regions from roi names
 
     # convert names to match display format
@@ -264,7 +264,7 @@ def getPrecomputedConnectivityMatrix(neuprint_client, mapping, metric='count', d
 
 def computeConnectivityMatrix(neuprint_client, mapping):
     """
-    This takes like 20 minutes
+
     """
     rois = list(mapping.keys())
     rois.sort()
@@ -315,14 +315,11 @@ def computeConnectivityMatrix(neuprint_client, mapping):
                         strong_neurons += n_strong
 
                     # Common input fraction
-                    Neur_ab, _ = fetch_neurons(NeuronCriteria(outputRois=[sour, targ], status='Traced', min_roi_outputs=10, roi_req='all'))
-                    # Neur_a, _ = fetch_neurons(NeuronCriteria(outputRois=sour, status='Traced')) # row
-                    # Neur_b, _ = fetch_neurons(NeuronCriteria(outputRois=targ, status='Traced'))
-                    #
-                    # total_cells_to_a += len(Neur_a.bodyId)
-                    # shared_cells_to_ab += len(np.intersect1d(Neur_a.bodyId, Neur_b.bodyId))
+                    Neur_a, _ = fetch_neurons(NeuronCriteria(outputRois=sour, status='Traced', min_roi_outputs=10, roi_req='all')) # row
+                    Neur_b, _ = fetch_neurons(NeuronCriteria(outputRois=targ, status='Traced', min_roi_outputs=10, roi_req='all'))
 
-                    shared_cells_to_ab += Neur_ab.shape[0]
+                    total_cells_to_a += len(Neur_a.bodyId)
+                    shared_cells_to_ab += len(np.intersect1d(Neur_a.bodyId, Neur_b.bodyId))
 
 
             WeakConnections.loc[[roi_source], [roi_target]] = weak_neurons
@@ -332,9 +329,7 @@ def computeConnectivityMatrix(neuprint_client, mapping):
             Connectivity.loc[[roi_source], [roi_target]] = summed_connectivity
             WeightedSynapseNumber.loc[[roi_source], [roi_target]] = weighted_synapse_number
 
-            CommonInputFraction.loc[[roi_source], [roi_target]] = shared_cells_to_ab
-
-            # CommonInputFraction.loc[[roi_source], [roi_target]] = shared_cells_to_ab / total_cells_to_a
+            CommonInputFraction.loc[[roi_source], [roi_target]] = shared_cells_to_ab / total_cells_to_a
 
 
     return WeakConnections, MediumConnections, StrongConnections, Connectivity, WeightedSynapseNumber, CommonInputFraction
