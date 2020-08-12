@@ -36,7 +36,7 @@ FC = functional_connectivity.FunctionalConnectivity(data_dir=data_dir, fs=1.2, c
 # Get AnatomicalConnectivity object
 AC = anatomical_connectivity.AnatomicalConnectivity(data_dir=data_dir, neuprint_client=neuprint_client, mapping=bridge.getRoiMapping())
 
-# %%
+# %% symmetry of connectivity
 fh, ax = plt.subplots(1, 2, figsize=(8, 4))
 
 ax[0].plot(AC.getConnectivityMatrix('CellCount').to_numpy().copy()[AC.upper_inds],
@@ -49,8 +49,20 @@ ax[1].plot(AC.getConnectivityMatrix('WeightedSynapseCount').to_numpy().copy()[AC
 ax[1].set_xlabel('Weighted synapses, A->B')
 ax[1].set_ylabel('Weighted synapses, B->A')
 
+# %%
+fh, ax = plt.subplots(1, 2, figsize=(8, 4))
+ax[0].plot(AC.getConnectivityMatrix('CellCount').to_numpy().copy()[AC.upper_inds],
+           AC.getConnectivityMatrix('CommonInputFraction').to_numpy().copy().T[AC.upper_inds], 'ko')
+ax[0].set_xlabel('Direct connectivity (cells)')
+ax[0].set_ylabel('Common input fraction')
 
-# %% ~Lognormal distribtution of connection strengths
+ax[1].plot(AC.getConnectivityMatrix('CommonInputFraction'),
+           FC.CorrelationMatrix, 'ko')
+
+ax[1].set_xlabel('Common input fraction')
+ax[1].set_ylabel('Functional correlation')
+
+# %% ~Lognormal distribtution of connection strengthsto_numpy().copy().T[AC.upper_inds]
 ConnectivityCount = AC.getConnectivityMatrix('CellCount')
 
 pull_regions = ['AL(R)', 'CAN(R)', 'LH(R)', 'SPS(R)']
@@ -226,8 +238,8 @@ for ind_1, eg1 in enumerate(pull_regions):
             time = np.arange(-window_size/2, window_size/2) / fs # sec
             ax[ind_1, ind_2].plot(time, c[int(total_len/2-window_size/2): int(total_len/2+window_size/2)], 'k')
             ax[ind_1, ind_2].set_ylim([-0.2, 1])
-            ax[ind_1, ind_2].axhline(0, color='k', alpha=0.5, LineStyle='-')
-            ax[ind_1, ind_2].axvline(0, color='k', alpha=0.5, LineStyle='-')
+            ax[ind_1, ind_2].axhline(0, color='k', alpha=0.5, linestyle='-')
+            ax[ind_1, ind_2].axvline(0, color='k', alpha=0.5, linestyle='-')
             if ind_2==0:
                 ax[ind_1, ind_2].set_ylabel(eg1)
             if ind_1==3:
@@ -263,7 +275,7 @@ linfit = np.poly1d(coef)
 fig2_1, ax = plt.subplots(1,1,figsize=(4.5, 4.5))
 ax.scatter(10**anatomical_adjacency, functional_adjacency, color='k')
 xx = np.linspace(anatomical_adjacency.min(), anatomical_adjacency.max(), 100)
-ax.plot(10**xx, linfit(xx), color='k', LineWidth=2, marker=None)
+ax.plot(10**xx, linfit(xx), color='k', linewidth=2, marker=None)
 ax.set_xscale('log')
 ax.set_xlabel('Anatomical adjacency (Connecting cells)')
 ax.set_ylabel('Functional correlation (z)')
@@ -305,30 +317,121 @@ adjacency_fxn[p>p_cutoff] = 0 # set nonsig regions to 0
 print('Ttest included {} significant of {} total edges in fxnal connectivity matrix'.format((p<p_cutoff).sum(), p.size))
 
 # Plot clustering and degree using full adjacency to make graphs
-G_anat = nx.from_numpy_matrix(adjacency_anat/adjacency_anat.max())
-G_fxn = nx.from_numpy_matrix(adjacency_fxn/adjacency_fxn.max())
+G_anat = nx.from_numpy_matrix(adjacency_anat)
+G_fxn = nx.from_numpy_matrix(adjacency_fxn)
+
+nx.get_edge_attributes(G_anat,'weight')
 
 fig3_0, ax = plt.subplots(1, 2, figsize=(8, 4))
-clust_fxn = np.array(list(nx.clustering(G_fxn, weight='weight').values()))
-clust_anat = np.array(list(nx.clustering(G_anat, weight='weight').values()))
-ax[0].scatter(clust_anat, clust_fxn, color=[0.5, 0.5, 0.5, 0.5])
-for r_ind, r in enumerate(FC.rois):
-    ax[0].annotate(r, (clust_anat[r_ind], clust_fxn[r_ind]), fontsize=8)
-plotting.addLinearFit(ax[0], clust_anat, clust_fxn)
-ax[0].set_xlabel('Structural')
-ax[0].set_ylabel('Functional')
-ax[0].set_title('Node clustering coefficient')
-
 deg_fxn = np.array([val for (node, val) in G_fxn.degree(weight='weight')])
 deg_anat = np.array([val for (node, val) in G_anat.degree(weight='weight')])
-ax[1].scatter(deg_anat, deg_fxn, color=[0.5, 0.5, 0.5, 0.5])
-for r_ind, r in enumerate(FC.rois):
-    ax[1].annotate(r, (deg_anat[r_ind]-0.1, deg_fxn[r_ind]), fontsize=8)
-plotting.addLinearFit(ax[1], deg_anat, deg_fxn)
+ax[0].scatter(deg_anat, deg_fxn, color=[0.5, 0.5, 0.5, 0.5])
+# for r_ind, r in enumerate(FC.rois):
+#     ax[0].annotate(r, (deg_anat[r_ind]-0.1, deg_fxn[r_ind]), fontsize=8)
+plotting.addLinearFit(ax[0], deg_anat, deg_fxn)
+ax[0].set_xlabel('Structural')
+ax[0].set_ylabel('Functional')
+
+clust_fxn = np.array(list(nx.clustering(G_fxn, weight='weight').values()))
+clust_anat = np.array(list(nx.clustering(G_anat, weight='weight').values()))
+ax[1].scatter(clust_anat, clust_fxn, color=[0.5, 0.5, 0.5, 0.5])
+# for r_ind, r in enumerate(FC.rois):
+#     ax[1].annotate(r, (clust_anat[r_ind], clust_fxn[r_ind]), fontsize=8)
+plotting.addLinearFit(ax[1], clust_anat, clust_fxn)
 ax[1].set_xlabel('Structural')
 ax[1].set_ylabel('Functional')
-ax[1].set_title('Node degree')
 
+
+# %%
+
+# Illustration schematic: node degree
+
+G = nx.Graph()
+G.add_edge(1, 2, weight=1)
+G.add_edge(1, 3, weight=1)
+G.add_edge(3, 2, weight=10)
+
+fig3_1, ax = plt.subplots(1, 3, figsize=(9, 3))
+[x.set_xlim([-1, 1]) for x in ax.ravel()]
+[x.set_ylim([-1, 1]) for x in ax.ravel()]
+# graph 1: low degree
+position = nx.circular_layout(G, scale=0.75)
+edges,weights = zip(*nx.get_edge_attributes(G,'weight').items())
+deg = [val for (node, val) in G.degree(weight='weight')]
+nx.draw(G, ax=ax[0], pos=position, width=np.array(weights)/2, node_color=['r', 'k', 'k'])
+nx.draw_networkx_edge_labels(G, ax=ax[0], pos=position, edge_labels=nx.get_edge_attributes(G,'weight'))
+ax[0].annotate(deg[0], position[1] + [-0.07, 0.12], fontsize=18, weight='bold')
+# graph 2: mod degree
+G.add_edge(1, 2, weight=0)
+G.add_edge(1, 3, weight=10)
+G.add_edge(3, 2, weight=10)
+position = nx.circular_layout(G, scale=0.75)
+edges,weights = zip(*nx.get_edge_attributes(G,'weight').items())
+deg = [val for (node, val) in G.degree(weight='weight')]
+nx.draw(G, ax=ax[1], pos=position, width=np.array(weights)/2, node_color=['r', 'k', 'k'])
+nx.draw_networkx_edge_labels(G, ax=ax[1], pos=position, edge_labels=nx.get_edge_attributes(G,'weight'))
+ax[1].annotate(deg[0], position[1] + [-0.07, 0.12], fontsize=18, weight='bold')
+
+# graph 3: high degree
+G.add_edge(1, 2, weight=10)
+G.add_edge(1, 3, weight=10)
+G.add_edge(3, 2, weight=1)
+position = nx.circular_layout(G, scale=0.75)
+edges,weights = zip(*nx.get_edge_attributes(G,'weight').items())
+deg = [val for (node, val) in G.degree(weight='weight')]
+nx.draw(G, ax=ax[2], pos=position, width=np.array(weights)/2, node_color=['r', 'k', 'k'])
+nx.draw_networkx_edge_labels(G, ax=ax[2], pos=position, edge_labels=nx.get_edge_attributes(G,'weight'))
+ax[2].annotate(deg[0], position[1] + [-0.07, 0.12], fontsize=18, weight='bold');
+# Illustration schematic: clustering coefficient
+high = 10
+low = 1
+
+G = nx.Graph()
+G.add_edge(1, 2, weight=high)
+G.add_edge(1, 3, weight=high)
+G.add_edge(3, 2, weight=0)
+G.add_edge(3, 4, weight=0)
+G.add_edge(2, 4, weight=0)
+G.add_edge(1, 4, weight=high)
+
+
+fig3_2, ax = plt.subplots(1, 3, figsize=(9, 3))
+[x.set_xlim([-1, 1]) for x in ax.ravel()]
+[x.set_ylim([-1, 1]) for x in ax.ravel()]
+# graph 1: low clustering
+position = nx.circular_layout(G, scale=0.75)
+edges,weights = zip(*nx.get_edge_attributes(G,'weight').items())
+clust = list(nx.clustering(G, weight='weight').values())
+nx.draw(G, ax=ax[0], pos=position, width=np.array(weights)/2, node_color=['r', 'k', 'k', 'k'])
+ax[0].annotate('{:.2f}'.format(clust[0]), position[1] + [-0.07, 0.12], fontsize=16, weight='bold')
+
+# graph 2: mod clustering
+G = nx.Graph()
+G.add_edge(1, 2, weight=high)
+G.add_edge(1, 3, weight=high)
+G.add_edge(3, 2, weight=low)
+G.add_edge(3, 4, weight=low)
+G.add_edge(2, 4, weight=low)
+G.add_edge(1, 4, weight=high)
+position = nx.circular_layout(G, scale=0.75)
+edges,weights = zip(*nx.get_edge_attributes(G,'weight').items())
+clust = list(nx.clustering(G, weight='weight').values())
+nx.draw(G, ax=ax[1], pos=position, width=np.array(weights)/2, node_color=['r', 'k', 'k', 'k'])
+ax[1].annotate('{:.2f}'.format(clust[0]), position[1] + [-0.07, 0.12], fontsize=16, weight='bold')
+high
+# graph 3: high clustering
+G = nx.Graph()
+G.add_edge(1, 2, weight=high)
+G.add_edge(1, 3, weight=high)
+G.add_edge(3, 2, weight=high)
+G.add_edge(3, 4, weight=high)
+G.add_edge(2, 4, weight=high)
+G.add_edge(1, 4, weight=high)
+position = nx.circular_layout(G, scale=0.75)
+edges,weights = zip(*nx.get_edge_attributes(G,'weight').items())
+clust = list(nx.clustering(G, weight='weight').values())
+nx.draw(G, ax=ax[2], pos=position, width=np.array(weights)/2, node_color=['r', 'k', 'k', 'k'])
+ax[2].annotate('{:.2f}'.format(clust[0]), position[1] + [-0.07, 0.12], fontsize=16, weight='bold');
 # %%
 # # # # # plot network graph with top x% of connections
 take_top_pct = 0.2 # top fraction to include in network graphs
@@ -347,17 +450,17 @@ temp_adj_fxn = adjacency_fxn.copy()
 temp_adj_fxn[temp_adj_fxn<cutoff] = 0
 G_fxn = nx.from_numpy_matrix(temp_adj_fxn/temp_adj_fxn.max())
 
-fig3_1 = plt.figure(figsize=(12,6))
-ax_anat = fig3_1.add_subplot(1, 2, 1, projection='3d')
-ax_fxn = fig3_1.add_subplot(1, 2, 2, projection='3d')
+fig3_3 = plt.figure(figsize=(12,6))
+ax_anat = fig3_3.add_subplot(1, 2, 1, projection='3d')
+ax_fxn = fig3_3.add_subplot(1, 2, 2, projection='3d')
 
 ax_anat.view_init(-145, -95)
 ax_anat.set_axis_off()
-ax_anat.set_title('Structural', fontweight='bold', fontsize=12)
+# ax_anat.set_title('Structural', fontweight='bold', fontsize=12)
 
 ax_fxn.view_init(-145, -95)
 ax_fxn.set_axis_off()
-ax_fxn.set_title('Functional', fontweight='bold', fontsize=12)
+# ax_fxn.set_title('Functional', fontweight='bold', fontsize=12)
 
 for key, value in anat_position.items():
     xi = value[0]
@@ -536,7 +639,7 @@ ax2.set_ylim([0, 1.05])
 # %%
 figs_to_save = [fig1_0, fig1_1, fig1_2, fig1_3, fig1_4,
                 fig2_0, fig2_1, fig2_2,
-                fig3_0, fig3_1,
+                fig3_0, fig3_1, fig3_2, fig3_3,
                 fig4_1,
                 fig5_0, fig5_1, fig5_2,
                 figS1, figS2]

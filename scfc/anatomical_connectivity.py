@@ -173,7 +173,7 @@ class AnatomicalConnectivity():
 
     def getConnectivityMatrix(self, type, symmetrize=False, diag=None, computed_date=None):
         if computed_date is None:
-            computed_date = '20200807'
+            computed_date = '20200812'
 
         if type == 'CellCount':
             """
