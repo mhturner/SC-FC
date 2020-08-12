@@ -36,6 +36,20 @@ FC = functional_connectivity.FunctionalConnectivity(data_dir=data_dir, fs=1.2, c
 # Get AnatomicalConnectivity object
 AC = anatomical_connectivity.AnatomicalConnectivity(data_dir=data_dir, neuprint_client=neuprint_client, mapping=bridge.getRoiMapping())
 
+# %%
+fh, ax = plt.subplots(1, 2, figsize=(8, 4))
+
+ax[0].plot(AC.getConnectivityMatrix('CellCount').to_numpy().copy()[AC.upper_inds],
+           AC.getConnectivityMatrix('CellCount').to_numpy().copy().T[AC.upper_inds], 'ko')
+ax[0].set_xlabel('Cell count, A->B')
+ax[0].set_ylabel('Cell count, B->A')
+
+ax[1].plot(AC.getConnectivityMatrix('WeightedSynapseCount').to_numpy().copy()[AC.upper_inds],
+           AC.getConnectivityMatrix('WeightedSynapseCount').to_numpy().copy().T[AC.upper_inds], 'ko')
+ax[1].set_xlabel('Weighted synapses, A->B')
+ax[1].set_ylabel('Weighted synapses, B->A')
+
+
 # %% ~Lognormal distribtution of connection strengths
 ConnectivityCount = AC.getConnectivityMatrix('CellCount')
 
@@ -523,7 +537,7 @@ ax2.set_ylim([0, 1.05])
 figs_to_save = [fig1_0, fig1_1, fig1_2, fig1_3, fig1_4,
                 fig2_0, fig2_1, fig2_2,
                 fig3_0, fig3_1,
-                fig4_0, fig4_1,
+                fig4_1,
                 fig5_0, fig5_1, fig5_2,
                 figS1, figS2]
 for f_ind, fh in enumerate(figs_to_save):

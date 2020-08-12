@@ -116,7 +116,7 @@ class FunctionalConnectivity():
         self.rois = list(self.mapping.keys())
         self.rois.sort()
         self.upper_inds = np.triu_indices(len(self.rois), k=1) # k=1 excludes main diagonal
-        self.lower_inds = np.tril_indices(len(self.rois), k=1) # k=1 excludes main diagonal
+        self.lower_inds = np.tril_indices(len(self.rois), k=-1) # k=-1 excludes main diagonal
 
         # # # #
         self.CorrelationMatrix, self.cmats = self.getFunctionalConnectivity(cutoff=self.cutoff, fs=self.fs)

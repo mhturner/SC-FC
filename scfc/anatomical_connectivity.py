@@ -64,12 +64,22 @@ def getPrecomputedConnectivityMatrix(neuprint_client, mapping, metric='count', d
 
     return ConnectivityMatrix
 
+def getPrimaryInput(roiInfo):
+    inputs = dict.fromkeys(roiInfo.keys(), 0)
+    for key in inputs:
+        inputs[key] = roiInfo[key].get('post', 0)
+
+    primary_input = max(inputs, key=inputs.get)
+    return primary_input
+
 def computeConnectivityMatrix(neuprint_client, mapping):
     """
 
     """
     rois = list(mapping.keys())
     rois.sort()
+
+    rois = rois[:2]
 
     WeakConnections = pd.DataFrame(data=np.zeros((len(rois), len(rois))), index=rois, columns=rois)
     MediumConnections = pd.DataFrame(data=np.zeros((len(rois), len(rois))), index=rois, columns=rois)
@@ -117,11 +127,17 @@ def computeConnectivityMatrix(neuprint_client, mapping):
                         strong_neurons += n_strong
 
                     # Common input fraction
-                    Neur_a, _ = fetch_neurons(NeuronCriteria(outputRois=sour, status='Traced', min_roi_outputs=10, roi_req='all')) # row
-                    Neur_b, _ = fetch_neurons(NeuronCriteria(outputRois=targ, status='Traced', min_roi_outputs=10, roi_req='all'))
+                    Neur_a, _ = fetch_neurons(NeuronCriteria(outputRois=sour, status='Traced')) # row in comon input matrix
+                    Neur_b, _ = fetch_neurons(NeuronCriteria(outputRois=targ, status='Traced'))
 
-                    total_cells_to_a += len(Neur_a.bodyId)
-                    shared_cells_to_ab += len(np.intersect1d(Neur_a.bodyId, Neur_b.bodyId))
+                    Neur_a['primary_input'] = [getPrimaryInput(x) for x in Neur_a.roiInfo] # top input region for each cell
+                    Neur_b['primary_input'] = [getPrimaryInput(x) for x in Neur_b.roiInfo]
+
+                    a_from_elsewhere = Neur_a[~Neur_a['primary_input'].isin([sour, targ])] # only cells whose top input is somewhere other than source or target
+                    b_from_elsewhere = Neur_b[~Neur_b['primary_input'].isin([sour, targ])]
+
+                    total_cells_to_a += len(a_from_elsewhere.bodyId)
+                    shared_cells_to_ab += len(np.intersect1d(a_from_elsewhere.bodyId, b_from_elsewhere.bodyId))
 
 
             WeakConnections.loc[[roi_source], [roi_target]] = weak_neurons
@@ -138,7 +154,7 @@ def computeConnectivityMatrix(neuprint_client, mapping):
 
 
 class AnatomicalConnectivity():
-    def __init__(self, data_dir, neuprint_client, mapping):
+    def __init__(self, data_dir, neuprint_client=None, mapping=None):
         """
         :data_dir:
         :neuprint_client:
@@ -150,11 +166,12 @@ class AnatomicalConnectivity():
         self.rois = list(self.mapping.keys())
         self.rois.sort()
         self.upper_inds = np.triu_indices(len(self.rois), k=1) # k=1 excludes main diagonal
-        self.lower_inds = np.tril_indices(len(self.rois), k=1) # k=1 excludes main diagonal
+        self.lower_inds = np.tril_indices(len(self.rois), k=-1) # k=-1 excludes main diagonal
 
-        # get reconstruction completeness matrix
-        roi_completeness = getRoiCompleteness(neuprint_client, self.mapping)
-        self.CompletenessMatrix = pd.DataFrame(data=np.outer(roi_completeness['frac_post'], roi_completeness['frac_pre']), index=roi_completeness.index, columns=roi_completeness.index)
+        if neuprint_client is not None:
+            # get reconstruction completeness matrix
+            roi_completeness = getRoiCompleteness(neuprint_client, self.mapping)
+            self.CompletenessMatrix = pd.DataFrame(data=np.outer(roi_completeness['frac_post'], roi_completeness['frac_pre']), index=roi_completeness.index, columns=roi_completeness.index)
 
     def getConnectivityMatrix(self, type, symmetrize=False, diag=None, computed_date=None):
         if computed_date is None:

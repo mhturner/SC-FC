@@ -7,7 +7,7 @@ setup(
     url='https://github.com/mhturner/SC-FC',
     author='Max Turner',
     author_email='mhturner@stanford.edu',
-    packages=['region_connectivity'],
+    packages=['scfc'],
     install_requires=['numpy',
         'scipy',
         'nibabel',

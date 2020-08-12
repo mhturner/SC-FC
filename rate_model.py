@@ -9,7 +9,7 @@ import glob
 from scipy.stats import pearsonr
 from sklearn.metrics import explained_variance_score
 
-from scfc import functional_connectivity
+from scfc import functional_connectivity, bridge, anatomical_connectivity
 from matplotlib import rcParams
 rcParams['svg.fonttype'] = 'none'
 
@@ -22,7 +22,7 @@ https://elifesciences.org/articles/22425#s4
 data_dir = '/home/mhturner/Dropbox/ClandininLab/Analysis/SC-FC/data'
 analysis_dir = '/home/mhturner/Dropbox/ClandininLab/Analysis/SC-FC'
 
-tdim = 10000
+tdim = 4000
 
 tau_i = 2 # msec (2)
 tau_e = 10 # msec (10)
@@ -32,27 +32,32 @@ w_ei = 4 # i to e (4)
 w_ie = 4 # e to i (4)
 
  # scaling of weights between excitatory populations
- # 2: close to measured
-w_internode = 2.0
+ # CellCount: ~2
+  # CellCount, log: ~0.5
+ # WeightedSynapseCount: ~7
+w_internode = 0.515
+do_log = True
 
 pulse_size = 5 # (5)
 spike_rate = 5 #hz (5)
 
-# # # load measured fxnal connectivity
-roinames_path = os.path.join(data_dir, 'atlas_data', 'Original_Index_panda_full.csv')
-atlas_path = os.path.join(data_dir, 'atlas_data', 'vfb_68_Original.nii.gz')
-response_filepaths = glob.glob(os.path.join(data_dir, 'region_responses') + '/' + '*.pkl')
-meas_cmat, _ = functional_connectivity.getFunctionalConnectivity(response_filepaths, cutoff=0.01, fs=1.2)
-upper_inds = np.triu_indices(meas_cmat.shape[0], k=1) # k=1 excludes main diagonal
+# Get FunctionalConnectivity object
+FC = functional_connectivity.FunctionalConnectivity(data_dir=data_dir, fs=1.2, cutoff=0.01, mapping=bridge.getRoiMapping())
 
-# # # anatomical connectivity matrix
-WeakConnections = pd.read_pickle(os.path.join(data_dir, 'connectome_connectivity', 'WeakConnections_computed_20200626.pkl'))
-MediumConnections = pd.read_pickle(os.path.join(data_dir, 'connectome_connectivity', 'MediumConnections_computed_20200626.pkl'))
-StrongConnections = pd.read_pickle(os.path.join(data_dir, 'connectome_connectivity', 'StrongConnections_computed_20200626.pkl'))
-conn_mat = WeakConnections + MediumConnections + StrongConnections
-C = conn_mat.to_numpy()
-np.fill_diagonal(C, 0)
+# Get AnatomicalConnectivity object
+AC = anatomical_connectivity.AnatomicalConnectivity(data_dir=data_dir, neuprint_client=None, mapping=bridge.getRoiMapping())
+tmp = AC.getConnectivityMatrix('CellCount').to_numpy().copy()
+np.fill_diagonal(tmp, 0)
+if do_log:
+    keep_inds = np.where(tmp > 0)
+    C = np.zeros_like(tmp)
+    base = 10
+    C[keep_inds] = np.log(tmp[keep_inds]) / np.log(base)
+else:
+    C = tmp
+
 C = C / C.max()
+
 
 # C = np.random.rand(C.shape[0], C.shape[1])
 # np.fill_diagonal(C, 0)
@@ -118,36 +123,39 @@ for e in range(nez_e.shape[0]):
 
 fig1, ax = plt.subplots(3, 1, figsize=(8,4))
 ax[0].eventplot(events, color='k')
-ax[0].set_xlim([2000, 3000])
+ax[0].set_xlim([1000, 2000])
 ax[0].set_ylabel('Noise')
 ax[0].set_xticks([])
 
 ax[1].plot(t, r_e, linewidth=2)
-ax[1].set_xlim([2000, 3000])
+ax[1].set_xlim([1000, 2000])
 ax[1].set_ylabel('r exc')
 ax[1].set_xticks([])
 
 ax[2].plot(t, r_i, linewidth=2)
 
-ax[2].set_xlim([2000, 3000])
+ax[2].set_xlim([1000, 2000])
 ax[2].set_ylabel('r inh')
 
 cmat = np.arctanh(np.corrcoef(r_e[100:, :].T))
 np.fill_diagonal(cmat, np.nan)
-pred_cmat = pd.DataFrame(data=cmat, index=conn_mat.index, columns=conn_mat.columns)
+pred_cmat = pd.DataFrame(data=cmat, index=FC.rois, columns=FC.rois)
+
+vmin = np.nanmin(FC.CorrelationMatrix.to_numpy())
+vmax = np.nanmax(FC.CorrelationMatrix.to_numpy())
 
 fig2, ax = plt.subplots(1, 2, figsize=(14, 7))
 sns.heatmap(pred_cmat, ax=ax[0], xticklabels=True, cbar_kws={'label': 'Functional Correlation (z)','shrink': .75}, cmap="cividis", rasterized=True)
 ax[0].set_aspect('equal')
 ax[0].set_title('Predicted')
-sns.heatmap(meas_cmat, ax=ax[1], xticklabels=True, cbar_kws={'label': 'Functional Correlation (z)','shrink': .75}, cmap="cividis", rasterized=True)
+sns.heatmap(FC.CorrelationMatrix, ax=ax[1], xticklabels=True, cbar_kws={'label': 'Functional Correlation (z)','shrink': .75}, cmap="cividis", rasterized=True, vmin=vmin, vmax=vmax)
 ax[1].set_aspect('equal')
 ax[1].set_title('Measured')
 
-r2 = explained_variance_score(pred_cmat.to_numpy()[upper_inds], meas_cmat.to_numpy()[upper_inds])
-r, _ = pearsonr(pred_cmat.to_numpy()[upper_inds], meas_cmat.to_numpy()[upper_inds])
+r2 = explained_variance_score(pred_cmat.to_numpy()[FC.upper_inds], FC.CorrelationMatrix.to_numpy()[FC.upper_inds])
+r, _ = pearsonr(pred_cmat.to_numpy()[FC.upper_inds], FC.CorrelationMatrix.to_numpy()[FC.upper_inds])
 fig3, ax = plt.subplots(1, 1, figsize=(4, 4))
-ax.plot(pred_cmat.to_numpy()[upper_inds], meas_cmat.to_numpy()[upper_inds], 'ko')
+ax.plot(pred_cmat.to_numpy()[FC.upper_inds], FC.CorrelationMatrix.to_numpy()[FC.upper_inds], 'ko')
 ax.plot([-0.2, 1.0], [-0.2, 1.0], 'k--')
 ax.set_xlabel('Predicted')
 ax.set_ylabel('Measured')
@@ -158,7 +166,7 @@ ax.set_title('r = {:.3f}'.format(r));
 target_region = 'MBML(R)'
 tdim = 500
 stim_amplitude = 2
-stim_node_index = np.where(conn_mat.index==target_region)[0][0]
+stim_node_index = np.where(np.array(FC.rois)==target_region)[0][0]
 stimulus = np.zeros_like(nez_e)
 nez_e = np.zeros_like(nez_e) # cut the noise
 
@@ -188,7 +196,7 @@ ax[1].set_xlim([50, 500])
 
 ax[2].plot(node_responses[sort_inds][1:], 'kx')
 ax[2].set_xticks(list(range(n_nodes-1)))
-ax[2].set_xticklabels(conn_mat.index[sort_inds][1:], rotation=90);
+ax[2].set_xticklabels(np.array(FC.rois)[sort_inds][1:], rotation=90);
 ax[2].set_ylim([0, 1.25*node_responses[sort_inds][1]])
 ax[2].set_ylabel('Peak response (a.u.)')
 
