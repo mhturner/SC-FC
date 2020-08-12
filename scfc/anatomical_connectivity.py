@@ -79,8 +79,6 @@ def computeConnectivityMatrix(neuprint_client, mapping):
     rois = list(mapping.keys())
     rois.sort()
 
-    rois = rois[:2]
-
     WeakConnections = pd.DataFrame(data=np.zeros((len(rois), len(rois))), index=rois, columns=rois)
     MediumConnections = pd.DataFrame(data=np.zeros((len(rois), len(rois))), index=rois, columns=rois)
     StrongConnections = pd.DataFrame(data=np.zeros((len(rois), len(rois))), index=rois, columns=rois)
