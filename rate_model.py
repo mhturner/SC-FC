@@ -35,7 +35,7 @@ w_ie = 4 # e to i (4)
  # CellCount: ~2
   # CellCount, log: ~0.5
  # WeightedSynapseCount: ~7
-w_internode = 0.515
+w_internode = 0.51
 do_log = True
 
 pulse_size = 5 # (5)
@@ -204,4 +204,4 @@ ax[2].set_ylabel('Peak response (a.u.)')
 
 figs_to_save = [fig1, fig2, fig3, fig4]
 for f_ind, fh in enumerate(figs_to_save):
-    fh.savefig(os.path.join(analysis_dir, 'figpanels', 'RateModelFig{}_{}.svg'.format(f_ind, w_internode)))
+    fh.savefig(os.path.join(analysis_dir, 'figpanels', 'RateModelFig{}.svg'.format(f_ind)))

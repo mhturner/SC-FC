@@ -62,7 +62,7 @@ ax[1].plot(AC.getConnectivityMatrix('CommonInputFraction'),
 ax[1].set_xlabel('Common input fraction')
 ax[1].set_ylabel('Functional correlation')
 
-# %% ~Lognormal distribtution of connection strengthsto_numpy().copy().T[AC.upper_inds]
+# %% ~Lognormal distribtution of connection strengths
 ConnectivityCount = AC.getConnectivityMatrix('CellCount')
 
 pull_regions = ['AL(R)', 'CAN(R)', 'LH(R)', 'SPS(R)']
@@ -130,7 +130,7 @@ for arr in z_scored_data:
     p_vals.append(p)
 
 print(p_vals)
-fig1_1, ax = plt.subplots(1, 2, figsize=(6, 3))
+fig1_1, ax = plt.subplots(2, 1, figsize=(3, 6))
 
 data = np.hstack(z_scored_data)
 
@@ -169,8 +169,10 @@ ax[1].set_yticks(ticks)
 ax[1].set_aspect('equal')
 
 # %% Eg region traces and cross corrs
-cmap = plt.get_cmap('Set3')
+cmap = plt.get_cmap('Set2')
 colors = cmap(np.arange(len(pull_regions))/len(pull_regions))
+print(pull_regions)
+colors
 map_colors = np.tile([0.5, 0.5, 0.5, 0.2], (len(FC.rois), 1))
 pull_inds = [np.where(np.array(FC.rois) == x)[0][0] for x in pull_regions]
 map_colors[pull_inds, :] = colors
@@ -435,7 +437,8 @@ ax[2].annotate('{:.2f}'.format(clust[0]), position[1] + [-0.07, 0.12], fontsize=
 # %%
 # # # # # plot network graph with top x% of connections
 take_top_pct = 0.2 # top fraction to include in network graphs
-roilabels_to_skip = ['LAL(R)', 'CRE(R)', 'CRE(L)', 'EPA(R)','BU(R)']
+roilabels_to_skip = ['ATL(R)', 'IB', 'MPED(R)', 'SIP(R)', 'PLP(R)', 'SPS(R)', 'GOR(R)', 'GOR(L)', 'ICL(R)','BU(L)', 'BU(R)', 'SCL(R)']
+
 cmap = plt.get_cmap('Blues')
 
 cutoff = np.quantile(adjacency_anat, 1-take_top_pct)
@@ -454,11 +457,11 @@ fig3_3 = plt.figure(figsize=(12,6))
 ax_anat = fig3_3.add_subplot(1, 2, 1, projection='3d')
 ax_fxn = fig3_3.add_subplot(1, 2, 2, projection='3d')
 
-ax_anat.view_init(-145, -95)
+ax_anat.view_init(-70, -95)
 ax_anat.set_axis_off()
 # ax_anat.set_title('Structural', fontweight='bold', fontsize=12)
 
-ax_fxn.view_init(-145, -95)
+ax_fxn.view_init(-70, -95)
 ax_fxn.set_axis_off()
 # ax_fxn.set_title('Functional', fontweight='bold', fontsize=12)
 
@@ -474,15 +477,15 @@ for key, value in anat_position.items():
         ax_anat.text(xi, yi, zi+2, FC.rois[key], zdir=(0,0,0), fontsize=8, fontweight='bold')
         ax_fxn.text(xi, yi, zi+2, FC.rois[key], zdir=(0,0,0), fontsize=8, fontweight='bold')
 
-    ctr = [15, 70, 60]
-    dstep=10
-    ax_anat.plot([ctr[0], ctr[0]+dstep], [ctr[1], ctr[1]], [ctr[2], ctr[2]], 'r') # x
-    ax_anat.plot([ctr[0], ctr[0]], [ctr[1], ctr[1]-dstep], [ctr[2], ctr[2]], 'g') # y
-    ax_anat.plot([ctr[0], ctr[0]], [ctr[1], ctr[1]], [ctr[2], ctr[2]-dstep], 'b') # z
-
-    ax_fxn.plot([ctr[0], ctr[0]+dstep], [ctr[1], ctr[1]], [ctr[2], ctr[2]], 'r') # x
-    ax_fxn.plot([ctr[0], ctr[0]], [ctr[1], ctr[1]-dstep], [ctr[2], ctr[2]], 'g') # y
-    ax_fxn.plot([ctr[0], ctr[0]], [ctr[1], ctr[1]], [ctr[2], ctr[2]-dstep], 'b') # z
+# ctr = [5, 80, 60]
+# dstep = 10
+# ax_anat.plot([ctr[0], ctr[0]+dstep], [ctr[1], ctr[1]], [ctr[2], ctr[2]], 'r') # x
+# ax_anat.plot([ctr[0], ctr[0]], [ctr[1], ctr[1]-dstep], [ctr[2], ctr[2]], 'g') # y
+# ax_anat.plot([ctr[0], ctr[0]], [ctr[1], ctr[1]], [ctr[2], ctr[2]-dstep], 'b') # z
+#
+# ax_fxn.plot([ctr[0], ctr[0]+dstep], [ctr[1], ctr[1]], [ctr[2], ctr[2]], 'r') # x
+# ax_fxn.plot([ctr[0], ctr[0]], [ctr[1], ctr[1]-dstep], [ctr[2], ctr[2]], 'g') # y
+# ax_fxn.plot([ctr[0], ctr[0]], [ctr[1], ctr[1]], [ctr[2], ctr[2]-dstep], 'b') # z
 
 
 # plot connections
