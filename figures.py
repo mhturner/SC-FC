@@ -2,6 +2,7 @@ from neuprint import Client
 import pandas as pd
 import numpy as np
 import os
+import matplotlib
 import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.linear_model import LinearRegression
@@ -12,8 +13,10 @@ from scipy.signal import correlate
 from dominance_analysis import Dominance
 import networkx as nx
 from matplotlib import rcParams
-rcParams['svg.fonttype'] = 'none'
+rcParams.update({'font.size': 12})
 rcParams.update({'figure.autolayout': True})
+rcParams['pdf.fonttype'] = 42
+rcParams['ps.fonttype'] = 42
 
 from scfc import bridge, anatomical_connectivity, functional_connectivity, plotting
 
@@ -36,6 +39,7 @@ FC = functional_connectivity.FunctionalConnectivity(data_dir=data_dir, fs=1.2, c
 # Get AnatomicalConnectivity object
 AC = anatomical_connectivity.AnatomicalConnectivity(data_dir=data_dir, neuprint_client=neuprint_client, mapping=bridge.getRoiMapping())
 
+plot_colors = plt.get_cmap('tab10')(np.arange(8)/8)
 # %% symmetry of connectivity
 fh, ax = plt.subplots(1, 2, figsize=(8, 4))
 
@@ -65,9 +69,10 @@ ax[1].set_ylabel('Functional correlation')
 # %% ~Lognormal distribtution of connection strengths
 ConnectivityCount = AC.getConnectivityMatrix('CellCount')
 
-pull_regions = ['AL(R)', 'CAN(R)', 'LH(R)', 'SPS(R)']
+pull_regions = ['AL(R)', 'LH(R)']
+pull_inds = [np.where(np.array(FC.rois) == x)[0][0] for x in pull_regions]
 
-fig1_0, ax = plt.subplots(int(len(pull_regions)/2), 2, figsize=(12,6))
+fig1_0, ax = plt.subplots(2, 1, figsize=(6, 6))
 ax = ax.ravel()
 fig1_0.tight_layout(w_pad=2, h_pad=8)
 
@@ -97,9 +102,10 @@ for p_ind, pr in enumerate(AC.getConnectivityMatrix('CellCount').index):
 
     z_scored_data.append(zscore(np.log10(ct)))
 
-    axS1[p_ind].plot(ct, 'bo')
     axS1[p_ind].fill_between(list(range(len(mod_mean))), err_up, err_down, color='k', alpha=0.4)
     axS1[p_ind].plot(mod_mean, 'k--')
+    axS1[p_ind].plot(ct, marker='o', linestyle='none')
+
     axS1[p_ind].set_xticks([])
     axS1[p_ind].annotate('{}'.format(pr), (12, 6e3), fontsize=8)
     axS1[p_ind].set_yscale('log')
@@ -107,20 +113,22 @@ for p_ind, pr in enumerate(AC.getConnectivityMatrix('CellCount').index):
 
     if pr in pull_regions:
         eg_ind = np.where(pr==np.array(pull_regions))[0][0]
-        ax[eg_ind].plot(ct, 'bo')
         ax[eg_ind].fill_between(list(range(len(mod_mean))), err_up, err_down, color='k', alpha=0.4)
         ax[eg_ind].plot(mod_mean, 'k--')
+        ax[eg_ind].plot(ct, marker='o', linestyle='none')
 
         ax[eg_ind].set_xticks(list(range(len(ct))))
+        ax[eg_ind].tick_params(axis='both', which='major', labelsize=10)
         ax[eg_ind].set_xticklabels(ct.index)
         ax[eg_ind].set_yscale('log')
+        ax[eg_ind].set_ylim([0.05, 5e4])
         for tick in ax[eg_ind].get_xticklabels():
             tick.set_rotation(90)
 
-        ax[eg_ind].annotate('Source: {}'.format(pr), (12, mod_mean[0]))
+        ax[eg_ind].annotate('Source: {}'.format(pr), (12, mod_mean[0]), fontsize=14)
 
-fig1_0.text(-0.02, 0.5, 'Outgoing connections (Cell count)', va='center', rotation='vertical', fontsize=14)
-figS1.text(-0.02, 0.5, 'Outgoing connections (Cell count)', va='center', rotation='vertical', fontsize=14)
+fig1_0.text(-0.01, 0.6, 'Connecting cells', va='center', rotation='vertical', fontsize=14)
+figS1.text(-0.01, 0.5, 'Connections from source region (cells)', va='center', rotation='vertical', fontsize=14)
 
 frac_inside_shading = np.sum(np.abs(np.hstack(z_scored_data)) <=2) / np.hstack(z_scored_data).size
 
@@ -130,7 +138,7 @@ for arr in z_scored_data:
     p_vals.append(p)
 
 print(p_vals)
-fig1_1, ax = plt.subplots(2, 1, figsize=(3, 6))
+fig1_1, ax = plt.subplots(2, 1, figsize=(3.5, 6))
 
 data = np.hstack(z_scored_data)
 
@@ -144,21 +152,24 @@ theory_distr = np.vstack(theory_distr)
 
 val, bin = np.histogram(data, 20, density=True)
 bin_ctrs = bin[:-1]
-ax[0].plot(10**bin_ctrs, val, linewidth=3)
 xx = np.linspace(-3.5, 3.5)
 ax[0].plot(10**xx, norm_model.pdf(xx), linewidth=2, color='k', linestyle='--')
+ax[0].plot(10**bin_ctrs, val, linewidth=3)
 ax[0].set_xscale('log')
+ticks = [1e-2, 1, 1e2]
+ax[0].set_xticks(ticks)
 ax[0].set_xlabel('Cell count (z-scored)')
 ax[0].set_ylabel('Probability')
 ax[0].set_xscale('log')
 
 # Q-Q plot of log-transformed data vs. fit normal distribution
+
+ax[1].plot([10**-4, 10**4], [10**-4, 10**4], 'k--')
 quants = np.linspace(0, 1, 20)
 for q in quants:
     th_pts = np.quantile(theory_distr, q, axis=1) # quantile value for each iteration
-    ax[1].plot([10**np.quantile(data, q), 10**np.quantile(data, q)], [10**(np.mean(th_pts) - 2*np.std(th_pts)), 10**(np.mean(th_pts) + 2*np.std(th_pts))], 'k-')
-    ax[1].plot(10**np.quantile(data, q), 10**np.mean(th_pts), 'ko')
-ax[1].plot([10**-4, 10**4], [10**-4, 10**4], 'k--')
+    ax[1].plot([10**np.quantile(data, q), 10**np.quantile(data, q)], [10**(np.mean(th_pts) - 2*np.std(th_pts)), 10**(np.mean(th_pts) + 2*np.std(th_pts))], color=plot_colors[0])
+    ax[1].plot(10**np.quantile(data, q), 10**np.mean(th_pts), marker='o', color=plot_colors[0])
 ax[1].set_xlabel('Data quantile')
 ax[1].set_ylabel('Lognormal quantile')
 ax[1].set_xscale('log')
@@ -166,36 +177,44 @@ ax[1].set_yscale('log')
 ticks = [1e-4, 1e-2, 1, 1e2, 1e4]
 ax[1].set_xticks(ticks)
 ax[1].set_yticks(ticks)
-ax[1].set_aspect('equal')
 
 # %% Eg region traces and cross corrs
+pull_regions = ['AL(R)', 'CAN(R)', 'LH(R)', 'SPS(R)']
+pull_inds = [np.where(np.array(FC.rois) == x)[0][0] for x in pull_regions]
+
+ind = 11 # eg brain ind
+resp_fp = FC.response_filepaths[ind]
+brain_fn = 'func_volreg_2018-11-03_5.nii.gz'
+brain_fp = os.path.join(os.path.split(resp_fp)[0], brain_fn)
+suffix = brain_fp.split('func_volreg_')[-1]
+atlas_fp = os.path.join(os.path.split(resp_fp)[0], 'vfb_68_' + suffix)
+
+# load eg meanbrain and region masks
+meanbrain = FC.getMeanBrain(brain_fp)
+all_masks, _ = FC.loadAtlasData(atlas_fp)
+masks = list(np.array(all_masks)[pull_inds])
+
 cmap = plt.get_cmap('Set2')
 colors = cmap(np.arange(len(pull_regions))/len(pull_regions))
-print(pull_regions)
-colors
-map_colors = np.tile([0.5, 0.5, 0.5, 0.2], (len(FC.rois), 1))
-pull_inds = [np.where(np.array(FC.rois) == x)[0][0] for x in pull_regions]
-map_colors[pull_inds, :] = colors
-region_map = FC.getRegionMap(colors=map_colors)
 
-zslices = [9, 21, 45]
-fig1_2 = plt.figure(figsize=(2,6))
+zslices = [12, 45]
+fig1_2 = plt.figure(figsize=(2,4))
 for z_ind, z in enumerate(zslices):
-    ax = fig1_2.add_subplot(3, 1, z_ind+1)
-    img = ax.imshow(np.swapaxes(region_map[:, :, z, :], 0, 1), rasterized=False)
+    ax = fig1_2.add_subplot(2, 1, z_ind+1)
+
+    overlay = plotting.overlayImage(meanbrain, masks, 0.5, colors=colors, z=z)
+
+    img = ax.imshow(np.swapaxes(overlay, 0, 1), rasterized=False)
     ax.set_axis_off()
     ax.set_aspect('equal')
 
 # # TODO: put this df/f processing stuff in functional_connectivity
-ind = 11
 fs = 1.2 # Hz
 cutoff = 0.01
 
 x_start = 200
 dt = 300 #datapts
 timevec = np.arange(0, dt) / fs # sec
-
-resp_fp = FC.response_filepaths[ind]
 
 file_id = resp_fp.split('/')[-1].replace('.pkl', '')
 region_response = pd.read_pickle(resp_fp)
@@ -254,16 +273,18 @@ sns.despine(top=True, right=True, left=True, bottom=True)
 # %%
 
 
-fig2_0, ax = plt.subplots(1, 2, figsize=(14, 7))
-df = np.log10(AC.getConnectivityMatrix('CellCount', diag=np.nan)).replace([np.inf, -np.inf], 0)
-sns.heatmap(df, ax=ax[0], xticklabels=True, cbar_kws={'label': 'Connection strength (log10(Connecting cells))', 'shrink': .8}, cmap="cividis", rasterized=True)
+fig2_0, ax = plt.subplots(1, 2, figsize=(10, 5))
+df = AC.getConnectivityMatrix('CellCount', diag=np.nan)
+sns.heatmap(np.log10(AC.getConnectivityMatrix('CellCount', diag=np.nan)).replace([np.inf, -np.inf], 0), ax=ax[0], yticklabels=True, xticklabels=True, cmap="cividis", rasterized=True, cbar=False)
+cb = fig2_0.colorbar(matplotlib.cm.ScalarMappable(norm=matplotlib.colors.SymLogNorm(vmin=1, vmax=np.nanmax(df.to_numpy()), base=10, linthresh=0.1, linscale=1), cmap="cividis"), ax=ax[0], shrink=0.75, label='Connecting cells')
+cb.outline.set_linewidth(0)
 ax[0].set_xlabel('Target');
 ax[0].set_ylabel('Source');
 ax[0].set_aspect('equal')
-
-sns.heatmap(FC.CorrelationMatrix, ax=ax[1], xticklabels=True, cbar_kws={'label': 'Functional Correlation (z)','shrink': .8}, cmap="cividis", rasterized=True)
+ax[0].tick_params(axis='both', which='major', labelsize=8)
+sns.heatmap(FC.CorrelationMatrix, ax=ax[1], yticklabels=True, xticklabels=True, cbar_kws={'label': 'Functional Correlation (z)','shrink': .75}, cmap="cividis", rasterized=True)
 ax[1].set_aspect('equal')
-
+ax[1].tick_params(axis='both', which='major', labelsize=8)
 
 # Make adjacency matrices
 # Log transform anatomical connectivity
@@ -274,12 +295,12 @@ r, p = pearsonr(anatomical_adjacency, functional_adjacency)
 coef = np.polyfit(anatomical_adjacency, functional_adjacency, 1)
 linfit = np.poly1d(coef)
 
-fig2_1, ax = plt.subplots(1,1,figsize=(4.5, 4.5))
-ax.scatter(10**anatomical_adjacency, functional_adjacency, color='k')
+fig2_1, ax = plt.subplots(1,1,figsize=(3.5, 3.5))
+ax.plot(10**anatomical_adjacency, functional_adjacency, color='k', marker='o', linestyle='none')
 xx = np.linspace(anatomical_adjacency.min(), anatomical_adjacency.max(), 100)
 ax.plot(10**xx, linfit(xx), color='k', linewidth=2, marker=None)
 ax.set_xscale('log')
-ax.set_xlabel('Anatomical adjacency (Connecting cells)')
+ax.set_xlabel('Anatomical adjacency (cells)')
 ax.set_ylabel('Functional correlation (z)')
 ax.annotate('r = {:.2f}'.format(r), xy=(1, 1.0));
 
@@ -291,12 +312,11 @@ for c_ind in range(FC.cmats.shape[2]):
     r_new, _ = pearsonr(anatomical_adjacency, functional_adjacency_new)
     r_vals.append(r_new)
 
-fig2_2, ax = plt.subplots(1,1,figsize=(2,3))
+fig2_2, ax = plt.subplots(1,1,figsize=(1.75, 3.5))
 fig2_2.tight_layout(pad=4)
-
 sns.stripplot(x=np.ones_like(r_vals), y=r_vals, color='k')
 sns.violinplot(y=r_vals)
-ax.set_ylabel('Correlation coefficient (z)')
+ax.set_ylabel('Structure-function corr. (z)')
 ax.set_xticks([])
 ax.set_ylim([0, 1]);
 
@@ -516,17 +536,22 @@ X = np.vstack([connectivity,
                AC.CompletenessMatrix.to_numpy()[AC.upper_inds][keep_inds],
                FC.CorrelationMatrix.to_numpy()[FC.upper_inds][keep_inds]]).T
 
-fig4_1, ax = plt.subplots(1, 2, figsize=(8, 4))
+fig4_1, ax = plt.subplots(1, 1, figsize=(2, 2.2))
 # linear regression model prediction:
 regressor = LinearRegression()
 regressor.fit(X[:, :-1], X[:, -1]);
 pred = regressor.predict(X[:, :-1])
 score = regressor.score(X[:, :-1], X[:, -1])
-ax[0].plot(pred, X[:, -1], 'ko')
-ax[0].plot([-0.2, 1.25], [-0.2, 1.25], 'k--')
-ax[0].annotate('$r^2$={:.2f}'.format(score), (0, 1));
-ax[0].set_xlabel('Predicted functional conectivity (z)')
-ax[0].set_ylabel('Measured functional conectivity (z)');
+ax.plot(pred, X[:, -1], 'k.')
+ax.plot([-0.2, 1.1], [-0.2, 1.1], 'k--')
+ax.set_title('$r^2$={:.2f}'.format(score));
+ax.set_xlabel('Predicted', fontsize=10)
+ax.set_ylabel('Measured', fontsize=10)
+ax.set_xticks([0, 1.0])
+ax.set_yticks([0, 1.0])
+ax.spines['right'].set_visible(False)
+ax.spines['top'].set_visible(False)
+
 
 fc_df = pd.DataFrame(data=X, columns=['Connectivity', 'Common Input', 'ROI size', 'ROI Distance', 'Completeness', 'fc'])
 dominance_regression=Dominance(data=fc_df,target='fc',objective=1)
@@ -536,10 +561,10 @@ keys = np.array(list(incr_variable_rsquare.keys()))
 vals = np.array(list(incr_variable_rsquare.values()))
 s_inds = np.argsort(vals)[::-1]
 
-sns.barplot(x=keys[s_inds], y=vals[s_inds], ax=ax[1], color=colors[0])
-ax[1].set_ylabel('Incremental $r^2$')
-for tick in ax[1].get_xticklabels():
-    tick.set_rotation(90)
+fig4_2, ax = plt.subplots(1, 1, figsize=(4.75, 3.5))
+sns.barplot(x=[x.replace(' ','\n') for x in keys[s_inds]], y=vals[s_inds], ax=ax, color=plot_colors[0])
+ax.set_ylabel('Incremental $r^2$')
+ax.tick_params(axis='both', which='major', labelsize=10)
 
 # %% Difference matrix
 
@@ -643,8 +668,8 @@ ax2.set_ylim([0, 1.05])
 figs_to_save = [fig1_0, fig1_1, fig1_2, fig1_3, fig1_4,
                 fig2_0, fig2_1, fig2_2,
                 fig3_0, fig3_1, fig3_2, fig3_3,
-                fig4_1,
+                fig4_1, fig4_2,
                 fig5_0, fig5_1, fig5_2,
                 figS1, figS2]
 for f_ind, fh in enumerate(figs_to_save):
-    fh.savefig(os.path.join(analysis_dir, 'figpanels', 'Fig{}.svg'.format(f_ind)))
+    fh.savefig(os.path.join(analysis_dir, 'figpanels', 'Fig{}.pdf'.format(f_ind)))

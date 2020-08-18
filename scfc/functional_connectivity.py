@@ -150,14 +150,16 @@ class FunctionalConnectivity():
 
         return CorrelationMatrix, cmats
 
-    def loadAtlasData(self):
+    def loadAtlasData(self, atlas_path=None):
         """
         Return
             :roi_mask:
             :roi_size:
         """
+        if atlas_path is None:
+            atlas_path = self.atlas_path
         roi_names = pd.read_csv(self.roinames_path, sep=',', header=0).name.to_numpy()
-        mask_brain = np.asarray(np.squeeze(nib.load(self.atlas_path).get_fdata()), 'uint8')
+        mask_brain = np.asarray(np.squeeze(nib.load(atlas_path).get_fdata()), 'uint8')
 
         # cut out nan regions (tracts))
         pull_inds = np.where([type(x) is str for x in roi_names])[0]
@@ -235,3 +237,7 @@ class FunctionalConnectivity():
             region_map[roi, :] = colors[r_ind, :]
 
         return region_map
+
+    def getMeanBrain(self, filepath):
+        brain = np.asanyarray(nib.load(filepath).dataobj).astype('uint16')
+        return np.mean(brain, axis=3)
