@@ -5,18 +5,20 @@ import os
 import matplotlib
 import matplotlib.pyplot as plt
 import seaborn as sns
-from sklearn.linear_model import LinearRegression
-from scipy.stats import pearsonr, ttest_1samp
+from sklearn.linear_model import LinearRegression, LogisticRegression
+from scipy.stats import pearsonr, ttest_1samp, spearmanr
 from scipy.stats import zscore
 from scipy.stats import kstest, lognorm, norm
 from scipy.signal import correlate
 from dominance_analysis import Dominance
+
+import scipy
 import networkx as nx
 from matplotlib import rcParams
 rcParams.update({'font.size': 12})
 rcParams.update({'figure.autolayout': True})
-rcParams['pdf.fonttype'] = 42
-rcParams['ps.fonttype'] = 42
+
+rcParams['svg.fonttype'] = 'none'
 
 from scfc import bridge, anatomical_connectivity, functional_connectivity, plotting
 
@@ -272,7 +274,6 @@ sns.despine(top=True, right=True, left=True, bottom=True)
 
 # %%
 
-
 fig2_0, ax = plt.subplots(1, 2, figsize=(10, 5))
 df = AC.getConnectivityMatrix('CellCount', diag=np.nan)
 sns.heatmap(np.log10(AC.getConnectivityMatrix('CellCount', diag=np.nan)).replace([np.inf, -np.inf], 0), ax=ax[0], yticklabels=True, xticklabels=True, cmap="cividis", rasterized=True, cbar=False)
@@ -312,7 +313,7 @@ for c_ind in range(FC.cmats.shape[2]):
     r_new, _ = pearsonr(anatomical_adjacency, functional_adjacency_new)
     r_vals.append(r_new)
 
-fig2_2, ax = plt.subplots(1,1,figsize=(1.75, 3.5))
+fig2_2, ax = plt.subplots(1,1,figsize=(1.75, 3.15))
 fig2_2.tight_layout(pad=4)
 sns.stripplot(x=np.ones_like(r_vals), y=r_vals, color='k')
 sns.violinplot(y=r_vals)
@@ -321,6 +322,20 @@ ax.set_xticks([])
 ax.set_ylim([0, 1]);
 
 # %%
+thresh = [0, 0.01, 0.05, 0.1, 0.2, 0.4, 0.6]
+
+r_vals = []
+for th in thresh:
+    anatomical_adjacency, keep_inds = AC.getAdjacency('CellCount', do_log=True, thresh=th)
+    functional_adjacency = FC.CorrelationMatrix.to_numpy()[FC.upper_inds][keep_inds]
+
+    r, p = pearsonr(anatomical_adjacency, functional_adjacency)
+    r_vals.append(r)
+
+print(r_vals)
+# %%
+
+roilabels_to_show = ['BU(R)', 'AVLP(R)', 'MBML(R)', 'PVLP(R)', 'AL(R)', 'LH(R)', 'EB', 'PLP(R)', 'AOTU(R)']
 
 anat_position = {}
 for r in range(len(FC.coms)):
@@ -347,19 +362,22 @@ nx.get_edge_attributes(G_anat,'weight')
 fig3_0, ax = plt.subplots(1, 2, figsize=(8, 4))
 deg_fxn = np.array([val for (node, val) in G_fxn.degree(weight='weight')])
 deg_anat = np.array([val for (node, val) in G_anat.degree(weight='weight')])
-ax[0].scatter(deg_anat, deg_fxn, color=[0.5, 0.5, 0.5, 0.5])
-# for r_ind, r in enumerate(FC.rois):
-#     ax[0].annotate(r, (deg_anat[r_ind]-0.1, deg_fxn[r_ind]), fontsize=8)
-plotting.addLinearFit(ax[0], deg_anat, deg_fxn)
+plotting.addLinearFit(ax[0], deg_anat, deg_fxn, alpha=0.5)
+ax[0].plot(deg_anat, deg_fxn, alpha=1.0, marker='o', linestyle='none')
+for r_ind, r in enumerate(FC.rois):
+    if r in roilabels_to_show:
+        ax[0].annotate(r, (deg_anat[r_ind]+500, deg_fxn[r_ind]-0.2), fontsize=8, fontweight='bold')
+
 ax[0].set_xlabel('Structural')
 ax[0].set_ylabel('Functional')
 
 clust_fxn = np.array(list(nx.clustering(G_fxn, weight='weight').values()))
 clust_anat = np.array(list(nx.clustering(G_anat, weight='weight').values()))
-ax[1].scatter(clust_anat, clust_fxn, color=[0.5, 0.5, 0.5, 0.5])
-# for r_ind, r in enumerate(FC.rois):
-#     ax[1].annotate(r, (clust_anat[r_ind], clust_fxn[r_ind]), fontsize=8)
-plotting.addLinearFit(ax[1], clust_anat, clust_fxn)
+plotting.addLinearFit(ax[1], clust_anat, clust_fxn, alpha=0.5)
+ax[1].plot(clust_anat, clust_fxn, alpha=1.0, marker='o', linestyle='none')
+for r_ind, r in enumerate(FC.rois):
+    if r in roilabels_to_show:
+        ax[1].annotate(r, (clust_anat[r_ind]+0.002, clust_fxn[r_ind]-0.003), fontsize=8, fontweight='bold')
 ax[1].set_xlabel('Structural')
 ax[1].set_ylabel('Functional')
 
@@ -373,16 +391,16 @@ G.add_edge(1, 2, weight=1)
 G.add_edge(1, 3, weight=1)
 G.add_edge(3, 2, weight=10)
 
-fig3_1, ax = plt.subplots(1, 3, figsize=(9, 3))
+fig3_1, ax = plt.subplots(1, 3, figsize=(4, 1.25))
 [x.set_xlim([-1, 1]) for x in ax.ravel()]
 [x.set_ylim([-1, 1]) for x in ax.ravel()]
 # graph 1: low degree
 position = nx.circular_layout(G, scale=0.75)
 edges,weights = zip(*nx.get_edge_attributes(G,'weight').items())
 deg = [val for (node, val) in G.degree(weight='weight')]
-nx.draw(G, ax=ax[0], pos=position, width=np.array(weights)/2, node_color=['r', 'k', 'k'])
+nx.draw(G, ax=ax[0], pos=position, width=np.array(weights)/3, node_color=['r', 'k', 'k'], node_size=75)
 nx.draw_networkx_edge_labels(G, ax=ax[0], pos=position, edge_labels=nx.get_edge_attributes(G,'weight'))
-ax[0].annotate(deg[0], position[1] + [-0.07, 0.12], fontsize=18, weight='bold')
+ax[0].annotate(deg[0], position[1] + [-0.0, 0.2], fontsize=12, weight='bold')
 # graph 2: mod degree
 G.add_edge(1, 2, weight=0)
 G.add_edge(1, 3, weight=10)
@@ -390,9 +408,9 @@ G.add_edge(3, 2, weight=10)
 position = nx.circular_layout(G, scale=0.75)
 edges,weights = zip(*nx.get_edge_attributes(G,'weight').items())
 deg = [val for (node, val) in G.degree(weight='weight')]
-nx.draw(G, ax=ax[1], pos=position, width=np.array(weights)/2, node_color=['r', 'k', 'k'])
+nx.draw(G, ax=ax[1], pos=position, width=np.array(weights)/3, node_color=['r', 'k', 'k'], node_size=75)
 nx.draw_networkx_edge_labels(G, ax=ax[1], pos=position, edge_labels=nx.get_edge_attributes(G,'weight'))
-ax[1].annotate(deg[0], position[1] + [-0.07, 0.12], fontsize=18, weight='bold')
+ax[1].annotate(deg[0], position[1] + [-0.0, 0.2], fontsize=12, weight='bold')
 
 # graph 3: high degree
 G.add_edge(1, 2, weight=10)
@@ -401,9 +419,9 @@ G.add_edge(3, 2, weight=1)
 position = nx.circular_layout(G, scale=0.75)
 edges,weights = zip(*nx.get_edge_attributes(G,'weight').items())
 deg = [val for (node, val) in G.degree(weight='weight')]
-nx.draw(G, ax=ax[2], pos=position, width=np.array(weights)/2, node_color=['r', 'k', 'k'])
+nx.draw(G, ax=ax[2], pos=position, width=np.array(weights)/3, node_color=['r', 'k', 'k'], node_size=75)
 nx.draw_networkx_edge_labels(G, ax=ax[2], pos=position, edge_labels=nx.get_edge_attributes(G,'weight'))
-ax[2].annotate(deg[0], position[1] + [-0.07, 0.12], fontsize=18, weight='bold');
+ax[2].annotate(deg[0], position[1] + [-0.0, 0.2], fontsize=12, weight='bold');
 # Illustration schematic: clustering coefficient
 high = 10
 low = 1
@@ -417,15 +435,15 @@ G.add_edge(2, 4, weight=0)
 G.add_edge(1, 4, weight=high)
 
 
-fig3_2, ax = plt.subplots(1, 3, figsize=(9, 3))
+fig3_2, ax = plt.subplots(1, 3, figsize=(4, 1.25))
 [x.set_xlim([-1, 1]) for x in ax.ravel()]
 [x.set_ylim([-1, 1]) for x in ax.ravel()]
 # graph 1: low clustering
 position = nx.circular_layout(G, scale=0.75)
 edges,weights = zip(*nx.get_edge_attributes(G,'weight').items())
 clust = list(nx.clustering(G, weight='weight').values())
-nx.draw(G, ax=ax[0], pos=position, width=np.array(weights)/2, node_color=['r', 'k', 'k', 'k'])
-ax[0].annotate('{:.2f}'.format(clust[0]), position[1] + [-0.07, 0.12], fontsize=16, weight='bold')
+nx.draw(G, ax=ax[0], pos=position, width=np.array(weights)/3, node_color=['r', 'k', 'k', 'k'], node_size=75)
+ax[0].annotate('{:.2f}'.format(clust[0]), position[1] + [-0.0, 0.2], fontsize=12, weight='bold')
 
 # graph 2: mod clustering
 G = nx.Graph()
@@ -438,8 +456,8 @@ G.add_edge(1, 4, weight=high)
 position = nx.circular_layout(G, scale=0.75)
 edges,weights = zip(*nx.get_edge_attributes(G,'weight').items())
 clust = list(nx.clustering(G, weight='weight').values())
-nx.draw(G, ax=ax[1], pos=position, width=np.array(weights)/2, node_color=['r', 'k', 'k', 'k'])
-ax[1].annotate('{:.2f}'.format(clust[0]), position[1] + [-0.07, 0.12], fontsize=16, weight='bold')
+nx.draw(G, ax=ax[1], pos=position, width=np.array(weights)/3, node_color=['r', 'k', 'k', 'k'], node_size=75)
+ax[1].annotate('{:.2f}'.format(clust[0]), position[1] + [-0.0, 0.2], fontsize=12, weight='bold')
 high
 # graph 3: high clustering
 G = nx.Graph()
@@ -452,8 +470,8 @@ G.add_edge(1, 4, weight=high)
 position = nx.circular_layout(G, scale=0.75)
 edges,weights = zip(*nx.get_edge_attributes(G,'weight').items())
 clust = list(nx.clustering(G, weight='weight').values())
-nx.draw(G, ax=ax[2], pos=position, width=np.array(weights)/2, node_color=['r', 'k', 'k', 'k'])
-ax[2].annotate('{:.2f}'.format(clust[0]), position[1] + [-0.07, 0.12], fontsize=16, weight='bold');
+nx.draw(G, ax=ax[2], pos=position, width=np.array(weights)/3, node_color=['r', 'k', 'k', 'k'], node_size=75)
+ax[2].annotate('{:.2f}'.format(clust[0]), position[1] + [-0.0, 0.2], fontsize=12, weight='bold');
 # %%
 # # # # # plot network graph with top x% of connections
 take_top_pct = 0.2 # top fraction to include in network graphs
@@ -525,16 +543,39 @@ for i,j in enumerate(G_anat.edges()):
 
 
 # %% Dominance analysis
-connectivity, keep_inds = AC.getAdjacency('CellCount', do_log=True)
+cell_ct, _ = AC.getAdjacency('CellCount')
+synapse_count, _ = AC.getAdjacency('WeightedSynapseCount')
 commoninput, _ = AC.getAdjacency('CommonInputFraction')
+path_length = AC.getShortestPathLength('CellCount').to_numpy()[AC.upper_inds]
+
+completeness = (AC.CompletenessMatrix.to_numpy() + AC.CompletenessMatrix.to_numpy().T) / 2
+
+# X = np.vstack([connectivity,
+#                commoninput[keep_inds],
+#                AC.getShortestPathLength('WeightedSynapseCount').to_numpy()[AC.upper_inds][keep_inds],
+#                FC.SizeMatrix.to_numpy()[FC.upper_inds][keep_inds],
+#                FC.DistanceMatrix.to_numpy()[FC.upper_inds][keep_inds],
+#                AC.CompletenessMatrix.to_numpy()[AC.upper_inds][keep_inds],
+#                FC.CorrelationMatrix.to_numpy()[FC.upper_inds][keep_inds]]).T
 
 
-X = np.vstack([connectivity,
-               commoninput[keep_inds],
-               FC.SizeMatrix.to_numpy()[FC.upper_inds][keep_inds],
-               FC.DistanceMatrix.to_numpy()[FC.upper_inds][keep_inds],
-               AC.CompletenessMatrix.to_numpy()[AC.upper_inds][keep_inds],
-               FC.CorrelationMatrix.to_numpy()[FC.upper_inds][keep_inds]]).T
+# X = np.vstack([cell_ct,
+#                synapse_count,
+#                commoninput,
+#                path_length,
+#                FC.SizeMatrix.to_numpy()[FC.upper_inds],
+#                FC.DistanceMatrix.to_numpy()[FC.upper_inds],
+#                AC.CompletenessMatrix.to_numpy()[AC.upper_inds],
+#                FC.CorrelationMatrix.to_numpy()[FC.upper_inds]]).T
+
+X = np.vstack([cell_ct,
+               synapse_count,
+               commoninput,
+               path_length,
+               FC.SizeMatrix.to_numpy()[FC.upper_inds],
+               FC.DistanceMatrix.to_numpy()[FC.upper_inds],
+               completeness[AC.upper_inds],
+               FC.CorrelationMatrix.to_numpy()[FC.upper_inds]]).T
 
 fig4_1, ax = plt.subplots(1, 1, figsize=(2, 2.2))
 # linear regression model prediction:
@@ -552,8 +593,10 @@ ax.set_yticks([0, 1.0])
 ax.spines['right'].set_visible(False)
 ax.spines['top'].set_visible(False)
 
+r, p = pearsonr(pred, X[:, -1])
 
-fc_df = pd.DataFrame(data=X, columns=['Connectivity', 'Common Input', 'ROI size', 'ROI Distance', 'Completeness', 'fc'])
+
+fc_df = pd.DataFrame(data=X, columns=['Cell count', 'Synapse count', 'Common Input', 'Path length', 'ROI size', 'ROI Distance', 'Completeness', 'fc'])
 dominance_regression=Dominance(data=fc_df,target='fc',objective=1)
 
 incr_variable_rsquare=dominance_regression.incremental_rsquare()
@@ -564,7 +607,51 @@ s_inds = np.argsort(vals)[::-1]
 fig4_2, ax = plt.subplots(1, 1, figsize=(4.75, 3.5))
 sns.barplot(x=[x.replace(' ','\n') for x in keys[s_inds]], y=vals[s_inds], ax=ax, color=plot_colors[0])
 ax.set_ylabel('Incremental $r^2$')
-ax.tick_params(axis='both', which='major', labelsize=10)
+ax.tick_params(axis='both', which='major', labelsize=8)
+
+ #%%
+SP = AC.getShortestPathLength('WeightedSynapseCount')
+
+x = SP.to_numpy()[AC.upper_inds]
+y = FC.CorrelationMatrix.to_numpy()[FC.upper_inds]
+
+r, p = spearmanr(x, y)
+fh, ax = plt.subplots(1, 1, figsize=(6,4))
+ax.plot(x, y, 'ko')
+ax.set_title('$\\rho$ = {:.2f}'.format(r));
+ax.set_xlabel('Shortest path distance')
+ax.set_ylabel('Functional connectivity (z)')
+
+
+
+
+# %%
+import collections
+
+anat_connect = AC.getConnectivityMatrix('CellCount', diag=None).to_numpy()
+G_anat = nx.from_numpy_matrix(anat_connect)
+
+for e in G_anat.edges:
+    G_anat.edges[e]['distance'] = 1/G_anat.edges[e]['weight']
+
+
+inter_nodes = []
+for row in range(anat_connect.shape[0]):
+    for col in range(anat_connect.shape[1]):
+        step_nodes = list(nx.algorithms.shortest_path(G_anat, source=row, target=col, weight='distance'))
+        if len(step_nodes) > 2:
+            inter_nodes.append(step_nodes)
+            # %%
+len(inter_nodes)
+inter_nodes
+
+
+hub_dict = collections.Counter(np.hstack(inter_nodes))
+
+for k in hub_dict:
+    print('{}: {}; {}'.format(AC.rois[k] , hub_dict[k] , deg_anat[k]))
+
+
 
 # %% Difference matrix
 
@@ -597,16 +684,19 @@ for r_ind, r_key in enumerate(sort_keys):
     for c_ind, c_key in enumerate(sort_keys):
         sorted_diff.iloc[r_ind, c_ind]=DifferenceMatrix.loc[[r_key], [c_key]].to_numpy()
 
-fig5_0, ax = plt.subplots(1, 1, figsize=(6,6))
+fig5_0, ax = plt.subplots(1, 1, figsize=(4, 4))
 lim = np.nanmax(np.abs(DifferenceMatrix.to_numpy().ravel()))
 ax.scatter(A_zscore, F_zscore, alpha=1, c=diff, cmap="RdBu",  vmin=-lim, vmax=lim, edgecolors='k', linewidths=0.5)
 ax.plot([-3, 4], [-3, 4], 'k-')
-ax.set_xlabel('Anatomical connectivity (log10, zscore)')
-ax.set_ylabel('Functional correlation (zscore)');
+ax.set_xlabel('Anatomical ajacency (z-score)')
+ax.set_ylabel('Functional correlation (z-score)');
+# ax.set_xticks([-2, 0, 3])
+# ax.set_yticks([-3, 0, 3])
 
-fig5_1, ax = plt.subplots(1, 1, figsize=(8,8))
-sns.heatmap(sorted_diff, ax=ax, xticklabels=True, cbar_kws={'label': 'Anat - Fxnal connectivity','shrink': .75}, cmap="RdBu", rasterized=True, vmin=-lim, vmax=lim)
+fig5_1, ax = plt.subplots(1, 1, figsize=(5, 5))
+sns.heatmap(sorted_diff, ax=ax, yticklabels=True, xticklabels=True, cbar_kws={'label': 'Difference (SC - FC)','shrink': .75}, cmap="RdBu", rasterized=True, vmin=-lim, vmax=lim)
 ax.set_aspect('equal')
+ax.tick_params(axis='both', which='major', labelsize=7)
 
 diff_by_region = DifferenceMatrix.mean()
 diff_brain = np.zeros(shape=FC.roi_mask[0].shape)
@@ -614,18 +704,23 @@ diff_brain[:] = np.nan
 for r_ind, r in enumerate(FC.roi_mask):
     diff_brain[r] = diff_by_region[r_ind]
 
-zslices = np.arange(5, 65, 12)
+
+zslices = np.linspace(5, 60, 8)
 lim = np.nanmax(np.abs(diff_brain.ravel()))
 
-fig5_2 = plt.figure(figsize=(15,3))
+fig5_2 = plt.figure(figsize=(8, 4))
 for z_ind, z in enumerate(zslices):
-    ax = fig5_2.add_subplot(1, 5, z_ind+1)
-    img = ax.imshow(diff_brain[:, :, z].T, cmap="RdBu", rasterized=False, vmin=-lim, vmax=lim)
+    ax = fig5_2.add_subplot(2, 4, z_ind+1)
+    img = ax.imshow(diff_brain[:, :, int(z)].T, cmap="RdBu", rasterized=False, vmin=-lim, vmax=lim)
     ax.set_axis_off()
     ax.set_aspect('equal')
+    ax.set_xlim([0, 102])
+    ax.set_ylim([107, 5])
 
-cb = fig5_2.colorbar(img, ax=ax)
-cb.set_label(label='Anat - Fxnal connectivity', weight='bold', color='k')
+fig5_3, ax = plt.subplots(1, 1, figsize=(1, 3))
+ax.set_axis_off()
+cb = fig5_3.colorbar(img, ax=ax)
+cb.set_label(label='Region-average diff.', weight='bold', color='k')
 cb.ax.tick_params(labelsize=12, color='k')
 
 # %% subsampled region cmats and SC-FC corr
@@ -669,7 +764,7 @@ figs_to_save = [fig1_0, fig1_1, fig1_2, fig1_3, fig1_4,
                 fig2_0, fig2_1, fig2_2,
                 fig3_0, fig3_1, fig3_2, fig3_3,
                 fig4_1, fig4_2,
-                fig5_0, fig5_1, fig5_2,
+                fig5_0, fig5_1, fig5_2, fig5_3,
                 figS1, figS2]
 for f_ind, fh in enumerate(figs_to_save):
-    fh.savefig(os.path.join(analysis_dir, 'figpanels', 'Fig{}.pdf'.format(f_ind)))
+    fh.savefig(os.path.join(analysis_dir, 'figpanels', 'Fig{}.svg'.format(f_ind)), format='svg')

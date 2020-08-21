@@ -2,6 +2,7 @@ from neuprint import (Client, fetch_neurons, NeuronCriteria)
 import numpy as np
 import pandas as pd
 import os
+import networkx as nx
 
 def getRoiCompleteness(neuprint_client, mapping):
     rois = list(mapping.keys())
@@ -225,11 +226,32 @@ class AnatomicalConnectivity():
         else:
             return pd.DataFrame(data=two_steps, index=OneStepConnectivity.index, columns=OneStepConnectivity.index)
 
-    def getAdjacency(self, type, do_log=False):
+    def getShortestPathLength(self, type='CellCount'):
+        anat_connect = self.getConnectivityMatrix(type, diag=None).to_numpy()
+        G_anat = nx.from_numpy_matrix(anat_connect)
+
+        for e in G_anat.edges:
+            G_anat.edges[e]['distance'] = 1/G_anat.edges[e]['weight']
+
+        sp_anat = np.zeros_like(anat_connect)
+        for row in range(anat_connect.shape[0]):
+            for col in range(anat_connect.shape[1]):
+                path_len = nx.algorithms.shortest_path_length(G_anat, source=row, target=col, weight='distance')
+                sp_anat[row, col] = path_len
+
+        ShortestPath = pd.DataFrame(data=sp_anat, index=self.rois, columns=self.rois)
+
+        return ShortestPath
+
+    def getAdjacency(self, type, do_log=False, thresh=None):
         ConnectivityMatrix = self.getConnectivityMatrix(type=type, symmetrize=True)
+        if thresh is None:
+            thresh_value = 0
+        else: #thresh as a quantile of all anatomical connections
+            thresh_value = np.quantile(ConnectivityMatrix.to_numpy()[self.upper_inds], thresh)
 
         if do_log:
-            keep_inds = np.where(ConnectivityMatrix.to_numpy()[self.upper_inds] > 0) # for log-transforming anatomical connectivity, toss zero values
+            keep_inds = np.where(ConnectivityMatrix.to_numpy()[self.upper_inds] > thresh_value) # for log-transforming anatomical connectivity, toss zero values
             adjacency = np.log10(ConnectivityMatrix.to_numpy().copy()[self.upper_inds][keep_inds])
         else:
             keep_inds = None
