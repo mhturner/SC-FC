@@ -2,6 +2,11 @@ import networkx as nx
 import numpy as np
 import pandas as pd
 
+def getNeuprintToken():
+    token = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6Im1heHdlbGxob2x0ZXR1cm5lckBnbWFpbC5jb20iLCJsZXZlbCI6Im5vYXV0aCIsImltYWdlLXVybCI6Imh0dHBzOi8vbGgzLmdvb2dsZXVzZXJjb250ZW50LmNvbS9hLS9BT2gxNEdpMHJRX0M4akliX0ZrS2h2OU5DSElsWlpnRDY5YUMtVGdNLWVWM3lRP3N6PTUwP3N6PTUwIiwiZXhwIjoxNzY2MTk1MzcwfQ.Q-57D4tX2sXMjWym2LFhHaUGHgHiUsIM_JI9xekxw_0'
+    return token
+
+    
 def getRoiMapping():
     """
     Include ROIs that are at least 50% in the EM dataset
@@ -50,13 +55,13 @@ def getRoiMapping():
     return mapping
 
 
-def getShortestPathStats(adjacency):
+def getShortestPathStats(adjacency, alg='dijkstra'):
     """
     adjacency is pandas dataframe adjacency matrix
     """
     roi_names = adjacency.index
 
-    graph = nx.from_numpy_matrix(adjacency.to_numpy())
+    graph = nx.from_numpy_matrix(adjacency.to_numpy(), create_using=nx.DiGraph)
 
     for e in graph.edges: #distance := 1 / edge weight
         graph.edges[e]['distance'] = 1/graph.edges[e]['weight']
@@ -68,9 +73,12 @@ def getShortestPathStats(adjacency):
 
     for r_ind, row in enumerate(roi_names):
         for c_ind, col in enumerate(roi_names):
-            path = nx.algorithms.dijkstra_path(graph, source=r_ind, target=c_ind, weight='distance')
-
-            path_length = nx.algorithms.dijkstra_path_length(graph, source=r_ind, target=c_ind, weight='distance')
+            if alg == 'dijkstra':
+                path = nx.algorithms.dijkstra_path(graph, source=r_ind, target=c_ind, weight='distance')
+                path_length = nx.algorithms.dijkstra_path_length(graph, source=r_ind, target=c_ind, weight='distance')
+            elif alg == 'bellman_ford':
+                path = nx.algorithms.bellman_ford_path(graph, source=r_ind, target=c_ind, weight='distance')
+                path_length = nx.algorithms.bellman_ford_path_length(graph, source=r_ind, target=c_ind, weight='distance')
 
             shortest_path_distance.loc[row, col] = path_length
             shortest_path_steps.loc[row, col] = len(path)

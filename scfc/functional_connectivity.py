@@ -239,5 +239,5 @@ class FunctionalConnectivity():
         return region_map
 
     def getMeanBrain(self, filepath):
-        brain = np.asanyarray(nib.load(filepath).dataobj).astype('uint16')
-        return np.mean(brain, axis=3)
+        meanbrain = np.asanyarray(nib.load(filepath).dataobj).astype('uint16')
+        return meanbrain

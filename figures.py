@@ -42,18 +42,7 @@ FC = functional_connectivity.FunctionalConnectivity(data_dir=data_dir, fs=1.2, c
 AC = anatomical_connectivity.AnatomicalConnectivity(data_dir=data_dir, neuprint_client=neuprint_client, mapping=bridge.getRoiMapping())
 
 plot_colors = plt.get_cmap('tab10')(np.arange(8)/8)
-# %% symmetry of connectivity
-fh, ax = plt.subplots(1, 2, figsize=(8, 4))
 
-ax[0].plot(AC.getConnectivityMatrix('CellCount').to_numpy().copy()[AC.upper_inds],
-           AC.getConnectivityMatrix('CellCount').to_numpy().copy().T[AC.upper_inds], 'ko')
-ax[0].set_xlabel('Cell count, A->B')
-ax[0].set_ylabel('Cell count, B->A')
-
-ax[1].plot(AC.getConnectivityMatrix('WeightedSynapseCount').to_numpy().copy()[AC.upper_inds],
-           AC.getConnectivityMatrix('WeightedSynapseCount').to_numpy().copy().T[AC.upper_inds], 'ko')
-ax[1].set_xlabel('Weighted synapses, A->B')
-ax[1].set_ylabel('Weighted synapses, B->A')
 
 # %%
 fh, ax = plt.subplots(1, 2, figsize=(8, 4))
@@ -74,7 +63,7 @@ ConnectivityCount = AC.getConnectivityMatrix('CellCount')
 pull_regions = ['AL(R)', 'LH(R)']
 pull_inds = [np.where(np.array(FC.rois) == x)[0][0] for x in pull_regions]
 
-fig1_0, ax = plt.subplots(2, 1, figsize=(6, 6))
+fig1_0, ax = plt.subplots(2, 1, figsize=(5, 5))
 ax = ax.ravel()
 fig1_0.tight_layout(w_pad=2, h_pad=8)
 
@@ -126,6 +115,7 @@ for p_ind, pr in enumerate(AC.getConnectivityMatrix('CellCount').index):
         ax[eg_ind].set_ylim([0.05, 5e4])
         for tick in ax[eg_ind].get_xticklabels():
             tick.set_rotation(90)
+            tick.set_fontsize(8)
 
         ax[eg_ind].annotate('Source: {}'.format(pr), (12, mod_mean[0]), fontsize=14)
 
@@ -140,7 +130,7 @@ for arr in z_scored_data:
     p_vals.append(p)
 
 print(p_vals)
-fig1_1, ax = plt.subplots(2, 1, figsize=(3.5, 6))
+fig1_1, ax = plt.subplots(2, 1, figsize=(3, 5))
 
 data = np.hstack(z_scored_data)
 
@@ -176,20 +166,25 @@ ax[1].set_xlabel('Data quantile')
 ax[1].set_ylabel('Lognormal quantile')
 ax[1].set_xscale('log')
 ax[1].set_yscale('log')
-ticks = [1e-4, 1e-2, 1, 1e2, 1e4]
+ticks = [1e-2, 1, 1e2]
 ax[1].set_xticks(ticks)
 ax[1].set_yticks(ticks)
 
+fig1_0.savefig(os.path.join(analysis_dir, 'figpanels', 'Fig1_0.svg'), format='svg', transparent=True)
+fig1_1.savefig(os.path.join(analysis_dir, 'figpanels', 'Fig1_1.svg'), format='svg', transparent=True)
+figS1.savefig(os.path.join(analysis_dir, 'figpanels', 'FigS1.svg'), format='svg', transparent=True)
 # %% Eg region traces and cross corrs
 pull_regions = ['AL(R)', 'CAN(R)', 'LH(R)', 'SPS(R)']
 pull_inds = [np.where(np.array(FC.rois) == x)[0][0] for x in pull_regions]
 
 ind = 11 # eg brain ind
 resp_fp = FC.response_filepaths[ind]
-brain_fn = 'func_volreg_2018-11-03_5.nii.gz'
-brain_fp = os.path.join(os.path.split(resp_fp)[0], brain_fn)
-suffix = brain_fp.split('func_volreg_')[-1]
-atlas_fp = os.path.join(os.path.split(resp_fp)[0], 'vfb_68_' + suffix)
+
+brain_str = '2018-11-03_5'
+brain_fn = 'func_volreg_{}_meanbrain.nii'.format(brain_str)
+atlas_fn = 'vfb_68_{}.nii.gz'.format(brain_str)
+brain_fp = os.path.join(data_dir, 'region_responses', brain_fn)
+atlas_fp = os.path.join(data_dir, 'region_responses', atlas_fn)
 
 # load eg meanbrain and region masks
 meanbrain = FC.getMeanBrain(brain_fp)
@@ -204,11 +199,12 @@ fig1_2 = plt.figure(figsize=(2,4))
 for z_ind, z in enumerate(zslices):
     ax = fig1_2.add_subplot(2, 1, z_ind+1)
 
-    overlay = plotting.overlayImage(meanbrain, masks, 0.5, colors=colors, z=z)
+    overlay = plotting.overlayImage(meanbrain, masks, 0.5, colors=colors, z=z) + 50
 
     img = ax.imshow(np.swapaxes(overlay, 0, 1), rasterized=False)
     ax.set_axis_off()
     ax.set_aspect('equal')
+
 
 # # TODO: put this df/f processing stuff in functional_connectivity
 fs = 1.2 # Hz
@@ -228,7 +224,7 @@ resp = functional_connectivity.filterRegionResponse(dff, cutoff=cutoff, fs=fs)
 resp = functional_connectivity.trimRegionResponse(file_id, resp)
 region_dff = pd.DataFrame(data=resp, index=region_response.index)
 
-fig1_3, ax = plt.subplots(4, 1, figsize=(9, 6))
+fig1_3, ax = plt.subplots(4, 1, figsize=(6, 6))
 fig1_3.tight_layout(pad=2)
 ax = ax.ravel()
 [x.set_axis_off() for x in ax]
@@ -240,7 +236,7 @@ for p_ind, pr in enumerate(pull_regions):
 
 plotting.addScaleBars(ax[0], dT=5, dF=0.10, T_value=-2.5, F_value=-0.10)
 
-fig1_4, ax = plt.subplots(4, 4, figsize=(6, 6))
+fig1_4, ax = plt.subplots(3, 3, figsize=(4, 4))
 fig1_4.tight_layout(h_pad=4, w_pad=4)
 [x.set_xticks([]) for x in ax.ravel()]
 [x.set_yticks([]) for x in ax.ravel()]
@@ -259,19 +255,20 @@ for ind_1, eg1 in enumerate(pull_regions):
             b = (region_dff.loc[eg2, :] - np.mean(region_dff.loc[eg2, :])) / (np.std(region_dff.loc[eg2, :]))
             c = np.correlate(a, b, 'same')
             time = np.arange(-window_size/2, window_size/2) / fs # sec
-            ax[ind_1, ind_2].plot(time, c[int(total_len/2-window_size/2): int(total_len/2+window_size/2)], 'k')
-            ax[ind_1, ind_2].set_ylim([-0.2, 1])
-            ax[ind_1, ind_2].axhline(0, color='k', alpha=0.5, linestyle='-')
-            ax[ind_1, ind_2].axvline(0, color='k', alpha=0.5, linestyle='-')
+            ax[ind_1-1, ind_2].plot(time, c[int(total_len/2-window_size/2): int(total_len/2+window_size/2)], 'k')
+            ax[ind_1-1, ind_2].set_ylim([-0.2, 1])
+            ax[ind_1-1, ind_2].axhline(0, color='k', alpha=0.5, linestyle='-')
+            ax[ind_1-1, ind_2].axvline(0, color='k', alpha=0.5, linestyle='-')
             if ind_2==0:
-                ax[ind_1, ind_2].set_ylabel(eg1)
+                ax[ind_1-1, ind_2].set_ylabel(eg1)
             if ind_1==3:
-                ax[ind_1, ind_2].set_xlabel(eg2)
+                ax[ind_1-1, ind_2].set_xlabel(eg2)
 
-plotting.addScaleBars(ax[3, 0], dT=30, dF=0.25, T_value=time[0], F_value=-0.15)
+plotting.addScaleBars(ax[0, 0], dT=-30, dF=0.25, T_value=time[-1], F_value=-0.15)
 sns.despine(top=True, right=True, left=True, bottom=True)
-
-
+fig1_2.savefig(os.path.join(analysis_dir, 'figpanels', 'Fig1_2.svg'), format='svg', transparent=True)
+fig1_3.savefig(os.path.join(analysis_dir, 'figpanels', 'Fig1_3.svg'), format='svg', transparent=True)
+fig1_4.savefig(os.path.join(analysis_dir, 'figpanels', 'Fig1_4.svg'), format='svg', transparent=True)
 # %%
 
 fig2_0, ax = plt.subplots(1, 2, figsize=(10, 5))
@@ -321,6 +318,54 @@ ax.set_ylabel('Structure-function corr. (z)')
 ax.set_xticks([])
 ax.set_ylim([0, 1]);
 
+# %% Basic SC-FC with synapse count
+FigS3_0, ax = plt.subplots(1, 2, figsize=(10, 5))
+df = AC.getConnectivityMatrix('WeightedSynapseCount', diag=np.nan)
+sns.heatmap(np.log10(AC.getConnectivityMatrix('WeightedSynapseCount', diag=np.nan)).replace([np.inf, -np.inf], 0), ax=ax[0], yticklabels=True, xticklabels=True, cmap="cividis", rasterized=True, cbar=False)
+cb = FigS3_0.colorbar(matplotlib.cm.ScalarMappable(norm=matplotlib.colors.SymLogNorm(vmin=1, vmax=np.nanmax(df.to_numpy()), base=10, linthresh=0.1, linscale=1), cmap="cividis"), ax=ax[0], shrink=0.75, label='Weighted synapse count')
+cb.outline.set_linewidth(0)
+ax[0].set_xlabel('Target');
+ax[0].set_ylabel('Source');
+ax[0].set_aspect('equal')
+ax[0].tick_params(axis='both', which='major', labelsize=8)
+sns.heatmap(FC.CorrelationMatrix, ax=ax[1], yticklabels=True, xticklabels=True, cbar_kws={'label': 'Functional Correlation (z)','shrink': .75}, cmap="cividis", rasterized=True)
+ax[1].set_aspect('equal')
+ax[1].tick_params(axis='both', which='major', labelsize=8)
+
+# Make adjacency matrices
+# Log transform anatomical connectivity
+anatomical_adjacency, keep_inds = AC.getAdjacency('WeightedSynapseCount', do_log=True)
+functional_adjacency = FC.CorrelationMatrix.to_numpy()[FC.upper_inds][keep_inds]
+
+r, p = pearsonr(anatomical_adjacency, functional_adjacency)
+coef = np.polyfit(anatomical_adjacency, functional_adjacency, 1)
+linfit = np.poly1d(coef)
+
+FigS3_1, ax = plt.subplots(1,1,figsize=(3.5, 3.5))
+ax.plot(10**anatomical_adjacency, functional_adjacency, color='k', marker='o', linestyle='none')
+xx = np.linspace(anatomical_adjacency.min(), anatomical_adjacency.max(), 100)
+ax.plot(10**xx, linfit(xx), color='k', linewidth=2, marker=None)
+ax.set_xscale('log')
+ax.set_xlabel('Anatomical adjacency (synapses)')
+ax.set_ylabel('Functional correlation (z)')
+ax.annotate('r = {:.2f}'.format(r), xy=(1, 1.0));
+
+r_vals = []
+for c_ind in range(FC.cmats.shape[2]):
+    cmat = FC.cmats[:, :, c_ind]
+    functional_adjacency_new = cmat[FC.upper_inds][keep_inds]
+
+    r_new, _ = pearsonr(anatomical_adjacency, functional_adjacency_new)
+    r_vals.append(r_new)
+
+FigS3_2, ax = plt.subplots(1,1,figsize=(1.75, 3.15))
+FigS3_2.tight_layout(pad=4)
+sns.stripplot(x=np.ones_like(r_vals), y=r_vals, color='k')
+sns.violinplot(y=r_vals)
+ax.set_ylabel('Structure-function corr. (z)')
+ax.set_xticks([])
+ax.set_ylim([0, 1]);
+
 
 # %%
 
@@ -333,22 +378,20 @@ for r in range(len(FC.coms)):
 adjacency_anat = AC.getConnectivityMatrix('CellCount', symmetrize=True, diag=0).to_numpy()
 adjacency_fxn = FC.CorrelationMatrix.to_numpy().copy()
 np.fill_diagonal(adjacency_fxn, 0)
-
-# significance test on fxnal cmat
-num_comparisons = len(FC.upper_inds[0])
-p_cutoff = 0.01 / num_comparisons # bonferroni
-t, p = ttest_1samp(FC.cmats, 0, axis=2) # ttest against 0
-np.fill_diagonal(p, 1) # replace nans in diag with p=1
-adjacency_fxn[p>p_cutoff] = 0 # set nonsig regions to 0
-print('Ttest included {} significant of {} total edges in fxnal connectivity matrix'.format((p<p_cutoff).sum(), p.size))
+#
+# # significance test on fxnal cmat
+# num_comparisons = len(FC.upper_inds[0])
+# p_cutoff = 0.01 / num_comparisons # bonferroni
+# t, p = ttest_1samp(FC.cmats, 0, axis=2) # ttest against 0
+# np.fill_diagonal(p, 1) # replace nans in diag with p=1
+# adjacency_fxn[p>p_cutoff] = 0 # set nonsig regions to 0
+# print('Ttest included {} significant of {} total edges in fxnal connectivity matrix'.format((p<p_cutoff).sum(), p.size))
 
 # Plot clustering and degree using full adjacency to make graphs
-G_anat = nx.from_numpy_matrix(adjacency_anat)
-G_fxn = nx.from_numpy_matrix(adjacency_fxn)
+G_anat = nx.from_numpy_matrix(adjacency_anat, create_using=nx.DiGraph)
+G_fxn = nx.from_numpy_matrix(adjacency_fxn, create_using=nx.DiGraph)
 
-nx.get_edge_attributes(G_anat,'weight')
-
-fig3_0, ax = plt.subplots(1, 2, figsize=(8, 4))
+fig3_0, ax = plt.subplots(1, 2, figsize=(7, 3.5))
 deg_fxn = np.array([val for (node, val) in G_fxn.degree(weight='weight')])
 deg_anat = np.array([val for (node, val) in G_anat.degree(weight='weight')])
 plotting.addLinearFit(ax[0], deg_anat, deg_fxn, alpha=0.5)
@@ -360,7 +403,7 @@ for r_ind, r in enumerate(FC.rois):
 ax[0].set_xlabel('Structural')
 ax[0].set_ylabel('Functional')
 
-clust_fxn = np.array(list(nx.clustering(G_fxn, weight='weight').values()))
+clust_fxn = np.real(np.array(list(nx.clustering(G_fxn, weight='weight').values())))
 clust_anat = np.array(list(nx.clustering(G_anat, weight='weight').values()))
 plotting.addLinearFit(ax[1], clust_anat, clust_fxn, alpha=0.5)
 ax[1].plot(clust_anat, clust_fxn, alpha=1.0, marker='o', linestyle='none')
@@ -370,6 +413,15 @@ for r_ind, r in enumerate(FC.rois):
 ax[1].set_xlabel('Structural')
 ax[1].set_ylabel('Functional')
 
+# cent_fxn = np.array(list(nx.eigenvector_centrality(G_fxn, weight='weight').values()))
+# cent_anat = np.array(list(nx.eigenvector_centrality(G_anat, weight='weight').values()))
+# plotting.addLinearFit(ax[2], cent_anat, cent_fxn, alpha=0.5)
+# ax[2].plot(cent_anat, cent_fxn, alpha=1.0, marker='o', linestyle='none')
+# for r_ind, r in enumerate(FC.rois):
+#     if r in roilabels_to_show:
+#         ax[2].annotate(r, (cent_anat[r_ind]+0.002, cent_fxn[r_ind]-0.003), fontsize=8, fontweight='bold')
+# ax[2].set_xlabel('Structural')
+# ax[2].set_ylabel('Functional')
 
 # %%
 
@@ -380,11 +432,11 @@ G.add_edge(1, 2, weight=1)
 G.add_edge(1, 3, weight=1)
 G.add_edge(3, 2, weight=10)
 
-fig3_1, ax = plt.subplots(1, 3, figsize=(4, 1.25))
+fig3_1, ax = plt.subplots(1, 3, figsize=(3.5, 1))
 [x.set_xlim([-1, 1]) for x in ax.ravel()]
 [x.set_ylim([-1, 1]) for x in ax.ravel()]
 # graph 1: low degree
-position = nx.circular_layout(G, scale=0.75)
+position = nx.circular_layout(G, scale=0.7)
 edges,weights = zip(*nx.get_edge_attributes(G,'weight').items())
 deg = [val for (node, val) in G.degree(weight='weight')]
 nx.draw(G, ax=ax[0], pos=position, width=np.array(weights)/3, node_color=['r', 'k', 'k'], node_size=75)
@@ -394,7 +446,7 @@ ax[0].annotate(deg[0], position[1] + [-0.0, 0.2], fontsize=12, weight='bold')
 G.add_edge(1, 2, weight=0)
 G.add_edge(1, 3, weight=10)
 G.add_edge(3, 2, weight=10)
-position = nx.circular_layout(G, scale=0.75)
+position = nx.circular_layout(G, scale=0.7)
 edges,weights = zip(*nx.get_edge_attributes(G,'weight').items())
 deg = [val for (node, val) in G.degree(weight='weight')]
 nx.draw(G, ax=ax[1], pos=position, width=np.array(weights)/3, node_color=['r', 'k', 'k'], node_size=75)
@@ -405,7 +457,7 @@ ax[1].annotate(deg[0], position[1] + [-0.0, 0.2], fontsize=12, weight='bold')
 G.add_edge(1, 2, weight=10)
 G.add_edge(1, 3, weight=10)
 G.add_edge(3, 2, weight=1)
-position = nx.circular_layout(G, scale=0.75)
+position = nx.circular_layout(G, scale=0.7)
 edges,weights = zip(*nx.get_edge_attributes(G,'weight').items())
 deg = [val for (node, val) in G.degree(weight='weight')]
 nx.draw(G, ax=ax[2], pos=position, width=np.array(weights)/3, node_color=['r', 'k', 'k'], node_size=75)
@@ -424,11 +476,11 @@ G.add_edge(2, 4, weight=0)
 G.add_edge(1, 4, weight=high)
 
 
-fig3_2, ax = plt.subplots(1, 3, figsize=(4, 1.25))
+fig3_2, ax = plt.subplots(1, 3, figsize=(3.5, 1))
 [x.set_xlim([-1, 1]) for x in ax.ravel()]
 [x.set_ylim([-1, 1]) for x in ax.ravel()]
 # graph 1: low clustering
-position = nx.circular_layout(G, scale=0.75)
+position = nx.circular_layout(G, scale=0.7)
 edges,weights = zip(*nx.get_edge_attributes(G,'weight').items())
 clust = list(nx.clustering(G, weight='weight').values())
 nx.draw(G, ax=ax[0], pos=position, width=np.array(weights)/3, node_color=['r', 'k', 'k', 'k'], node_size=75)
@@ -442,7 +494,7 @@ G.add_edge(3, 2, weight=low)
 G.add_edge(3, 4, weight=low)
 G.add_edge(2, 4, weight=low)
 G.add_edge(1, 4, weight=high)
-position = nx.circular_layout(G, scale=0.75)
+position = nx.circular_layout(G, scale=0.7)
 edges,weights = zip(*nx.get_edge_attributes(G,'weight').items())
 clust = list(nx.clustering(G, weight='weight').values())
 nx.draw(G, ax=ax[1], pos=position, width=np.array(weights)/3, node_color=['r', 'k', 'k', 'k'], node_size=75)
@@ -456,7 +508,7 @@ G.add_edge(3, 2, weight=high)
 G.add_edge(3, 4, weight=high)
 G.add_edge(2, 4, weight=high)
 G.add_edge(1, 4, weight=high)
-position = nx.circular_layout(G, scale=0.75)
+position = nx.circular_layout(G, scale=0.7)
 edges,weights = zip(*nx.get_edge_attributes(G,'weight').items())
 clust = list(nx.clustering(G, weight='weight').values())
 nx.draw(G, ax=ax[2], pos=position, width=np.array(weights)/3, node_color=['r', 'k', 'k', 'k'], node_size=75)
@@ -472,15 +524,15 @@ cutoff = np.quantile(adjacency_anat, 1-take_top_pct)
 print('Threshold included {} of {} edges in anatomical connectivity matrix'.format((adjacency_anat>=cutoff).sum(), adjacency_anat.size))
 temp_adj_anat = adjacency_anat.copy()
 temp_adj_anat[temp_adj_anat<cutoff] = 0
-G_anat = nx.from_numpy_matrix(temp_adj_anat/temp_adj_anat.max())
+G_anat = nx.from_numpy_matrix(temp_adj_anat/temp_adj_anat.max(), create_using=nx.DiGraph)
 
 cutoff = np.quantile(adjacency_fxn[adjacency_fxn>0], 1-take_top_pct)
 print('Threshold included {} of {} sig edges in functional connectivity matrix'.format((adjacency_fxn>=cutoff).sum(), (adjacency_fxn>0).sum()))
 temp_adj_fxn = adjacency_fxn.copy()
 temp_adj_fxn[temp_adj_fxn<cutoff] = 0
-G_fxn = nx.from_numpy_matrix(temp_adj_fxn/temp_adj_fxn.max())
+G_fxn = nx.from_numpy_matrix(temp_adj_fxn/temp_adj_fxn.max(), create_using=nx.DiGraph)
 
-fig3_3 = plt.figure(figsize=(12,6))
+fig3_3 = plt.figure(figsize=(9, 4.5))
 ax_anat = fig3_3.add_subplot(1, 2, 1, projection='3d')
 ax_fxn = fig3_3.add_subplot(1, 2, 2, projection='3d')
 
@@ -524,8 +576,8 @@ anat_connect = AC.getConnectivityMatrix('CellCount', diag=None)
 shortest_path_distance, shortest_path_steps, shortest_path_weight, hub_count = bridge.getShortestPathStats(anat_connect)
 
 # for anatomical network: direct cell weight vs connectivity weight of shortest path
-direct_dist = (1/AC.getConnectivityMatrix('CellCount', diag=None).to_numpy().T)
-fig3_4, ax = plt.subplots(1, 3, figsize=(12,4))
+direct_dist = (1/AC.getConnectivityMatrix('CellCount', diag=None).to_numpy())
+fig3_4, ax = plt.subplots(1, 2, figsize=(7,3.5))
 step_count = shortest_path_steps - 1
 steps = np.unique(step_count.to_numpy()[AC.upper_inds])
 colors = plt.get_cmap('Set1')(np.arange(len(steps))/len(steps))
@@ -564,33 +616,29 @@ ax[1].set_title('r = {:.2f}'.format(r));
 ax[1].set_xlabel('Shortest path distance')
 ax[1].set_ylabel('Functional connectivity (z)')
 ax[1].set_xscale('log')
-
-for s_ind, step_no in enumerate(range(1, 7)):
-    avg_y = np.mean(fc_pts[s_ind])
-    err_y = np.std(fc_pts[s_ind])/np.sqrt(len(fc_pts[s_ind]))
-
-    ax[2].plot(step_no, avg_y, 'ko')
-    ax[2].plot([step_no, step_no], [avg_y-err_y, avg_y+err_y], 'k-')
-    ax[2].set_xlabel('Shortest path steps')
-    ax[2].set_ylabel('Functional connectivity (z)')
-    ax[2].set_ylim(ax[1].get_ylim())
-
+#
+# for s_ind, step_no in enumerate(range(1, 7)):
+#     avg_y = np.mean(fc_pts[s_ind])
+#     err_y = np.std(fc_pts[s_ind])/np.sqrt(len(fc_pts[s_ind]))
+#
+#     ax[2].plot(step_no, avg_y, 'ko')
+#     ax[2].plot([step_no, step_no], [avg_y-err_y, avg_y+err_y], 'k-')
+#     ax[2].set_xlabel('Shortest path steps')
+#     ax[2].set_ylabel('Functional connectivity (z)')
+#     ax[2].set_ylim(ax[1].get_ylim())
 
 # %% Dominance analysis
 cell_ct, keep_inds = AC.getAdjacency('CellCount', do_log=True)
-synapse_count, _ = AC.getAdjacency('WeightedSynapseCount')
 commoninput, _ = AC.getAdjacency('CommonInputFraction')
 completeness = (AC.CompletenessMatrix.to_numpy() + AC.CompletenessMatrix.to_numpy().T) / 2
 
 X = np.vstack([
                cell_ct,
-               synapse_count[keep_inds],
                commoninput[keep_inds],
                FC.SizeMatrix.to_numpy()[FC.upper_inds][keep_inds],
                FC.DistanceMatrix.to_numpy()[FC.upper_inds][keep_inds],
                completeness[AC.upper_inds][keep_inds],
                FC.CorrelationMatrix.to_numpy()[FC.upper_inds][keep_inds]]).T
-
 
 fig4_1, ax = plt.subplots(1, 1, figsize=(2, 2.2))
 # linear regression model prediction:
@@ -610,7 +658,7 @@ ax.spines['top'].set_visible(False)
 
 r, p = pearsonr(pred, X[:, -1])
 
-fc_df = pd.DataFrame(data=X, columns=['Cell count', 'Synapse count', 'Common Input', 'ROI size', 'ROI Distance', 'Completeness', 'fc'])
+fc_df = pd.DataFrame(data=X, columns=['Cell count', 'Common Input', 'ROI size', 'ROI Distance', 'Completeness', 'fc'])
 dominance_regression=Dominance(data=fc_df,target='fc',objective=1)
 
 incr_variable_rsquare=dominance_regression.incremental_rsquare()
@@ -738,6 +786,6 @@ figs_to_save = [fig1_0, fig1_1, fig1_2, fig1_3, fig1_4,
                 fig3_0, fig3_1, fig3_2, fig3_3, fig3_4,
                 fig4_1, fig4_2,
                 fig5_0, fig5_1, fig5_2, fig5_3,
-                figS1, figS2]
+                figS1, figS2, FigS3_0, FigS3_1, FigS3_2]
 for f_ind, fh in enumerate(figs_to_save):
-    fh.savefig(os.path.join(analysis_dir, 'figpanels', 'Fig{}.svg'.format(f_ind)), format='svg')
+    fh.savefig(os.path.join(analysis_dir, 'figpanels', 'Fig{}.pdf'.format(f_ind)), format='pdf', transparent=True)
