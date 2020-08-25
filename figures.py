@@ -321,18 +321,7 @@ ax.set_ylabel('Structure-function corr. (z)')
 ax.set_xticks([])
 ax.set_ylim([0, 1]);
 
-# %%
-thresh = [0, 0.01, 0.05, 0.1, 0.2, 0.4, 0.6]
 
-r_vals = []
-for th in thresh:
-    anatomical_adjacency, keep_inds = AC.getAdjacency('CellCount', do_log=True, thresh=th)
-    functional_adjacency = FC.CorrelationMatrix.to_numpy()[FC.upper_inds][keep_inds]
-
-    r, p = pearsonr(anatomical_adjacency, functional_adjacency)
-    r_vals.append(r)
-
-print(r_vals)
 # %%
 
 roilabels_to_show = ['BU(R)', 'AVLP(R)', 'MBML(R)', 'PVLP(R)', 'AL(R)', 'LH(R)', 'EB', 'PLP(R)', 'AOTU(R)']
@@ -515,17 +504,6 @@ for key, value in anat_position.items():
         ax_anat.text(xi, yi, zi+2, FC.rois[key], zdir=(0,0,0), fontsize=8, fontweight='bold')
         ax_fxn.text(xi, yi, zi+2, FC.rois[key], zdir=(0,0,0), fontsize=8, fontweight='bold')
 
-# ctr = [5, 80, 60]
-# dstep = 10
-# ax_anat.plot([ctr[0], ctr[0]+dstep], [ctr[1], ctr[1]], [ctr[2], ctr[2]], 'r') # x
-# ax_anat.plot([ctr[0], ctr[0]], [ctr[1], ctr[1]-dstep], [ctr[2], ctr[2]], 'g') # y
-# ax_anat.plot([ctr[0], ctr[0]], [ctr[1], ctr[1]], [ctr[2], ctr[2]-dstep], 'b') # z
-#
-# ax_fxn.plot([ctr[0], ctr[0]+dstep], [ctr[1], ctr[1]], [ctr[2], ctr[2]], 'r') # x
-# ax_fxn.plot([ctr[0], ctr[0]], [ctr[1], ctr[1]-dstep], [ctr[2], ctr[2]], 'g') # y
-# ax_fxn.plot([ctr[0], ctr[0]], [ctr[1], ctr[1]], [ctr[2], ctr[2]-dstep], 'b') # z
-
-
 # plot connections
 for i,j in enumerate(G_anat.edges()):
     x = np.array((anat_position[j[0]][0], anat_position[j[1]][0]))
@@ -540,42 +518,79 @@ for i,j in enumerate(G_anat.edges()):
     line_wt = (G_fxn.get_edge_data(j[0], j[1], default={'weight':0})['weight'] + G_fxn.get_edge_data(j[1], j[0], default={'weight':0})['weight'])/2
     color = cmap(line_wt)
     ax_fxn.plot(x, y, z, c=color, alpha=line_wt, linewidth=2)
+# %%
+anat_connect = AC.getConnectivityMatrix('CellCount', diag=None)
+
+shortest_path_distance, shortest_path_steps, shortest_path_weight, hub_count = bridge.getShortestPathStats(anat_connect)
+
+# for anatomical network: direct cell weight vs connectivity weight of shortest path
+direct_dist = (1/AC.getConnectivityMatrix('CellCount', diag=None).to_numpy().T)
+fig3_4, ax = plt.subplots(1, 3, figsize=(12,4))
+step_count = shortest_path_steps - 1
+steps = np.unique(step_count.to_numpy()[AC.upper_inds])
+colors = plt.get_cmap('Set1')(np.arange(len(steps))/len(steps))
+ax[0].plot([1e-4, 1], [1e-4, 1], color=[0.8, 0.8, 0.8], alpha=0.5, linestyle='-')
+for s_ind, s in enumerate(steps):
+    pull_inds = np.where(step_count == s)
+    ax[0].plot(direct_dist[pull_inds], shortest_path_distance.to_numpy()[pull_inds], linestyle='none', marker='.', color=colors[s_ind], label='{:d}'.format(int(s)), alpha=1.0)
+
+ax[0].set_xscale('log')
+ax[0].set_yscale('log')
+ax[0].set_xlabel('Direct distance (1/cells)')
+ax[0].set_ylabel('Shortest path distance (1/cells)');
+ax[0].legend(fontsize='small', fancybox=True);
+
+
+x = np.log10(shortest_path_distance.to_numpy()[AC.upper_inds]) # adjacency matrix gets symmetrized for shortest path algorithms
+y = FC.CorrelationMatrix.to_numpy()[AC.upper_inds]
+steps = shortest_path_steps.to_numpy()[AC.upper_inds]
+
+fc_pts = []
+len_pts = []
+for step_no in range(2, 8):
+    pull_inds = np.where(steps == step_no)
+    fc_pts.append(y[pull_inds])
+    len_pts.append(x[pull_inds])
+
+
+r, p = pearsonr(x, y)
+coef = np.polyfit(x, y, 1)
+linfit = np.poly1d(coef)
+xx = np.linspace(x.min(), x.max(), 100)
+ax[1].plot(10**xx, linfit(xx), color='k', linewidth=2, marker=None)
+
+ax[1].plot(10**x, y, 'ko')
+ax[1].set_title('r = {:.2f}'.format(r));
+ax[1].set_xlabel('Shortest path distance')
+ax[1].set_ylabel('Functional connectivity (z)')
+ax[1].set_xscale('log')
+
+for s_ind, step_no in enumerate(range(1, 7)):
+    avg_y = np.mean(fc_pts[s_ind])
+    err_y = np.std(fc_pts[s_ind])/np.sqrt(len(fc_pts[s_ind]))
+
+    ax[2].plot(step_no, avg_y, 'ko')
+    ax[2].plot([step_no, step_no], [avg_y-err_y, avg_y+err_y], 'k-')
+    ax[2].set_xlabel('Shortest path steps')
+    ax[2].set_ylabel('Functional connectivity (z)')
+    ax[2].set_ylim(ax[1].get_ylim())
 
 
 # %% Dominance analysis
-cell_ct, _ = AC.getAdjacency('CellCount')
+cell_ct, keep_inds = AC.getAdjacency('CellCount', do_log=True)
 synapse_count, _ = AC.getAdjacency('WeightedSynapseCount')
 commoninput, _ = AC.getAdjacency('CommonInputFraction')
-path_length = AC.getShortestPathLength('CellCount').to_numpy()[AC.upper_inds]
-
 completeness = (AC.CompletenessMatrix.to_numpy() + AC.CompletenessMatrix.to_numpy().T) / 2
 
-# X = np.vstack([connectivity,
-#                commoninput[keep_inds],
-#                AC.getShortestPathLength('WeightedSynapseCount').to_numpy()[AC.upper_inds][keep_inds],
-#                FC.SizeMatrix.to_numpy()[FC.upper_inds][keep_inds],
-#                FC.DistanceMatrix.to_numpy()[FC.upper_inds][keep_inds],
-#                AC.CompletenessMatrix.to_numpy()[AC.upper_inds][keep_inds],
-#                FC.CorrelationMatrix.to_numpy()[FC.upper_inds][keep_inds]]).T
+X = np.vstack([
+               cell_ct,
+               synapse_count[keep_inds],
+               commoninput[keep_inds],
+               FC.SizeMatrix.to_numpy()[FC.upper_inds][keep_inds],
+               FC.DistanceMatrix.to_numpy()[FC.upper_inds][keep_inds],
+               completeness[AC.upper_inds][keep_inds],
+               FC.CorrelationMatrix.to_numpy()[FC.upper_inds][keep_inds]]).T
 
-
-# X = np.vstack([cell_ct,
-#                synapse_count,
-#                commoninput,
-#                path_length,
-#                FC.SizeMatrix.to_numpy()[FC.upper_inds],
-#                FC.DistanceMatrix.to_numpy()[FC.upper_inds],
-#                AC.CompletenessMatrix.to_numpy()[AC.upper_inds],
-#                FC.CorrelationMatrix.to_numpy()[FC.upper_inds]]).T
-
-X = np.vstack([cell_ct,
-               synapse_count,
-               commoninput,
-               path_length,
-               FC.SizeMatrix.to_numpy()[FC.upper_inds],
-               FC.DistanceMatrix.to_numpy()[FC.upper_inds],
-               completeness[AC.upper_inds],
-               FC.CorrelationMatrix.to_numpy()[FC.upper_inds]]).T
 
 fig4_1, ax = plt.subplots(1, 1, figsize=(2, 2.2))
 # linear regression model prediction:
@@ -595,8 +610,7 @@ ax.spines['top'].set_visible(False)
 
 r, p = pearsonr(pred, X[:, -1])
 
-
-fc_df = pd.DataFrame(data=X, columns=['Cell count', 'Synapse count', 'Common Input', 'Path length', 'ROI size', 'ROI Distance', 'Completeness', 'fc'])
+fc_df = pd.DataFrame(data=X, columns=['Cell count', 'Synapse count', 'Common Input', 'ROI size', 'ROI Distance', 'Completeness', 'fc'])
 dominance_regression=Dominance(data=fc_df,target='fc',objective=1)
 
 incr_variable_rsquare=dominance_regression.incremental_rsquare()
@@ -608,48 +622,6 @@ fig4_2, ax = plt.subplots(1, 1, figsize=(4.75, 3.5))
 sns.barplot(x=[x.replace(' ','\n') for x in keys[s_inds]], y=vals[s_inds], ax=ax, color=plot_colors[0])
 ax.set_ylabel('Incremental $r^2$')
 ax.tick_params(axis='both', which='major', labelsize=8)
-
- #%%
-SP = AC.getShortestPathLength('WeightedSynapseCount')
-
-x = SP.to_numpy()[AC.upper_inds]
-y = FC.CorrelationMatrix.to_numpy()[FC.upper_inds]
-
-r, p = spearmanr(x, y)
-fh, ax = plt.subplots(1, 1, figsize=(6,4))
-ax.plot(x, y, 'ko')
-ax.set_title('$\\rho$ = {:.2f}'.format(r));
-ax.set_xlabel('Shortest path distance')
-ax.set_ylabel('Functional connectivity (z)')
-
-
-
-
-# %%
-import collections
-
-anat_connect = AC.getConnectivityMatrix('CellCount', diag=None).to_numpy()
-G_anat = nx.from_numpy_matrix(anat_connect)
-
-for e in G_anat.edges:
-    G_anat.edges[e]['distance'] = 1/G_anat.edges[e]['weight']
-
-
-inter_nodes = []
-for row in range(anat_connect.shape[0]):
-    for col in range(anat_connect.shape[1]):
-        step_nodes = list(nx.algorithms.shortest_path(G_anat, source=row, target=col, weight='distance'))
-        if len(step_nodes) > 2:
-            inter_nodes.append(step_nodes)
-            # %%
-len(inter_nodes)
-inter_nodes
-
-
-hub_dict = collections.Counter(np.hstack(inter_nodes))
-
-for k in hub_dict:
-    print('{}: {}; {}'.format(AC.rois[k] , hub_dict[k] , deg_anat[k]))
 
 
 
@@ -723,6 +695,7 @@ cb = fig5_3.colorbar(img, ax=ax)
 cb.set_label(label='Region-average diff.', weight='bold', color='k')
 cb.ax.tick_params(labelsize=12, color='k')
 
+
 # %% subsampled region cmats and SC-FC corr
 anatomical_adjacency, keep_inds = AC.getAdjacency('CellCount', do_log=True)
 
@@ -762,7 +735,7 @@ ax2.set_ylim([0, 1.05])
 # %%
 figs_to_save = [fig1_0, fig1_1, fig1_2, fig1_3, fig1_4,
                 fig2_0, fig2_1, fig2_2,
-                fig3_0, fig3_1, fig3_2, fig3_3,
+                fig3_0, fig3_1, fig3_2, fig3_3, fig3_4,
                 fig4_1, fig4_2,
                 fig5_0, fig5_1, fig5_2, fig5_3,
                 figS1, figS2]

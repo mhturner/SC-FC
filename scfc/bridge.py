@@ -1,3 +1,7 @@
+import networkx as nx
+import numpy as np
+import pandas as pd
+
 def getRoiMapping():
     """
     Include ROIs that are at least 50% in the EM dataset
@@ -44,3 +48,43 @@ def getRoiMapping():
                 'WED(R)': ['WED(R)']}
 
     return mapping
+
+
+def getShortestPathStats(adjacency):
+    """
+    adjacency is pandas dataframe adjacency matrix
+    """
+    roi_names = adjacency.index
+
+    graph = nx.from_numpy_matrix(adjacency.to_numpy())
+
+    for e in graph.edges: #distance := 1 / edge weight
+        graph.edges[e]['distance'] = 1/graph.edges[e]['weight']
+
+    shortest_path_distance = pd.DataFrame(data=np.zeros_like(adjacency), index=roi_names, columns=roi_names)
+    shortest_path_steps = pd.DataFrame(data=np.zeros_like(adjacency), index=roi_names, columns=roi_names)
+    shortest_path_weight = pd.DataFrame(data=np.zeros_like(adjacency), index=roi_names, columns=roi_names)
+    hub_count = pd.DataFrame(data=np.zeros(len(roi_names)), index=roi_names, columns=['count'])
+
+    for r_ind, row in enumerate(roi_names):
+        for c_ind, col in enumerate(roi_names):
+            path = nx.algorithms.dijkstra_path(graph, source=r_ind, target=c_ind, weight='distance')
+
+            path_length = nx.algorithms.dijkstra_path_length(graph, source=r_ind, target=c_ind, weight='distance')
+
+            shortest_path_distance.loc[row, col] = path_length
+            shortest_path_steps.loc[row, col] = len(path)
+
+            new_path_weight = 0
+            for p_ind in range(len(path)-1):
+                a = path[p_ind]
+                b = path[p_ind+1]
+                new_path_weight += adjacency.to_numpy()[a, b]
+
+            shortest_path_weight.loc[row, col] = new_path_weight
+
+            if len(path) > 2:
+                intermediate_nodes = path[1:-1]
+                hub_count.iloc[intermediate_nodes] += 1
+
+    return shortest_path_distance, shortest_path_steps, shortest_path_weight, hub_count
