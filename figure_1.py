@@ -7,7 +7,6 @@ import pandas as pd
 import seaborn as sns
 
 from scfc import bridge, anatomical_connectivity, functional_connectivity, plotting
-
 from matplotlib import rcParams
 rcParams.update({'font.size': 12})
 rcParams.update({'figure.autolayout': True})

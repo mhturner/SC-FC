@@ -3,6 +3,11 @@ import numpy as np
 import pandas as pd
 import os
 import networkx as nx
+"""
+References:
+https://connectome-neuprint.github.io/neuprint-python/docs/index.html
+https://github.com/connectome-neuprint/neuprint-python
+"""
 
 def getRoiCompleteness(neuprint_client, mapping):
     rois = list(mapping.keys())
