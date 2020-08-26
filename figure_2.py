@@ -7,6 +7,7 @@ from scipy.stats import pearsonr
 import pandas as pd
 import seaborn as sns
 from dominance_analysis import Dominance
+from sklearn.model_selection import cross_validate, RepeatedKFold
 
 from scfc import bridge, anatomical_connectivity, functional_connectivity, plotting
 import matplotlib
@@ -104,13 +105,20 @@ pred = regressor.predict(X[:, :-1])
 score = regressor.score(X[:, :-1], X[:, -1])
 ax.plot(pred, X[:, -1], 'k.')
 ax.plot([-0.2, 1.1], [-0.2, 1.1], 'k--')
-ax.set_title('$r^2$={:.2f}'.format(score));
 ax.set_xlabel('Predicted', fontsize=10)
 ax.set_ylabel('Measured', fontsize=10)
 ax.set_xticks([0, 1.0])
 ax.set_yticks([0, 1.0])
 ax.spines['right'].set_visible(False)
 ax.spines['top'].set_visible(False)
+
+# cross-validate linear regression model
+rkf = RepeatedKFold(n_splits=10, n_repeats=100, random_state=0)
+cv_results = cross_validate(regressor, X[:, :-1], X[:, -1], cv=rkf, scoring='r2')
+avg_r2 = cv_results['test_score'].mean()
+err = cv_results['test_score'].std()
+print('r2 = {:.2f}+/-{:.2f}'.format(avg_r2, err))
+ax.set_title('$r^2$={:.2f}'.format(avg_r2));
 
 r, p = pearsonr(pred, X[:, -1])
 
@@ -131,6 +139,73 @@ ax.tick_params(axis='both', which='major', labelsize=8)
 fig2_3.savefig(os.path.join(analysis_dir, 'figpanels', 'Fig2_3.svg'), format='svg', transparent=True)
 fig2_4.savefig(os.path.join(analysis_dir, 'figpanels', 'Fig2_4.svg'), format='svg', transparent=True)
 
+# %% single linear regression with different connectivity metrics
+fig2_5, ax = plt.subplots(1, 3, figsize=(9, 3))
+
+rkf = RepeatedKFold(n_splits=10, n_repeats=100, random_state=0)
+
+# 1: Cell count
+x, keep_inds = AC.getAdjacency('CellCount', do_log=True)
+y = FC.CorrelationMatrix.to_numpy()[FC.upper_inds][keep_inds]
+x = x.reshape(-1, 1)
+
+regressor = LinearRegression()
+regressor.fit(x, y);
+pred = regressor.predict(x)
+cv_results = cross_validate(regressor, x, y, cv=rkf, scoring='r2');
+avg_r2 = cv_results['test_score'].mean()
+err = cv_results['test_score'].std()
+print('r2 = {:.2f}+/-{:.2f}'.format(avg_r2, err))
+ax[0].plot([-0.2, 1.0], 'k--')
+ax[0].plot(pred, y, 'ko', alpha=0.25)
+ax[0].annotate('$r^2$={:.2f}'.format(avg_r2), (-0.15, 0.95))
+ax[0].set_ylabel('Measured FC (z)')
+ax[0].set_xlim([-0.2, 1.0])
+ax[0].set_title('Direct: cell count', fontsize=10)
+
+# 2: Synapse count
+x, keep_inds = AC.getAdjacency('WeightedSynapseCount', do_log=True)
+y = FC.CorrelationMatrix.to_numpy()[FC.upper_inds][keep_inds]
+x = x.reshape(-1, 1)
+
+regressor = LinearRegression()
+regressor.fit(x, y);
+pred = regressor.predict(x)
+cv_results = cross_validate(regressor, x, y, cv=rkf, scoring='r2');
+avg_r2 = cv_results['test_score'].mean()
+err = cv_results['test_score'].std()
+print('r2 = {:.2f}+/-{:.2f}'.format(avg_r2, err))
+ax[1].plot([-0.2, 1.0], 'k--')
+ax[1].plot(pred, y, 'ko', alpha=0.25)
+ax[1].annotate('$r^2$={:.2f}'.format(avg_r2), (-0.15, 0.95))
+ax[1].set_xlabel('Predicted FC (z)')
+ax[1].set_xlim([-0.2, 1.0])
+ax[1].set_title('Direct: synapse count', fontsize=10)
+
+# 3: Shortest path length
+anat_connect = AC.getConnectivityMatrix('CellCount', diag=None)
+shortest_path_distance, shortest_path_steps, shortest_path_weight, hub_count = bridge.getShortestPathStats(anat_connect)
+
+x = np.log10(((shortest_path_distance.T + shortest_path_distance.T)/2).to_numpy()[FC.upper_inds])
+
+# x, keep_inds = AC.getAdjacency('WeightedSynapseCount', do_log=True)
+y = FC.CorrelationMatrix.to_numpy()[FC.upper_inds]
+x = x.reshape(-1, 1)
+
+regressor = LinearRegression()
+regressor.fit(x, y);
+pred = regressor.predict(x)
+cv_results = cross_validate(regressor, x, y, cv=rkf, scoring='r2');
+avg_r2 = cv_results['test_score'].mean()
+err = cv_results['test_score'].std()
+print('r2 = {:.2f}+/-{:.2f}'.format(avg_r2, err))
+ax[2].plot([-0.2, 1.0], 'k--')
+ax[2].plot(pred, y, 'ko', alpha=0.25)
+ax[2].annotate('$r^2$={:.2f}'.format(avg_r2), (-0.15, 0.95))
+ax[2].set_xlim([-0.2, 1.0])
+ax[2].set_title('Shortest path distance', fontsize=10)
+
+fig2_5.savefig(os.path.join(analysis_dir, 'figpanels', 'Fig2_5.svg'), format='svg', transparent=True)
 
 # %% Basic SC-FC with synapse count
 figS2_0, ax = plt.subplots(1, 2, figsize=(10, 5))
