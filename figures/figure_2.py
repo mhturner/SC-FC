@@ -188,7 +188,6 @@ shortest_path_distance, shortest_path_steps, shortest_path_weight, hub_count = b
 
 x = np.log10(((shortest_path_distance.T + shortest_path_distance.T)/2).to_numpy()[FC.upper_inds])
 
-# x, keep_inds = AC.getAdjacency('WeightedSynapseCount', do_log=True)
 y = FC.CorrelationMatrix.to_numpy()[FC.upper_inds]
 x = x.reshape(-1, 1)
 
