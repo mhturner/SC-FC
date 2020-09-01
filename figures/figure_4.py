@@ -5,6 +5,7 @@ import os
 from scipy.stats import zscore
 import pandas as pd
 import seaborn as sns
+import socket
 
 from scfc import bridge, anatomical_connectivity, functional_connectivity, plotting
 import matplotlib
@@ -13,9 +14,14 @@ rcParams.update({'font.size': 12})
 rcParams.update({'figure.autolayout': True})
 rcParams.update({'axes.spines.right': False})
 rcParams.update({'axes.spines.top': False})
+rcParams['svg.fonttype'] = 'none'  # let illustrator handle the font type
 
-data_dir = '/home/mhturner/Dropbox/ClandininLab/Analysis/SC-FC/data'
-analysis_dir = '/home/mhturner/Dropbox/ClandininLab/Analysis/SC-FC'
+if socket.gethostname() == 'MHT-laptop':  # windows
+    data_dir = r'C:\Users\mhturner/Dropbox/ClandininLab/Analysis/SC-FC/data'
+    analysis_dir = r'C:\Users\mhturner/Dropbox/ClandininLab/Analysis/SC-FC'
+elif socket.gethostname() == 'max-laptop':  # linux
+    data_dir = '/home/mhturner/Dropbox/ClandininLab/Analysis/SC-FC/data'
+    analysis_dir = '/home/mhturner/Dropbox/ClandininLab/Analysis/SC-FC'
 
 # start client
 neuprint_client = Client('neuprint.janelia.org', dataset='hemibrain:v1.1', token=bridge.getNeuprintToken())
@@ -143,9 +149,9 @@ for r_ind, r in enumerate(AC.rois):
 # %% Average diffs within super-regions, look at fly-to-fly variability and compare super-regions
 from scipy.stats import ttest_1samp
 
-regions = {'MB': ['MBCA(R)', 'MBML(R)','MBML(L)','MBPED(R)', 'MBVL(R)'],
+regions = {'MB': ['MBCA(R)', 'MBML(R)', 'MBML(L)', 'MBPED(R)', 'MBVL(R)'],
            'CX': ['EB', 'FB', 'PB', 'NO'],
-           'LX': ['BU(L)', 'BU(R)','LAL(R)'],
+           'LX': ['BU(L)', 'BU(R)', 'LAL(R)'],
            'VLNP': ['AOTU(R)', 'AVLP(R)', 'PVLP(R)', 'PLP(R)', 'WED(R)'],
            'SNP': ['SLP(R)', 'SIP(R)', 'SMP(R)', 'SMP(L)'],
            'INP': ['CRE(L)', 'CRE(R)', 'SCL(R)', 'ICL(R)', 'IB', 'ATL(L)', 'ATL(R)'],
@@ -173,7 +179,7 @@ for c_ind in range(FC.cmats.shape[2]):
     diff_m[keep_inds_diff] = diff
     diff_by_region.append(diff_m.mean(axis=0))
 
-diff_by_region = np.vstack(diff_by_region).T # region x fly
+diff_by_region = np.vstack(diff_by_region).T  # region x fly
 
 fig4_6, ax = plt.subplots(1, 1, figsize=(7, 3.5))
 ax.axhline(0, color=[0.8, 0.8, 0.8], linestyle='-', zorder=0)
@@ -182,7 +188,7 @@ p_vals = pd.DataFrame(data=np.zeros((1, len(regions))), columns=regions.keys())
 DiffBySuperRegion = pd.DataFrame(data=np.zeros((20, len(regions))), columns=regions.keys())
 for r_ind, reg in enumerate(regions):
     in_inds = np.where([r in regions[reg] for r in FC.rois])[0]
-    in_diffs = np.mean(diff_by_region[in_inds, :], axis=0) #  mean across all regions in super-region
+    in_diffs = np.mean(diff_by_region[in_inds, :], axis=0)  #  mean across all regions in super-region
     DiffBySuperRegion.loc[:, reg] = in_diffs
     _, p = ttest_1samp(in_diffs, 0)
     p_vals.loc[:, reg] = p

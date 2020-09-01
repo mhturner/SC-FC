@@ -13,11 +13,12 @@ rcParams.update({'font.size': 12})
 rcParams.update({'figure.autolayout': True})
 rcParams.update({'axes.spines.right': False})
 rcParams.update({'axes.spines.top': False})
+rcParams['svg.fonttype'] = 'none' # let illustrator handle the font type
 
-if socket.gethostname() == 'MHT-laptop': # windows
+if socket.gethostname() == 'MHT-laptop':  # windows
     data_dir = r'C:\Users\mhturner/Dropbox/ClandininLab/Analysis/SC-FC/data'
     analysis_dir = r'C:\Users\mhturner/Dropbox/ClandininLab/Analysis/SC-FC'
-elif socket.gethostname() == 'max-laptop': #linux
+elif socket.gethostname() == 'max-laptop':  # linux
     data_dir = '/home/mhturner/Dropbox/ClandininLab/Analysis/SC-FC/data'
     analysis_dir = '/home/mhturner/Dropbox/ClandininLab/Analysis/SC-FC'
 
@@ -43,12 +44,12 @@ fig1_0, ax = plt.subplots(2, 1, figsize=(5, 5))
 ax = ax.ravel()
 fig1_0.tight_layout(w_pad=2, h_pad=8)
 
-figS1, axS1 = plt.subplots(4, 9, figsize=(18,6))
+figS1, axS1 = plt.subplots(4, 9, figsize=(18, 6))
 axS1 = axS1.ravel()
 
 z_scored_data = []
 for p_ind, pr in enumerate(AC.getConnectivityMatrix('CellCount').index):
-    outbound = AC.getConnectivityMatrix('CellCount').loc[pr,:]
+    outbound = AC.getConnectivityMatrix('CellCount').loc[pr, :]
     outbound = outbound.sort_values(ascending=False)
     ki = np.where(outbound > 0)
     ct = outbound.iloc[ki]
@@ -79,7 +80,7 @@ for p_ind, pr in enumerate(AC.getConnectivityMatrix('CellCount').index):
     axS1[p_ind].set_ylim([0.2, 5e4])
 
     if pr in pull_regions:
-        eg_ind = np.where(pr==np.array(pull_regions))[0][0]
+        eg_ind = np.where(pr == np.array(pull_regions))[0][0]
         ax[eg_ind].fill_between(list(range(len(mod_mean))), err_up, err_down, color='k', alpha=0.4)
         ax[eg_ind].plot(mod_mean, 'k--')
         ax[eg_ind].plot(ct, marker='o', linestyle='none')
@@ -98,7 +99,7 @@ for p_ind, pr in enumerate(AC.getConnectivityMatrix('CellCount').index):
 fig1_0.text(-0.01, 0.6, 'Connecting cells', va='center', rotation='vertical', fontsize=14)
 figS1.text(-0.01, 0.5, 'Connections from source region (cells)', va='center', rotation='vertical', fontsize=14)
 
-frac_inside_shading = np.sum(np.abs(np.hstack(z_scored_data)) <=2) / np.hstack(z_scored_data).size
+frac_inside_shading = np.sum(np.abs(np.hstack(z_scored_data)) <= 2) / np.hstack(z_scored_data).size
 
 p_vals = []
 for arr in z_scored_data:
@@ -133,7 +134,7 @@ ax[0].set_xticks([1e-2, 1, 1e2])
 ax[1].plot([10**-4, 10**4], [10**-4, 10**4], 'k--')
 quants = np.linspace(0, 1, 20)
 for q in quants:
-    th_pts = np.quantile(theory_distr, q, axis=1) # quantile value for each iteration
+    th_pts = np.quantile(theory_distr, q, axis=1)  # quantile value for each iteration
     ax[1].plot([10**np.quantile(data, q), 10**np.quantile(data, q)], [10**(np.mean(th_pts) - 2*np.std(th_pts)), 10**(np.mean(th_pts) + 2*np.std(th_pts))], color=plot_colors[0])
     ax[1].plot(10**np.quantile(data, q), 10**np.mean(th_pts), marker='o', color=plot_colors[0])
 ax[1].set_xlabel('Data quantile')
@@ -151,9 +152,8 @@ figS1.savefig(os.path.join(analysis_dir, 'figpanels', 'FigS1.svg'), format='svg'
 pull_regions = ['AL(R)', 'CAN(R)', 'LH(R)', 'SPS(R)']
 pull_inds = [np.where(np.array(FC.rois) == x)[0][0] for x in pull_regions]
 
-ind = 11 # eg brain ind
-resp_fp = FC.response_filepaths[ind]
-voxel_size = [3, 3, 3] # um, xyz
+resp_fp = os.path.join(data_dir, 'region_responses', '2018-11-03_5.pkl')
+voxel_size = [3, 3, 3]  # um, xyz
 
 brain_str = '2018-11-03_5'
 brain_fn = 'func_volreg_{}_meanbrain.nii'.format(brain_str)
@@ -173,9 +173,9 @@ zslices = [12, 45]
 fig1_2 = plt.figure(figsize=(1.5, 4))
 for z_ind, z in enumerate(zslices):
     ax = fig1_2.add_subplot(3, 1, z_ind+2)
-    ax.annotate('z={} $\mu m$'.format(z*voxel_size[2]), (1, 14), color='w', fontsize=10)
+    ax.annotate('z={} $ \mu m$'.format(z*voxel_size[2]), (1, 14), color='w', fontsize=10)
 
-    overlay = plotting.overlayImage(meanbrain, masks, 0.5, colors=colors, z=z) + 60 # arbitrary brighten here for visualization
+    overlay = plotting.overlayImage(meanbrain, masks, 0.5, colors=colors, z=z) + 60  # arbitrary brighten here for visualization
 
     img = ax.imshow(np.swapaxes(overlay, 0, 1), rasterized=False)
     ax.set_axis_off()
@@ -183,11 +183,11 @@ for z_ind, z in enumerate(zslices):
 
 ax = fig1_2.add_subplot(3, 1, 1)
 ax.imshow(np.mean(meanbrain, axis=2).T, cmap='inferno')
-ax.annotate('Mean proj.'.format(z), (23, 14), color='w', fontsize=10)
+ax.annotate('Mean proj.', (23, 14), color='w', fontsize=10)
 ax.set_axis_off()
 ax.set_aspect('equal')
 
-dx = 100 # um
+dx = 100  # um
 dx_pix = int(dx / voxel_size[0])
 ax.plot([5, dx_pix], [120, 120], 'w-')
 

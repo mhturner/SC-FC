@@ -7,6 +7,7 @@ from scipy.stats import pearsonr
 import pandas as pd
 import seaborn as sns
 from sklearn.model_selection import cross_validate, RepeatedKFold
+import socket
 
 from scfc import bridge, anatomical_connectivity, functional_connectivity, plotting
 import matplotlib
@@ -15,9 +16,15 @@ rcParams.update({'font.size': 12})
 rcParams.update({'figure.autolayout': True})
 rcParams.update({'axes.spines.right': False})
 rcParams.update({'axes.spines.top': False})
+rcParams['svg.fonttype'] = 'none' # let illustrator handle the font type
+rcParams['pdf.fonttype'] = 42
 
-data_dir = '/home/mhturner/Dropbox/ClandininLab/Analysis/SC-FC/data'
-analysis_dir = '/home/mhturner/Dropbox/ClandininLab/Analysis/SC-FC'
+if socket.gethostname() == 'MHT-laptop':  # windows
+    data_dir = r'C:\Users\mhturner/Dropbox/ClandininLab/Analysis/SC-FC/data'
+    analysis_dir = r'C:\Users\mhturner/Dropbox/ClandininLab/Analysis/SC-FC'
+elif socket.gethostname() == 'max-laptop':  # linux
+    data_dir = '/home/mhturner/Dropbox/ClandininLab/Analysis/SC-FC/data'
+    analysis_dir = '/home/mhturner/Dropbox/ClandininLab/Analysis/SC-FC'
 
 # start client
 neuprint_client = Client('neuprint.janelia.org', dataset='hemibrain:v1.1', token=bridge.getNeuprintToken())
@@ -54,7 +61,7 @@ r, p = pearsonr(anatomical_adjacency, functional_adjacency)
 coef = np.polyfit(anatomical_adjacency, functional_adjacency, 1)
 linfit = np.poly1d(coef)
 
-fig2_1, ax = plt.subplots(1,1,figsize=(3.5, 3.5))
+fig2_1, ax = plt.subplots(1,1,figsize=(4, 4))
 ax.plot(10**anatomical_adjacency, functional_adjacency, color='k', marker='o', linestyle='none', alpha=0.25)
 xx = np.linspace(anatomical_adjacency.min(), anatomical_adjacency.max(), 100)
 ax.plot(10**xx, linfit(xx), color='k', linewidth=2, marker=None)
@@ -71,13 +78,13 @@ for c_ind in range(FC.cmats.shape[2]):
     r_new, _ = pearsonr(anatomical_adjacency, functional_adjacency_new)
     r_vals.append(r_new)
 
-fig2_2, ax = plt.subplots(1,1,figsize=(1.75, 3.15))
+fig2_2, ax = plt.subplots(1, 1, figsize=(1.75, 3.5))
 fig2_2.tight_layout(pad=4)
 sns.stripplot(x=np.ones_like(r_vals), y=r_vals, color='k')
 sns.violinplot(y=r_vals)
 ax.set_ylabel('Structure-function corr. (z)')
 ax.set_xticks([])
-ax.set_ylim([0, 1]);
+ax.set_ylim([0, 1])
 
 
 fig2_0.savefig(os.path.join(analysis_dir, 'figpanels', 'Fig2_0.svg'), format='svg', transparent=True)
@@ -154,7 +161,7 @@ ax[2].set_xlim([-0.2, 1.0])
 ax[2].set_title('Shortest path distance', fontsize=10)
 ax[2].set_aspect('equal')
 
-fig2_5.savefig(os.path.join(analysis_dir, 'figpanels', 'Fig2_5.svg'), format='svg', transparent=True)
+fig2_5.savefig(os.path.join(analysis_dir, 'figpanels', 'Fig2_5.pdf'), format='pdf', transparent=True)
 
 # %% Basic SC-FC with synapse count
 figS2_0, ax = plt.subplots(1, 2, figsize=(10, 5))
@@ -179,8 +186,8 @@ r, p = pearsonr(anatomical_adjacency, functional_adjacency)
 coef = np.polyfit(anatomical_adjacency, functional_adjacency, 1)
 linfit = np.poly1d(coef)
 
-figS2_1, ax = plt.subplots(1,1,figsize=(3.5, 3.5))
-ax.plot(10**anatomical_adjacency, functional_adjacency, color='k', marker='o', linestyle='none')
+figS2_1, ax = plt.subplots(1,1,figsize=(4, 4))
+ax.plot(10**anatomical_adjacency, functional_adjacency, color='k', marker='o', linestyle='none', alpha=0.25)
 xx = np.linspace(anatomical_adjacency.min(), anatomical_adjacency.max(), 100)
 ax.plot(10**xx, linfit(xx), color='k', linewidth=2, marker=None)
 ax.set_xscale('log')
@@ -196,7 +203,7 @@ for c_ind in range(FC.cmats.shape[2]):
     r_new, _ = pearsonr(anatomical_adjacency, functional_adjacency_new)
     r_vals.append(r_new)
 
-figS2_2, ax = plt.subplots(1,1,figsize=(1.75, 3.15))
+figS2_2, ax = plt.subplots(1,1,figsize=(1.75, 3.5))
 figS2_2.tight_layout(pad=4)
 sns.stripplot(x=np.ones_like(r_vals), y=r_vals, color='k')
 sns.violinplot(y=r_vals)

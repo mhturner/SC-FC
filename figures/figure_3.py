@@ -4,6 +4,7 @@ import numpy as np
 import networkx as nx
 from scipy.stats import pearsonr
 import os
+import socket
 
 from scfc import bridge, anatomical_connectivity, functional_connectivity, plotting
 import matplotlib
@@ -12,9 +13,14 @@ rcParams.update({'font.size': 12})
 rcParams.update({'figure.autolayout': True})
 rcParams.update({'axes.spines.right': False})
 rcParams.update({'axes.spines.top': False})
+rcParams['svg.fonttype'] = 'none' # let illustrator handle the font type
 
-data_dir = '/home/mhturner/Dropbox/ClandininLab/Analysis/SC-FC/data'
-analysis_dir = '/home/mhturner/Dropbox/ClandininLab/Analysis/SC-FC'
+if socket.gethostname() == 'MHT-laptop':  # windows
+    data_dir = r'C:\Users\mhturner/Dropbox/ClandininLab/Analysis/SC-FC/data'
+    analysis_dir = r'C:\Users\mhturner/Dropbox/ClandininLab/Analysis/SC-FC'
+elif socket.gethostname() == 'max-laptop':  # linux
+    data_dir = '/home/mhturner/Dropbox/ClandininLab/Analysis/SC-FC/data'
+    analysis_dir = '/home/mhturner/Dropbox/ClandininLab/Analysis/SC-FC'
 
 # start client
 neuprint_client = Client('neuprint.janelia.org', dataset='hemibrain:v1.1', token=bridge.getNeuprintToken())
@@ -117,7 +123,7 @@ for r_ind, r in enumerate(FC.rois):
 
 ax[0].set_xlabel('Structural')
 ax[0].set_ylabel('Functional')
-ax[0].set_ylim([0, 34.5])
+ax[0].set_ylim([0, 37])
 
 clust_fxn = np.real(np.array(list(nx.clustering(G_fxn, weight='weight').values())))
 clust_anat = np.array(list(nx.clustering(G_anat, weight='weight').values()))
@@ -128,7 +134,7 @@ for r_ind, r in enumerate(FC.rois):
         ax[1].annotate(r, (clust_anat[r_ind]+0.002, clust_fxn[r_ind]-0.003), fontsize=8, fontweight='bold')
 ax[1].set_xlabel('Structural')
 ax[1].set_ylabel('Functional')
-ax[1].set_ylim([0, 0.38])
+ax[1].set_ylim([0, 0.445])
 ax[1].set_xlim([0, 0.124])
 
 fig3_1.savefig(os.path.join(analysis_dir, 'figpanels', 'Fig3_1.svg'), format='svg', transparent=True)
@@ -139,7 +145,7 @@ shortest_path_distance, shortest_path_steps, shortest_path_weight, hub_count = b
 
 # for anatomical network: direct cell weight vs connectivity weight of shortest path
 direct_dist = (1/AC.getConnectivityMatrix('CellCount', diag=None).to_numpy())
-fig3_2, ax = plt.subplots(1, 2, figsize=(7,3.5))
+fig3_2, ax = plt.subplots(1, 2, figsize=(7, 3.5))
 step_count = shortest_path_steps - 1
 steps = np.unique(step_count.to_numpy()[AC.upper_inds])
 colors = plt.get_cmap('Set1')(np.arange(len(steps))/len(steps))
@@ -155,7 +161,7 @@ ax[0].set_ylabel('Shortest path distance (1/cells)');
 ax[0].legend(fontsize='small', fancybox=True);
 
 
-x = np.log10(shortest_path_distance.to_numpy()[AC.upper_inds]) # adjacency matrix gets symmetrized for shortest path algorithms
+x = np.log10(shortest_path_distance.to_numpy()[AC.upper_inds])  # adjacency matrix gets symmetrized for shortest path algorithms
 y = FC.CorrelationMatrix.to_numpy()[AC.upper_inds]
 steps = shortest_path_steps.to_numpy()[AC.upper_inds]
 
@@ -173,7 +179,7 @@ linfit = np.poly1d(coef)
 xx = np.linspace(x.min(), x.max(), 100)
 ax[1].plot(10**xx, linfit(xx), color='k', linewidth=2, marker=None)
 
-ax[1].plot(10**x, y, 'ko')
+ax[1].plot(10**x, y, 'ko', alpha=0.25)
 ax[1].set_title('r = {:.2f}'.format(r));
 ax[1].set_xlabel('Shortest path distance')
 ax[1].set_ylabel('Functional connectivity (z)')
