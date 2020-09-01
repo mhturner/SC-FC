@@ -42,8 +42,7 @@ anatomical_adjacency_diff = np.log10(anatomical_mat[keep_inds_diff])
 
 F_zscore = zscore(functional_adjacency_diff)
 A_zscore = zscore(anatomical_adjacency_diff)
-diff = A_zscore - F_zscore
-
+diff = F_zscore - A_zscore
 
 diff_m = np.zeros_like(anatomical_mat)
 diff_m[keep_inds_diff] = diff
@@ -52,7 +51,7 @@ DifferenceMatrix = pd.DataFrame(data=diff_m, index=FC.rois, columns=FC.rois)
 
 # %% sort difference matrix by most to least different rois
 diff_by_region = DifferenceMatrix.mean()
-sort_inds = np.argsort(diff_by_region)
+sort_inds = np.argsort(diff_by_region)[::-1]
 sort_keys = DifferenceMatrix.index[sort_inds]
 sorted_diff = pd.DataFrame(data=np.zeros_like(DifferenceMatrix),columns=sort_keys, index=sort_keys)
 for r_ind, r_key in enumerate(sort_keys):
@@ -67,7 +66,7 @@ ax.set_xlabel('Structural Conn. (z-score)')
 ax.set_ylabel('Functional Conn. (z-score)');
 
 fig4_1, ax = plt.subplots(1, 1, figsize=(4.5, 4.5))
-sns.heatmap(sorted_diff, ax=ax, yticklabels=True, xticklabels=True, cbar_kws={'label': 'Difference (SC - FC)','shrink': .65}, cmap="RdBu", rasterized=True, vmin=-lim, vmax=lim)
+sns.heatmap(sorted_diff, ax=ax, yticklabels=True, xticklabels=True, cbar_kws={'label': 'Difference (FC - SC)','shrink': .65}, cmap="RdBu", rasterized=True, vmin=-lim, vmax=lim)
 ax.set_aspect('equal')
 ax.tick_params(axis='both', which='major', labelsize=7)
 
@@ -165,10 +164,10 @@ for c_ind in range(FC.cmats.shape[2]):
     cmat = FC.cmats[:, :, c_ind]
     functional_adj = cmat[keep_inds_diff]
 
-    F_zscore = zscore(functional_adj)
-    A_zscore = zscore(anatomical_adj)
+    F_zscore_fly = zscore(functional_adj)
+    A_zscore_fly = zscore(anatomical_adj)
 
-    diff = A_zscore - F_zscore
+    diff = F_zscore_fly - A_zscore_fly
 
     diff_m = np.zeros_like(anatomical_mat)
     diff_m[keep_inds_diff] = diff
@@ -190,7 +189,7 @@ for r_ind, reg in enumerate(regions):
 
 
 # sort super regions by mean
-sort_inds = DiffBySuperRegion.mean().sort_values().index
+sort_inds = DiffBySuperRegion.mean().sort_values().index[::-1]
 DiffBySuperRegion_sorted = DiffBySuperRegion.reindex(sort_inds, axis=1)
 p_vals_sorted = p_vals.reindex(sort_inds, axis=1)
 
@@ -200,7 +199,7 @@ sns.stripplot(data=DiffBySuperRegion_sorted, color='k')
 sns.violinplot(data=DiffBySuperRegion_sorted, palette=sns.color_palette('deep', 8))
 
 # ax.set_ylim([-1.2, 1.2])
-ax.set_ylabel('Region avg. difference (SC - FC)')
+ax.set_ylabel('Region avg. difference (FC - SC)')
 
 colors = sns.color_palette('deep', 8)
 
