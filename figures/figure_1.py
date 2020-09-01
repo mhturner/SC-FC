@@ -126,7 +126,6 @@ ax[0].set_ylabel('Probability')
 ax[0].set_xscale('log')
 
 # Q-Q plot of log-transformed data vs. fit normal distribution
-
 ax[1].plot([10**-4, 10**4], [10**-4, 10**4], 'k--')
 quants = np.linspace(0, 1, 20)
 for q in quants:
@@ -150,6 +149,7 @@ pull_inds = [np.where(np.array(FC.rois) == x)[0][0] for x in pull_regions]
 
 ind = 11 # eg brain ind
 resp_fp = FC.response_filepaths[ind]
+voxel_size = [3, 3, 3] # um, xyz
 
 brain_str = '2018-11-03_5'
 brain_fn = 'func_volreg_{}_meanbrain.nii'.format(brain_str)
@@ -166,16 +166,26 @@ cmap = plt.get_cmap('Set2')
 colors = cmap(np.arange(len(pull_regions))/len(pull_regions))
 
 zslices = [12, 45]
-fig1_2 = plt.figure(figsize=(2,4))
+fig1_2 = plt.figure(figsize=(1.5, 4))
 for z_ind, z in enumerate(zslices):
-    ax = fig1_2.add_subplot(2, 1, z_ind+1)
+    ax = fig1_2.add_subplot(3, 1, z_ind+2)
+    ax.annotate('z={} $\mu m$'.format(z*voxel_size[2]), (1, 14), color='w', fontsize=10)
 
-    overlay = plotting.overlayImage(meanbrain, masks, 0.5, colors=colors, z=z) + 50
+    overlay = plotting.overlayImage(meanbrain, masks, 0.5, colors=colors, z=z) + 60 # arbitrary brighten here for visualization
 
     img = ax.imshow(np.swapaxes(overlay, 0, 1), rasterized=False)
     ax.set_axis_off()
     ax.set_aspect('equal')
 
+ax = fig1_2.add_subplot(3, 1, 1)
+ax.imshow(np.mean(meanbrain, axis=2).T, cmap='inferno')
+ax.annotate('Mean proj.'.format(z), (23, 14), color='w', fontsize=10)
+ax.set_axis_off()
+ax.set_aspect('equal')
+
+dx = 100 # um
+dx_pix = int(dx / voxel_size[0])
+ax.plot([5, dx_pix], [120, 120], 'w-')
 
 # # TODO: put this df/f processing stuff in functional_connectivity
 fs = 1.2 # Hz
