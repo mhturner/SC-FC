@@ -11,6 +11,8 @@ import matplotlib
 from matplotlib import rcParams
 rcParams.update({'font.size': 12})
 rcParams.update({'figure.autolayout': True})
+rcParams.update({'axes.spines.right': False})
+rcParams.update({'axes.spines.top': False})
 
 data_dir = '/home/mhturner/Dropbox/ClandininLab/Analysis/SC-FC/data'
 analysis_dir = '/home/mhturner/Dropbox/ClandininLab/Analysis/SC-FC'
@@ -152,7 +154,7 @@ regions = {'MB': ['MBCA(R)', 'MBML(R)','MBML(L)','MBPED(R)', 'MBVL(R)'],
            # 'PENP': ['CAN(R)'],
            'AL/LH': ['AL(R)', 'LH(R)']
          }
-np.array(colors)[7,:]
+
 # log transform anatomical connectivity values
 anatomical_mat = AC.getConnectivityMatrix('CellCount', diag=0).to_numpy().copy()
 keep_inds_diff = np.where(anatomical_mat > 0)
@@ -181,7 +183,7 @@ p_vals = pd.DataFrame(data=np.zeros((1, len(regions))), columns=regions.keys())
 DiffBySuperRegion = pd.DataFrame(data=np.zeros((20, len(regions))), columns=regions.keys())
 for r_ind, reg in enumerate(regions):
     in_inds = np.where([r in regions[reg] for r in FC.rois])[0]
-    in_diffs = np.mean(diff_by_region[in_inds, :], axis=0) #  mean across all regions
+    in_diffs = np.mean(diff_by_region[in_inds, :], axis=0) #  mean across all regions in super-region
     DiffBySuperRegion.loc[:, reg] = in_diffs
     _, p = ttest_1samp(in_diffs, 0)
     p_vals.loc[:, reg] = p
@@ -196,9 +198,6 @@ print(p_vals_sorted)
 
 sns.stripplot(data=DiffBySuperRegion_sorted, color='k')
 sns.violinplot(data=DiffBySuperRegion_sorted, palette=sns.color_palette('deep', 8))
-ax.spines['right'].set_visible(False)
-ax.spines['top'].set_visible(False)
-
 
 # ax.set_ylim([-1.2, 1.2])
 ax.set_ylabel('Region avg. difference (SC - FC)')

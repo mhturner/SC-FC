@@ -77,3 +77,58 @@ ax2.set_ylim([0, 1.05])
 ax2.set_xscale('log')
 
 figS3.savefig(os.path.join(analysis_dir, 'figpanels', 'FigS3.svg'), format='svg', transparent=True)
+
+# %% Dominance analysis
+cell_ct, keep_inds = AC.getAdjacency('CellCount', do_log=True)
+commoninput, _ = AC.getAdjacency('CommonInputFraction')
+completeness = (AC.CompletenessMatrix.to_numpy() + AC.CompletenessMatrix.to_numpy().T) / 2
+
+X = np.vstack([
+               cell_ct,
+               commoninput[keep_inds],
+               FC.SizeMatrix.to_numpy()[FC.upper_inds][keep_inds],
+               FC.DistanceMatrix.to_numpy()[FC.upper_inds][keep_inds],
+               completeness[AC.upper_inds][keep_inds],
+               FC.CorrelationMatrix.to_numpy()[FC.upper_inds][keep_inds]]).T
+
+figS4, ax = plt.subplots(1, 1, figsize=(2, 2.2))
+# linear regression model prediction:
+regressor = LinearRegression()
+regressor.fit(X[:, :-1], X[:, -1]);
+pred = regressor.predict(X[:, :-1])
+score = regressor.score(X[:, :-1], X[:, -1])
+ax.plot(pred, X[:, -1], 'k.')
+ax.plot([-0.2, 1.1], [-0.2, 1.1], 'k--')
+ax.set_xlabel('Predicted', fontsize=10)
+ax.set_ylabel('Measured', fontsize=10)
+ax.set_xticks([0, 1.0])
+ax.set_yticks([0, 1.0])
+ax.spines['right'].set_visible(False)
+ax.spines['top'].set_visible(False)
+
+# cross-validate linear regression model
+rkf = RepeatedKFold(n_splits=10, n_repeats=100, random_state=0)
+cv_results = cross_validate(regressor, X[:, :-1], X[:, -1], cv=rkf, scoring='r2')
+avg_r2 = cv_results['test_score'].mean()
+err = cv_results['test_score'].std()
+print('r2 = {:.2f}+/-{:.2f}'.format(avg_r2, err))
+ax.set_title('$r^2$={:.2f}'.format(avg_r2));
+
+r, p = pearsonr(pred, X[:, -1])
+
+fc_df = pd.DataFrame(data=X, columns=['Cell count', 'Common Input', 'ROI size', 'ROI Distance', 'Completeness', 'fc'])
+dominance_regression=Dominance(data=fc_df,target='fc',objective=1)
+
+incr_variable_rsquare=dominance_regression.incremental_rsquare()
+keys = np.array(list(incr_variable_rsquare.keys()))
+vals = np.array(list(incr_variable_rsquare.values()))
+s_inds = np.argsort(vals)[::-1]
+
+figS5, ax = plt.subplots(1, 1, figsize=(4.75, 3.5))
+sns.barplot(x=[x.replace(' ','\n') for x in keys[s_inds]], y=vals[s_inds], ax=ax, color=plot_colors[0])
+ax.set_ylabel('Incremental $r^2$')
+ax.tick_params(axis='both', which='major', labelsize=8)
+
+
+figS4.savefig(os.path.join(analysis_dir, 'figpanels', 'FigS4.svg'), format='svg', transparent=True)
+figS5.savefig(os.path.join(analysis_dir, 'figpanels', 'FigS5.svg'), format='svg', transparent=True)

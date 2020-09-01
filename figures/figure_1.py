@@ -10,6 +10,8 @@ from scfc import bridge, anatomical_connectivity, functional_connectivity, plott
 from matplotlib import rcParams
 rcParams.update({'font.size': 12})
 rcParams.update({'figure.autolayout': True})
+rcParams.update({'axes.spines.right': False})
+rcParams.update({'axes.spines.top': False})
 
 data_dir = '/home/mhturner/Dropbox/ClandininLab/Analysis/SC-FC/data'
 analysis_dir = '/home/mhturner/Dropbox/ClandininLab/Analysis/SC-FC'
@@ -86,7 +88,7 @@ for p_ind, pr in enumerate(AC.getConnectivityMatrix('CellCount').index):
             tick.set_rotation(90)
             tick.set_fontsize(8)
 
-        ax[eg_ind].annotate('Source: {}'.format(pr), (12, mod_mean[0]), fontsize=14)
+        ax[eg_ind].annotate('Source: {}'.format(pr), (12, 1e4), fontsize=14)
 
 fig1_0.text(-0.01, 0.6, 'Connecting cells', va='center', rotation='vertical', fontsize=14)
 figS1.text(-0.01, 0.5, 'Connections from source region (cells)', va='center', rotation='vertical', fontsize=14)

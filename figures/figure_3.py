@@ -10,6 +10,8 @@ import matplotlib
 from matplotlib import rcParams
 rcParams.update({'font.size': 12})
 rcParams.update({'figure.autolayout': True})
+rcParams.update({'axes.spines.right': False})
+rcParams.update({'axes.spines.top': False})
 
 data_dir = '/home/mhturner/Dropbox/ClandininLab/Analysis/SC-FC/data'
 analysis_dir = '/home/mhturner/Dropbox/ClandininLab/Analysis/SC-FC'
@@ -34,6 +36,9 @@ adjacency_anat = AC.getConnectivityMatrix('CellCount', symmetrize=True, diag=0).
 adjacency_fxn = FC.CorrelationMatrix.to_numpy().copy()
 np.fill_diagonal(adjacency_fxn, 0)
 
+# normalize each adjacency
+adjacency_anat = adjacency_anat / adjacency_anat.max()
+adjacency_fxn = adjacency_fxn / adjacency_fxn.max()
 # %% Plot fxn and anat graphs in 3D brain space
 
 take_top_pct = 0.2 # top fraction to include in network graphs
@@ -108,10 +113,11 @@ plotting.addLinearFit(ax[0], deg_anat, deg_fxn, alpha=0.5)
 ax[0].plot(deg_anat, deg_fxn, alpha=1.0, marker='o', linestyle='none')
 for r_ind, r in enumerate(FC.rois):
     if r in roilabels_to_show:
-        ax[0].annotate(r, (deg_anat[r_ind]+500, deg_fxn[r_ind]-0.2), fontsize=8, fontweight='bold')
+        ax[0].annotate(r, (deg_anat[r_ind]+0.4, deg_fxn[r_ind]-0.2), fontsize=8, fontweight='bold')
 
 ax[0].set_xlabel('Structural')
 ax[0].set_ylabel('Functional')
+ax[0].set_ylim([0, 34.5])
 
 clust_fxn = np.real(np.array(list(nx.clustering(G_fxn, weight='weight').values())))
 clust_anat = np.array(list(nx.clustering(G_anat, weight='weight').values()))
@@ -122,6 +128,8 @@ for r_ind, r in enumerate(FC.rois):
         ax[1].annotate(r, (clust_anat[r_ind]+0.002, clust_fxn[r_ind]-0.003), fontsize=8, fontweight='bold')
 ax[1].set_xlabel('Structural')
 ax[1].set_ylabel('Functional')
+ax[1].set_ylim([0, 0.38])
+ax[1].set_xlim([0, 0.124])
 
 fig3_1.savefig(os.path.join(analysis_dir, 'figpanels', 'Fig3_1.svg'), format='svg', transparent=True)
 # %% Shortest path analysis:
