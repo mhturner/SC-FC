@@ -5,6 +5,7 @@ import os
 from scipy.stats import norm, zscore, kstest, pearsonr
 import pandas as pd
 import seaborn as sns
+import socket
 
 from scfc import bridge, anatomical_connectivity, functional_connectivity, plotting
 from matplotlib import rcParams
@@ -13,8 +14,12 @@ rcParams.update({'figure.autolayout': True})
 rcParams.update({'axes.spines.right': False})
 rcParams.update({'axes.spines.top': False})
 
-data_dir = '/home/mhturner/Dropbox/ClandininLab/Analysis/SC-FC/data'
-analysis_dir = '/home/mhturner/Dropbox/ClandininLab/Analysis/SC-FC'
+if socket.gethostname() == 'MHT-laptop': # windows
+    data_dir = r'C:\Users\mhturner/Dropbox/ClandininLab/Analysis/SC-FC/data'
+    analysis_dir = r'C:\Users\mhturner/Dropbox/ClandininLab/Analysis/SC-FC'
+elif socket.gethostname() == 'max-laptop': #linux
+    data_dir = '/home/mhturner/Dropbox/ClandininLab/Analysis/SC-FC/data'
+    analysis_dir = '/home/mhturner/Dropbox/ClandininLab/Analysis/SC-FC'
 
 # start client
 neuprint_client = Client('neuprint.janelia.org', dataset='hemibrain:v1.1', token=bridge.getNeuprintToken())
@@ -119,14 +124,12 @@ xx = np.linspace(-3.5, 3.5)
 ax[0].plot(10**xx, norm_model.pdf(xx), linewidth=2, color='k', linestyle='--')
 ax[0].plot(10**bin_ctrs, val, linewidth=3)
 ax[0].set_xscale('log')
-ticks = [1e-2, 1, 1e2]
-ax[0].set_xticks(ticks)
 ax[0].set_xlabel('Cell count (z-scored)')
 ax[0].set_ylabel('Probability')
 ax[0].set_xscale('log')
+ax[0].set_xticks([1e-2, 1, 1e2])
 
 # Q-Q plot of log-transformed data vs. fit normal distribution
-
 ax[1].plot([10**-4, 10**4], [10**-4, 10**4], 'k--')
 quants = np.linspace(0, 1, 20)
 for q in quants:
@@ -178,12 +181,12 @@ for z_ind, z in enumerate(zslices):
 
 
 # # TODO: put this df/f processing stuff in functional_connectivity
-fs = 1.2 # Hz
+fs = 1.2  # Hz
 cutoff = 0.01
 
 x_start = 200
-dt = 300 #datapts
-timevec = np.arange(0, dt) / fs # sec
+dt = 300  # datapts
+timevec = np.arange(0, dt) / fs  # sec
 
 file_id = resp_fp.split('/')[-1].replace('.pkl', '')
 region_response = pd.read_pickle(resp_fp)
