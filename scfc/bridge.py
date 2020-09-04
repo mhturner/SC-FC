@@ -1,6 +1,7 @@
 import networkx as nx
 import numpy as np
 import pandas as pd
+from scipy.stats import norm
 
 def getNeuprintToken():
     token = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6Im1heHdlbGxob2x0ZXR1cm5lckBnbWFpbC5jb20iLCJsZXZlbCI6Im5vYXV0aCIsImltYWdlLXVybCI6Imh0dHBzOi8vbGgzLmdvb2dsZXVzZXJjb250ZW50LmNvbS9hLS9BT2gxNEdpMHJRX0M4akliX0ZrS2h2OU5DSElsWlpnRDY5YUMtVGdNLWVWM3lRP3N6PTUwP3N6PTUwIiwiZXhwIjoxNzY2MTk1MzcwfQ.Q-57D4tX2sXMjWym2LFhHaUGHgHiUsIM_JI9xekxw_0'
@@ -96,3 +97,75 @@ def getShortestPathStats(adjacency, alg='dijkstra'):
                 hub_count.iloc[intermediate_nodes] += 1
 
     return shortest_path_distance, shortest_path_steps, shortest_path_weight, hub_count
+
+
+def getLognormShuffle(adj):
+    """
+    adj is pd DataFrame adjacency matrix
+    """
+    shuff = pd.DataFrame(data=np.zeros_like(adj), index=adj.index, columns=adj.columns)
+    for r in adj.index:
+        ct = adj.loc[r, :]
+        ki = np.where(ct > 0)
+        ct = ct.iloc[ki]
+        lognorm_model = norm(loc=np.mean(np.log10(ct)), scale=np.std(np.log10(ct)))
+        shuff.loc[r, :] = 10**lognorm_model.rvs(size=len(shuff.columns))
+
+    return shuff
+
+def getAllShuffle(adj):
+    """
+    adj is pd DataFrame adjacency matrix
+    """
+    tmp = adj.to_numpy().copy()
+    np.random.shuffle(tmp.flat)
+    shuff = pd.DataFrame(data=tmp, index=adj.index, columns=adj.columns)
+
+    return shuff
+
+def getRowShuffle(adj):
+    """
+    adj is pd DataFrame adjacency matrix
+    """
+    tmp = adj.to_numpy().copy()
+    tmp = np.random.permutation(tmp) # shuffle rows
+    shuff = pd.DataFrame(data=tmp, index=adj.index, columns=adj.columns)
+
+    return shuff
+
+def getColShuffle(adj):
+    """
+    adj is pd DataFrame adjacency matrix
+    """
+    tmp = adj.to_numpy().copy()
+    tmp = np.random.permutation(tmp.T).T #shuffle cols and T back
+    shuff = pd.DataFrame(data=tmp, index=adj.index, columns=adj.columns)
+
+    return shuff
+
+def getRandomAdjacency_modeled(adj, model='lognorm'):
+    """
+    Make random adjacency with randomly distributed connectivity
+    mean + std matched to adj
+    adj is pd DataFrame adjacency matrix
+    """
+
+    ct = adj.to_numpy().ravel()
+    ct = ct[np.where(ct > 0)]
+    if model == 'lognorm':
+        rand_model = norm(loc=np.mean(np.log10(ct)), scale=np.std(np.log10(ct)))
+    elif model == 'norm':
+        rand_model = norm(loc=np.mean(ct), scale=np.std(ct))
+
+    rand_adj = pd.DataFrame(data=np.zeros_like(adj), index=adj.index, columns=adj.columns)
+    for r in rand_adj.index:
+        for c in rand_adj.columns:
+            if model == 'lognorm':
+                new_val = 10**rand_model.rvs()
+            elif model == 'norm':
+                new_val = rand_model.rvs()
+                if new_val < 0:
+                    new_val = 0
+            rand_adj.loc[r, c] = new_val
+
+    return rand_adj
