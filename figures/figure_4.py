@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 from neuprint import Client
 import numpy as np
 import os
-from scipy.stats import zscore
+from scipy.stats import zscore, pearsonr
 import pandas as pd
 import seaborn as sns
 import socket
@@ -145,9 +145,28 @@ ax.set_ylabel('PC 2')
 for r_ind, r in enumerate(AC.rois):
     ax.annotate(r, (u[r_ind, 0], u[r_ind, 1]), fontsize=8, fontweight='bold')
 
+# %%
+from scipy.spatial.distance import pdist
 
+# 1) Embed anatomical graph using node2vec
+max_path = 6
+n_nodes = len(FC.rois)
+
+adj = AC.getConnectivityMatrix('CellCount', symmetrize=True, diag=0).to_numpy()
+G = nx.from_numpy_matrix(adj, create_using=nx.DiGraph)
+n2v = Node2Vec(graph=G, walk_length=20, num_walks=10*n_nodes, dimensions=20, q=0.5, p=0.5)
+w2v = n2v.fit(sg=1, seed=1)
+embedding_w2v = np.vstack([np.array(w2v[str(u)]) for u in sorted(G.nodes)]) # n_nodes x n_dimensions
+
+# %%
+w2v_distance = pdist(embedding_w2v)
+
+r, p = pearsonr(w2v_distance, FC.CorrelationMatrix.to_numpy()[FC.upper_inds])
+fh, ax = plt.subplots(1, 1, figsize=(6, 4))
+ax.plot(w2v_distance, FC.CorrelationMatrix.to_numpy()[FC.upper_inds], 'ko')
+ax.set_title(r)
 # %% Average diffs within super-regions, look at fly-to-fly variability and compare super-regions
-from scipy.stats import ttest_1samp
+from scipy.stats import ttest_1samp, ttest_ind
 
 regions = {'MB': ['MBCA(R)', 'MBML(R)', 'MBML(L)', 'MBPED(R)', 'MBVL(R)'],
            'CX': ['EB', 'FB', 'PB', 'NO'],
@@ -186,11 +205,23 @@ ax.axhline(0, color=[0.8, 0.8, 0.8], linestyle='-', zorder=0)
 
 p_vals = pd.DataFrame(data=np.zeros((1, len(regions))), columns=regions.keys())
 DiffBySuperRegion = pd.DataFrame(data=np.zeros((20, len(regions))), columns=regions.keys())
+ShuffledDiffByRegion = np.zeros(shape=(20, len(regions), iterations))
 for r_ind, reg in enumerate(regions):
     in_inds = np.where([r in regions[reg] for r in FC.rois])[0]
-    in_diffs = np.mean(diff_by_region[in_inds, :], axis=0)  #  mean across all regions in super-region
+    in_diffs = np.mean(diff_by_region[in_inds, :], axis=0)  #  mean across all regions in super-region, for each fly
     DiffBySuperRegion.loc[:, reg] = in_diffs
-    _, p = ttest_1samp(in_diffs, 0)
+
+    # Shuffle super-region indices to do bootstrap comparison
+    iterations = 100
+    shuffle_diffs = []
+    for it in range(iterations):
+        shuffle_inds = np.random.choice(np.arange(0,len(FC.rois)), len(in_inds), replace=False)
+        new_diffs = np.mean(diff_by_region[shuffle_inds, :], axis=0)  #  mean across all regions in super-region
+        shuffle_diffs.append(new_diffs) # iterations x flies
+    shuffle_diffs = np.vstack(shuffle_diffs)
+
+    _, p = ttest_ind(shuffle_diffs.ravel(), in_diffs)
+
     p_vals.loc[:, reg] = p
 
 
@@ -211,6 +242,6 @@ colors = sns.color_palette('deep', 8)
 
 sns.palplot(colors)
 np.array(colors)
-fig4_4.savefig(os.path.join(analysis_dir, 'figpanels', 'Fig4_4.svg'), format='svg', transparent=True)
-fig4_5.savefig(os.path.join(analysis_dir, 'figpanels', 'Fig4_5.svg'), format='svg', transparent=True)
+# fig4_4.savefig(os.path.join(analysis_dir, 'figpanels', 'Fig4_4.svg'), format='svg', transparent=True)
+# fig4_5.savefig(os.path.join(analysis_dir, 'figpanels', 'Fig4_5.svg'), format='svg', transparent=True)
 fig4_6.savefig(os.path.join(analysis_dir, 'figpanels', 'Fig4_6.svg'), format='svg', transparent=True)
