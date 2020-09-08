@@ -9,6 +9,7 @@ def addLinearFit(ax, x, y, alpha=1):
     xx = np.linspace(x.min(), x.max(), 100)
     ax.plot(xx, linfit(xx), 'k-', linewidth=2, alpha=alpha)
     print('r = {:.2f}'.format(r))
+    return r, p
 
 
 def addScaleBars(axis, dT, dF, T_value=-0.1, F_value=-0.4):

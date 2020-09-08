@@ -91,8 +91,17 @@ fig2_0.savefig(os.path.join(analysis_dir, 'figpanels', 'Fig2_0.svg'), format='sv
 fig2_1.savefig(os.path.join(analysis_dir, 'figpanels', 'Fig2_1.svg'), format='svg', transparent=True)
 fig2_2.savefig(os.path.join(analysis_dir, 'figpanels', 'Fig2_2.svg'), format='svg', transparent=True)
 
+# %%
+anatomical_adjacency, keep_inds = AC.getAdjacency('CellCount', do_log=True)
+functional_adjacency = FC.CorrelationMatrix.to_numpy()[FC.upper_inds][keep_inds]
+r_shuffle = []
+for it in range(1000):
+    fa = np.random.permutation(functional_adjacency.copy())
 
+    r_new, _ = pearsonr(anatomical_adjacency, fa)
+    r_shuffle.append(r_new)
 
+plt.hist(r_shuffle, 20);
 # %% single linear regression with different connectivity metrics
 fig2_5, ax = plt.subplots(1, 3, figsize=(9, 3.5))
 
