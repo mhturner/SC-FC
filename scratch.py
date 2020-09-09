@@ -35,24 +35,27 @@ plot_colors = plt.get_cmap('tab10')(np.arange(8)/8)
 
 # %%
 
-src = 0
-trg = 18
+ConnectivityMatrix = AC.getConnectivityMatrix(type='WeightedSynapseCount', symmetrize=True, diag=np.nan)
+CorrelationMatrix = FC.CorrelationMatrix.copy()
+roi_completeness = anatomical_connectivity.getRoiCompleteness(neuprint_client, bridge.getRoiMapping())
 
-anat_connect = AC.getConnectivityMatrix('CellCount', diag=0)
-adj = anat_connect.to_numpy()
+# completeness threshold
+thresh = 0.3
+exclude_rois = np.where(roi_completeness.loc[:, 'completeness'] < thresh)[0]
+ConnectivityMatrix.iloc[exclude_rois, :] = np.nan
+ConnectivityMatrix.iloc[:, exclude_rois] = np.nan
 
-graph = nx.from_numpy_matrix(adj, create_using=nx.DiGraph)
+CorrelationMatrix.iloc[exclude_rois, :] = np.nan
+CorrelationMatrix.iloc[:, exclude_rois] = np.nan
 
-flows = np.zeros((len(AC.rois), len(AC.rois)))
-for r in range(len(AC.rois)):
-    for c in range(len(AC.rois)):
-        if r != c:
-            flow_val, flow_dict = nx.flow.maximum_flow(graph, _s=r, _t=c, capacity='weight')
-            flows[r, c] = flow_val
+keep_inds = np.where(ConnectivityMatrix.to_numpy()[AC.upper_inds] > 0) # for log-transforming anatomical connectivity, toss zero values
+sc_adjacency = np.log10(ConnectivityMatrix.to_numpy().copy()[AC.upper_inds][keep_inds])
+fc_adjacency = CorrelationMatrix.to_numpy().copy()[FC.upper_inds][keep_inds]
 
-# %%
-f_conn = (flows + flows.T)/2
-f_conn = f_conn[AC.upper_inds]
-fc = FC.CorrelationMatrix.to_numpy()[FC.upper_inds]
+r, p = pearsonr(sc_adjacency, fc_adjacency)
 
-plt.plot(f_conn, fc, 'ko')
+fh, ax = plt.subplots(1, 3, figsize=(12,4))
+ax[0].imshow(ConnectivityMatrix)
+ax[1].imshow(CorrelationMatrix)
+ax[2].plot(sc_adjacency, fc_adjacency, 'ko')
+ax[2].set_title('r={:.2f}'.format(r))

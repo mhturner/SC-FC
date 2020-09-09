@@ -90,6 +90,7 @@ def computeConnectivityMatrix(neuprint_client, mapping):
     StrongConnections = pd.DataFrame(data=np.zeros((len(rois), len(rois))), index=rois, columns=rois)
     Connectivity = pd.DataFrame(data=np.zeros((len(rois), len(rois))), index=rois, columns=rois)
     WeightedSynapseNumber = pd.DataFrame(data=np.zeros((len(rois), len(rois))), index=rois, columns=rois)
+    TBars = pd.DataFrame(data=np.zeros((len(rois), len(rois))), index=rois, columns=rois)
 
     # CommonInputFraction: each row is fraction of total input cells that also project to region in [col]
     CommonInputFraction = pd.DataFrame(data=np.zeros((len(rois), len(rois))), index=rois, columns=rois)
@@ -105,6 +106,7 @@ def computeConnectivityMatrix(neuprint_client, mapping):
             weighted_synapse_number = 0
             total_cells_to_a = 0
             shared_cells_to_ab = 0
+            tbars = 0
             for s_ind, sour in enumerate(sources): # this multiple sources/targets is necessary for collapsing rois based on mapping
                 for targ in targets:
                     Neur, Syn = fetch_neurons(NeuronCriteria(inputRois=sour, outputRois=targ, status='Traced'))
@@ -123,12 +125,15 @@ def computeConnectivityMatrix(neuprint_client, mapping):
                     #       := output tbars (presynapses) in targ * (input (post)synapses in sour)/(total (post)synapses onto that cell)
                     weighted_synapses = [Neur.roiInfo[x][targ]['pre'] * (Neur.roiInfo[x][sour]['post'] / Neur.loc[x, 'post']) for x in range(len(Neur))]
 
+                    new_tbars = [Neur.roiInfo[x][targ]['pre'] for x in range(len(Neur))]
+
                     if Neur.roiInfo.shape[0] > 0:
                         summed_connectivity += np.sum(conn_strengths)
                         weighted_synapse_number += np.sum(weighted_synapses)
                         weak_neurons += n_weak
                         medium_neurons += n_medium
                         strong_neurons += n_strong
+                        tbars += np.sum(new_tbars)
 
                     # Common input fraction
                     Neur_a, _ = fetch_neurons(NeuronCriteria(outputRois=sour, status='Traced')) # row in comon input matrix
@@ -150,11 +155,12 @@ def computeConnectivityMatrix(neuprint_client, mapping):
 
             Connectivity.loc[[roi_source], [roi_target]] = summed_connectivity
             WeightedSynapseNumber.loc[[roi_source], [roi_target]] = weighted_synapse_number
+            TBars.loc[[roi_source], [roi_target]] = tbars
 
             CommonInputFraction.loc[[roi_source], [roi_target]] = shared_cells_to_ab / total_cells_to_a
 
 
-    return WeakConnections, MediumConnections, StrongConnections, Connectivity, WeightedSynapseNumber, CommonInputFraction
+    return WeakConnections, MediumConnections, StrongConnections, Connectivity, WeightedSynapseNumber, TBars, CommonInputFraction
 
 
 class AnatomicalConnectivity():
