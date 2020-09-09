@@ -185,7 +185,7 @@ class AnatomicalConnectivity():
 
     def getConnectivityMatrix(self, type, symmetrize=False, diag=None, computed_date=None):
         if computed_date is None:
-            computed_date = '20200812'
+            computed_date = '20200909'
 
         if type == 'CellCount':
             """
@@ -204,6 +204,11 @@ class AnatomicalConnectivity():
             """
             """
             conn_mat = pd.read_pickle(os.path.join(self.data_dir, 'connectome_connectivity', 'WeightedSynapseNumber_computed_{}.pkl'.format(computed_date)))
+
+        elif type == 'TBars':
+            """
+            """
+            conn_mat = pd.read_pickle(os.path.join(self.data_dir, 'connectome_connectivity', 'TBars_computed_{}.pkl'.format(computed_date)))
 
         elif type == 'CommonInputFraction':
             """
