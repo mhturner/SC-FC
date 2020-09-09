@@ -148,8 +148,8 @@ direct_dist = (1/AC.getConnectivityMatrix('CellCount', diag=None).to_numpy())
 fig3_2, ax = plt.subplots(1, 2, figsize=(7, 3.5))
 step_count = shortest_path_steps - 1
 steps = np.unique(step_count.to_numpy()[AC.upper_inds])
-colors = plt.get_cmap('Set1')(np.arange(len(steps))/len(steps))
-ax[0].plot([1e-4, 1], [1e-4, 1], color=[0.8, 0.8, 0.8], alpha=0.5, linestyle='-')
+colors = plt.get_cmap('Dark2')(np.arange(len(steps))/len(steps))
+ax[0].plot([2e-4, 1], [2e-4, 1], color=[0.8, 0.8, 0.8], alpha=0.5, linestyle='-')
 for s_ind, s in enumerate(steps):
     pull_inds = np.where(step_count == s)
     ax[0].plot(direct_dist[pull_inds], shortest_path_distance.to_numpy()[pull_inds], linestyle='none', marker='.', color=colors[s_ind], label='{:d}'.format(int(s)), alpha=1.0)
@@ -159,6 +159,8 @@ ax[0].set_yscale('log')
 ax[0].set_xlabel('Direct distance (1/cells)')
 ax[0].set_ylabel('Shortest path distance (1/cells)');
 ax[0].legend(fontsize='small', fancybox=True);
+ax[0].set_ylim([2e-4, 3e-2])
+
 
 
 x = np.log10(shortest_path_distance.to_numpy()[AC.upper_inds])  # adjacency matrix gets symmetrized for shortest path algorithms
@@ -172,7 +174,6 @@ for step_no in range(2, 8):
     fc_pts.append(y[pull_inds])
     len_pts.append(x[pull_inds])
 
-
 r, p = pearsonr(x, y)
 coef = np.polyfit(x, y, 1)
 linfit = np.poly1d(coef)
@@ -184,14 +185,14 @@ ax[1].set_xlabel('Shortest path distance')
 ax[1].set_ylabel('Functional connectivity (z)')
 ax[1].set_xscale('log')
 
-bins = np.linspace(x.min(), x.max(), 6)
+bins = np.linspace(x.min(), x.max(), 11)
 for b_ind in range(len(bins)-1):
     inds = np.logical_and(x>bins[b_ind], x<bins[b_ind+1])
     bin_mean_x = x[inds].mean()
     bin_mean = y[inds].mean()
     bin_spread = np.quantile(y[inds], (0.05, 0.95))
     ax[1].plot(10**bin_mean_x, bin_mean, 'ks', alpha=1, linestyle='none')
-    ax[1].plot([10**bin_mean_x, 10**bin_mean_x], bin_spread, 'k-', alpha=1, linewidth=2)
+    ax[1].plot([10**bin_mean_x, 10**bin_mean_x], bin_spread, linestyle='-', marker='None', color='k', alpha=1, linewidth=2)
 
 fig3_2.savefig(os.path.join(analysis_dir, 'figpanels', 'Fig3_2.svg'), format='svg', transparent=True)
 

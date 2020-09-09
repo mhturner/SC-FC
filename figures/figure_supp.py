@@ -133,7 +133,7 @@ figS4.savefig(os.path.join(analysis_dir, 'figpanels', 'FigS4.svg'), format='svg'
 # 1) Binarize and compute random adjacency
 anat_connect = AC.getConnectivityMatrix('CellCount', diag=0)
 
-thresh_quant = 0.55 # quantile
+thresh_quant = 0.5 # quantile
 threshold = np.quantile(anat_connect.to_numpy().ravel(), thresh_quant)
 adj_data = anat_connect > threshold
 adj_data = adj_data.to_numpy().astype('int')
