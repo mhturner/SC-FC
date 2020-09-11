@@ -44,12 +44,12 @@ fig1_0, ax = plt.subplots(2, 1, figsize=(5, 5))
 ax = ax.ravel()
 fig1_0.tight_layout(w_pad=2, h_pad=8)
 
-figS1, axS1 = plt.subplots(4, 9, figsize=(18, 6))
+figS1_0, axS1 = plt.subplots(4, 9, figsize=(18, 6))
 axS1 = axS1.ravel()
 
 z_scored_data = []
-for p_ind, pr in enumerate(AC.getConnectivityMatrix('CellCount').index):
-    outbound = AC.getConnectivityMatrix('CellCount').loc[pr, :]
+for p_ind, pr in enumerate(ConnectivityCount.index):
+    outbound = ConnectivityCount.loc[pr, :]
     outbound = outbound.sort_values(ascending=False)
     ki = np.where(outbound > 0)
     ct = outbound.iloc[ki]
@@ -97,7 +97,7 @@ for p_ind, pr in enumerate(AC.getConnectivityMatrix('CellCount').index):
         ax[eg_ind].annotate('Source: {}'.format(pr), (12, 1e4), fontsize=14)
 
 fig1_0.text(-0.01, 0.6, 'Connecting cells', va='center', rotation='vertical', fontsize=14)
-figS1.text(-0.01, 0.5, 'Connections from source region (cells)', va='center', rotation='vertical', fontsize=14)
+figS1_0.text(-0.01, 0.5, 'Connections from source region (cells)', va='center', rotation='vertical', fontsize=14)
 
 frac_inside_shading = np.sum(np.abs(np.hstack(z_scored_data)) <= 2) / np.hstack(z_scored_data).size
 
@@ -145,9 +145,9 @@ ticks = [1e-2, 1, 1e2]
 ax[1].set_xticks(ticks)
 ax[1].set_yticks(ticks)
 
-fig1_0.savefig(os.path.join(analysis_dir, 'figpanels', 'Fig1_0.svg'), format='svg', transparent=True)
-fig1_1.savefig(os.path.join(analysis_dir, 'figpanels', 'Fig1_1.svg'), format='svg', transparent=True)
-figS1.savefig(os.path.join(analysis_dir, 'figpanels', 'FigS1.svg'), format='svg', transparent=True)
+fig1_0.savefig(os.path.join(analysis_dir, 'figpanels', 'fig1_0.svg'), format='svg', transparent=True)
+fig1_1.savefig(os.path.join(analysis_dir, 'figpanels', 'fig1_1.svg'), format='svg', transparent=True)
+figS1_0.savefig(os.path.join(analysis_dir, 'figpanels', 'figS1_0.svg'), format='svg', transparent=True)
 # %% Eg region traces and cross corrs
 pull_regions = ['AL(R)', 'CAN(R)', 'LH(R)', 'SPS(R)']
 pull_inds = [np.where(np.array(FC.rois) == x)[0][0] for x in pull_regions]
@@ -251,6 +251,6 @@ for ind_1, eg1 in enumerate(pull_regions):
 
 plotting.addScaleBars(ax[0, 0], dT=-30, dF=0.25, T_value=time[-1], F_value=-0.15)
 sns.despine(top=True, right=True, left=True, bottom=True)
-fig1_2.savefig(os.path.join(analysis_dir, 'figpanels', 'Fig1_2.svg'), format='svg', transparent=True)
-fig1_3.savefig(os.path.join(analysis_dir, 'figpanels', 'Fig1_3.svg'), format='svg', transparent=True)
-fig1_4.savefig(os.path.join(analysis_dir, 'figpanels', 'Fig1_4.svg'), format='svg', transparent=True)
+fig1_2.savefig(os.path.join(analysis_dir, 'figpanels', 'fig1_2.svg'), format='svg', transparent=True)
+fig1_3.savefig(os.path.join(analysis_dir, 'figpanels', 'fig1_3.svg'), format='svg', transparent=True)
+fig1_4.savefig(os.path.join(analysis_dir, 'figpanels', 'fig1_4.svg'), format='svg', transparent=True)

@@ -1,5 +1,5 @@
 import matplotlib.pyplot as plt
-from neuprint import Client
+from neuprint import Client, fetch_neurons, NeuronCriteria
 import numpy as np
 import networkx as nx
 from scipy.stats import pearsonr, spearmanr
@@ -33,31 +33,109 @@ AC = anatomical_connectivity.AnatomicalConnectivity(data_dir=data_dir, neuprint_
 
 plot_colors = plt.get_cmap('tab10')(np.arange(8)/8)
 
+
 # %%
+# %% regression model on shortest path steps
+fig2_6, ax = plt.subplots(1, 3, figsize=(9, 3.5))
 
-ConnectivityMatrix = AC.getConnectivityMatrix(type='TBars', symmetrize=True, diag=np.nan)
-CorrelationMatrix = FC.CorrelationMatrix.copy()
-roi_completeness = anatomical_connectivity.getRoiCompleteness(neuprint_client, bridge.getRoiMapping())
-roi_completeness
-# completeness threshold
-thresh = 0.0
-exclude_rois = np.where(roi_completeness.loc[:, 'frac_pre'] < thresh)[0]
-ConnectivityMatrix.iloc[exclude_rois, :] = np.nan
-ConnectivityMatrix.iloc[:, exclude_rois] = np.nan
+rkf = RepeatedKFold(n_splits=10, n_repeats=100, random_state=0)
 
-CorrelationMatrix.iloc[exclude_rois, :] = np.nan
-CorrelationMatrix.iloc[:, exclude_rois] = np.nan
+# 1: Cell count
+anat_connect = AC.getConnectivityMatrix('CellCount', diag=None)
+shortest_path_distance, shortest_path_steps, shortest_path_weight, hub_count = bridge.getShortestPathStats(anat_connect)
+x = np.log10(((shortest_path_distance.T + shortest_path_distance.T)/2).to_numpy()[FC.upper_inds])
+y = FC.CorrelationMatrix.to_numpy()[FC.upper_inds]
+x = x.reshape(-1, 1)
 
-keep_inds = np.where(ConnectivityMatrix.to_numpy()[AC.upper_inds] > 0) # for log-transforming anatomical connectivity, toss zero values
-# sc_adjacency = np.log10(ConnectivityMatrix.to_numpy().copy()[AC.upper_inds][keep_inds])
-sc_adjacency = np.log10(ConnectivityMatrix.to_numpy().copy()[AC.upper_inds][keep_inds])
+regressor = LinearRegression()
+regressor.fit(x, y);
+pred = regressor.predict(x)
+cv_results = cross_validate(regressor, x, y, cv=rkf, scoring='r2');
+avg_r2 = cv_results['test_score'].mean()
+err = cv_results['test_score'].std()
+print('r2 = {:.2f}+/-{:.2f}'.format(avg_r2, err))
+ax[0].plot([-0.2, 1.0], [-0.2, 1.0], 'k--')
+ax[0].plot(pred, y, 'ko', alpha=0.25)
+ax[0].annotate('$r^2$={:.2f}'.format(avg_r2), (-0.15, 0.95))
+ax[0].set_ylabel('Measured FC (z)')
+ax[0].set_xlim([-0.2, 1.0])
+ax[0].set_title('Cell count', fontsize=10)
+ax[0].set_aspect('equal')
 
-fc_adjacency = CorrelationMatrix.to_numpy().copy()[FC.upper_inds][keep_inds]
+# 2: Synapse count
+anat_connect = AC.getConnectivityMatrix('WeightedSynapseCount', diag=None)
+shortest_path_distance, shortest_path_steps, shortest_path_weight, hub_count = bridge.getShortestPathStats(anat_connect)
+x = np.log10(((shortest_path_distance.T + shortest_path_distance.T)/2).to_numpy()[FC.upper_inds])
+y = FC.CorrelationMatrix.to_numpy()[FC.upper_inds]
+x = x.reshape(-1, 1)
 
-r, p = pearsonr(sc_adjacency, fc_adjacency)
+regressor = LinearRegression()
+regressor.fit(x, y);
+pred = regressor.predict(x)
+cv_results = cross_validate(regressor, x, y, cv=rkf, scoring='r2');
+avg_r2 = cv_results['test_score'].mean()
+err = cv_results['test_score'].std()
+print('r2 = {:.2f}+/-{:.2f}'.format(avg_r2, err))
+ax[1].plot([-0.2, 1.0], [-0.2, 1.0], 'k--')
+ax[1].plot(pred, y, 'ko', alpha=0.25)
+ax[1].annotate('$r^2$={:.2f}'.format(avg_r2), (-0.15, 0.95))
+ax[1].set_xlabel('Predicted FC (z)')
+ax[1].set_xlim([-0.2, 1.0])
+ax[1].set_title('Weighted synapse count', fontsize=10)
+ax[1].set_aspect('equal')
 
-fh, ax = plt.subplots(1, 3, figsize=(12,4))
-ax[0].imshow(ConnectivityMatrix)
-ax[1].imshow(CorrelationMatrix)
-ax[2].plot(sc_adjacency, fc_adjacency, 'ko', alpha=0.25)
-ax[2].set_title('r={:.2f}'.format(r))
+# 3: Tbars
+anat_connect = AC.getConnectivityMatrix('TBars', diag=None)
+shortest_path_distance, shortest_path_steps, shortest_path_weight, hub_count = bridge.getShortestPathStats(anat_connect)
+x = np.log10(((shortest_path_distance.T + shortest_path_distance.T)/2).to_numpy()[FC.upper_inds])
+y = FC.CorrelationMatrix.to_numpy()[FC.upper_inds]
+x = x.reshape(-1, 1)
+
+regressor = LinearRegression()
+regressor.fit(x, y);
+pred = regressor.predict(x)
+cv_results = cross_validate(regressor, x, y, cv=rkf, scoring='r2');
+avg_r2 = cv_results['test_score'].mean()
+err = cv_results['test_score'].std()
+print('r2 = {:.2f}+/-{:.2f}'.format(avg_r2, err))
+ax[2].plot([-0.2, 1.0], [-0.2, 1.0], 'k--')
+ax[2].plot(pred, y, 'ko', alpha=0.25)
+ax[2].annotate('$r^2$={:.2f}'.format(avg_r2), (-0.15, 0.95))
+ax[2].set_xlim([-0.2, 1.0])
+ax[2].set_title('T-Bar count', fontsize=10)
+ax[2].set_aspect('equal')
+
+fig2_6.suptitle('Shortest path connectivity')
+# fig2_6.savefig(os.path.join(analysis_dir, 'figpanels', 'Fig2_6.pdf'), format='pdf', transparent=True)
+
+# %% multiple regression model to try to get highest r2
+
+fh, ax = plt.subplots(1, 1, figsize=(4, 4))
+# Cell ct + tbars
+sp_cell_count, _, _, _ = bridge.getShortestPathStats(AC.getConnectivityMatrix('CellCount', diag=None))
+sp_tbars, _, _, _ = bridge.getShortestPathStats(AC.getConnectivityMatrix('TBars', diag=None))
+
+x = np.vstack([
+               np.log10(((sp_cell_count.T + sp_cell_count.T)/2).to_numpy()[FC.upper_inds]),
+               np.log10(((sp_tbars.T + sp_tbars.T)/2).to_numpy()[FC.upper_inds]),
+               FC.SizeMatrix.to_numpy()[FC.upper_inds],
+               FC.DistanceMatrix.to_numpy()[FC.upper_inds],
+               ]).T
+
+
+y = FC.CorrelationMatrix.to_numpy()[FC.upper_inds]
+# x = x.reshape(-1, 1)
+
+regressor = LinearRegression()
+regressor.fit(x, y);
+pred = regressor.predict(x)
+cv_results = cross_validate(regressor, x, y, cv=rkf, scoring='r2');
+avg_r2 = cv_results['test_score'].mean()
+err = cv_results['test_score'].std()
+print('r2 = {:.2f}+/-{:.2f}'.format(avg_r2, err))
+ax.plot([-0.2, 1.0], [-0.2, 1.0], 'k--')
+ax.plot(pred, y, 'ko', alpha=0.25)
+ax.annotate('$r^2$={:.2f}'.format(avg_r2), (-0.15, 0.95))
+ax.set_xlim([-0.2, 1.0])
+ax.set_title('Multiple regression model', fontsize=10)
+ax.set_aspect('equal')

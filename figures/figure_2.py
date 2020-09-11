@@ -3,11 +3,12 @@ from neuprint import Client
 import numpy as np
 import os
 from sklearn.linear_model import LinearRegression
-from scipy.stats import pearsonr, ttest_ind
+from scipy.stats import pearsonr, ttest_ind, spearmanr, ttest_rel
 import pandas as pd
 import seaborn as sns
 from sklearn.model_selection import cross_validate, RepeatedKFold
 import socket
+import glob
 
 from scfc import bridge, anatomical_connectivity, functional_connectivity, plotting
 import matplotlib
@@ -66,258 +67,127 @@ ax.plot(10**anatomical_adjacency, functional_adjacency, color='k', marker='o', l
 xx = np.linspace(anatomical_adjacency.min(), anatomical_adjacency.max(), 100)
 ax.plot(10**xx, linfit(xx), color='k', linewidth=2, marker=None)
 ax.set_xscale('log')
-ax.set_xlabel('Anatomical adjacency (cells)')
+ax.set_xlabel('Cell Count')
 ax.set_ylabel('Functional correlation (z)')
-ax.annotate('r = {:.2f}'.format(r), xy=(1, 1.0));
+ax.annotate('r = {:.2f}'.format(r), xy=(0.8, 1.1));
 
-r_vals = []
-for c_ind in range(FC.cmats.shape[2]):
-    cmat = FC.cmats[:, :, c_ind]
-    functional_adjacency_new = cmat[FC.upper_inds][keep_inds]
+metrics = ['CellCount', 'WeightedSynapseCount', 'TBars', 'CommonInputFraction', 'Size', 'Nearness']
+R_by_metric = pd.DataFrame(data=np.zeros((FC.cmats.shape[2], len(metrics))), columns=metrics )
+pop_r = []
+for metric in metrics:
+    if metric in ['CellCount', 'WeightedSynapseCount', 'TBars', 'CommonInputFraction']:
+        anatomical_adjacency, keep_inds = AC.getAdjacency(metric, do_log=True)
+    elif metric == 'Size':
+        anatomical_adjacency = FC.SizeMatrix.to_numpy()[FC.upper_inds]
+        keep_inds = np.arange(FC.upper_inds[0].size)
+    elif metric == 'Nearness':
+        anatomical_adjacency = 1/FC.DistanceMatrix.to_numpy()[FC.upper_inds]
+        keep_inds = np.arange(FC.upper_inds[0].size)
 
-    r_new, _ = pearsonr(anatomical_adjacency, functional_adjacency_new)
-    r_vals.append(r_new)
+    functional_adjacency_pop = FC.CorrelationMatrix.to_numpy()[FC.upper_inds][keep_inds]
+    r_new, _ = pearsonr(anatomical_adjacency, functional_adjacency_pop)
+    pop_r.append(r_new)
 
-fig2_2, ax = plt.subplots(1, 1, figsize=(1.75, 3.5))
+    r_vals = []
+    for c_ind in range(FC.cmats.shape[2]):
+        cmat = FC.cmats[:, :, c_ind]
+        functional_adjacency_new = cmat[FC.upper_inds][keep_inds]
+        r_new, _ = pearsonr(anatomical_adjacency, functional_adjacency_new)
+        r_vals.append(r_new)
+    R_by_metric.loc[:, metric] = r_vals
+
+fig2_2, ax = plt.subplots(1, 1, figsize=(6, 3.5))
 fig2_2.tight_layout(pad=4)
-sns.stripplot(x=np.ones_like(r_vals), y=r_vals, color='k')
-sns.violinplot(y=r_vals)
-ax.set_ylabel('Structure-function corr. (z)')
-ax.set_xticks([])
-ax.set_ylim([0, 1])
+ax.set_ylabel('Structure-function corr. (r)')
+ax.set_ylim([-0.2, 1])
+ax.axhline(0, color=[0.8, 0.8, 0.8], linestyle='-', zorder=0)
+sns.violinplot(data=R_by_metric, color=[0.8, 0.8, 0.8], alpha=0.5, zorder=1)
+sns.stripplot(data=R_by_metric, color=plot_colors[0], alpha=1.0, zorder=2)
+
+ax.plot(np.arange(len(pop_r)), pop_r, color='k', marker='s', markersize=6, linestyle='None', alpha=1.0, zorder=3)
+ax.set_xticklabels(['Cell\ncount',
+                    'Weighted\nsynapse\ncount',
+                    'Raw\nsynapse \ncount',
+                    'Common\n input\nfraction',
+                    'Region\nsize',
+                    'Region\nnearness'])
+ax.tick_params(axis='x', labelsize=10)
+
+fig2_0.savefig(os.path.join(analysis_dir, 'figpanels', 'fig2_0.svg'), format='svg', transparent=True)
+fig2_1.savefig(os.path.join(analysis_dir, 'figpanels', 'fig2_1.svg'), format='svg', transparent=True)
+fig2_2.savefig(os.path.join(analysis_dir, 'figpanels', 'fig2_2.svg'), format='svg', transparent=True)
+
+# %% Supp: subsampled region cmats and SC-FC corr
+
+atlas_fns = glob.glob(os.path.join(data_dir, 'atlas_data', 'vfb_68_2*'))
+sizes = []
+for fn in atlas_fns:
+    _, roi_size = FC.loadAtlasData(atlas_path=fn)
+    sizes.append(roi_size)
+
+sizes = np.vstack(sizes)
+roi_size = np.mean(sizes, axis=0)
+
+np.sort(roi_size)
+
+anatomical_adjacency, keep_inds = AC.getAdjacency('CellCount', do_log=True)
+
+bins = np.arange(np.floor(np.min(roi_size)), np.ceil(np.max(roi_size)))
+values, base = np.histogram(roi_size, bins=bins, density=True)
+cumulative = np.cumsum(values)
 
 
-fig2_0.savefig(os.path.join(analysis_dir, 'figpanels', 'Fig2_0.svg'), format='svg', transparent=True)
-fig2_1.savefig(os.path.join(analysis_dir, 'figpanels', 'Fig2_1.svg'), format='svg', transparent=True)
-fig2_2.savefig(os.path.join(analysis_dir, 'figpanels', 'Fig2_2.svg'), format='svg', transparent=True)
+# Load precomputed subsampled Cmats for each brain
+load_fn = os.path.join(data_dir, 'functional_connectivity', 'subsampled_cmats_20200626.npy')
+(cmats_pop, CorrelationMatrix_Full, subsampled_sizes) = np.load(load_fn, allow_pickle=True)
 
-# %% single linear regression with DIRECT connectivity metrics
+# mean cmat over brains for each subsampledsize and iteration
+cmats_popmean = np.mean(cmats_pop, axis=4) # roi x roi x iterations x sizes
+scfc_r = np.zeros(shape=(cmats_popmean.shape[2], cmats_popmean.shape[3])) # iterations x sizes
+for s_ind, sz in enumerate(subsampled_sizes):
+    for it in range(cmats_popmean.shape[2]):
+        functional_adjacency_tmp = cmats_popmean[:, :, it, s_ind][FC.upper_inds][keep_inds]
+        new_r, _ = pearsonr(anatomical_adjacency, functional_adjacency_tmp)
+        scfc_r[it, s_ind] = new_r
 
-fig2_5, ax = plt.subplots(1, 3, figsize=(9, 3.5))
+# plot mean+/-SEM results on top of region size cumulative histogram
+err_y = np.std(scfc_r, axis=0)
+mean_y = np.mean(scfc_r, axis=0)
 
-rkf = RepeatedKFold(n_splits=10, n_repeats=100, random_state=0)
+figS2_0, ax1 = plt.subplots(1, 1, figsize=(4,4))
+ax1.plot(subsampled_sizes, mean_y, 'ko')
+ax1.errorbar(subsampled_sizes, mean_y, yerr=err_y, color='k')
+ax1.hlines(mean_y[-1], subsampled_sizes.min(), subsampled_sizes.max(), color='k', linestyle='--')
+ax1.set_xlabel('Region size (voxels)')
+ax1.set_ylabel('Correlation with anatomical connectivity')
+ax1.set_xscale('log')
+ax2 = ax1.twinx()
+ax2.plot(bins[:-1], cumulative)
+ax2.set_ylabel('Cumulative fraction')
+ax2.set_ylim([0, 1.05])
+ax2.set_xscale('log')
 
-# 1: Cell count
-x, keep_inds = AC.getAdjacency('CellCount', do_log=True)
-y = FC.CorrelationMatrix.to_numpy()[FC.upper_inds][keep_inds]
-x = x.reshape(-1, 1)
+figS2_0.savefig(os.path.join(analysis_dir, 'figpanels', 'figS2_0.svg'), format='svg', transparent=True)
 
-regressor = LinearRegression()
-regressor.fit(x, y);
-pred = regressor.predict(x)
-cv_results = cross_validate(regressor, x, y, cv=rkf, scoring='r2');
-scores_cell_count = cv_results['test_score']
-avg_r2 = scores_cell_count.mean()
-err = scores_cell_count.std()
-print('r2 = {:.2f}+/-{:.2f}'.format(avg_r2, err))
-ax[0].plot([-0.2, 1.0], [-0.2, 1.0], 'k--')
-ax[0].plot(pred, y, 'ko', alpha=0.25)
-ax[0].annotate('$r^2$={:.2f}'.format(avg_r2), (-0.15, 0.95))
-ax[0].set_ylabel('Measured FC (z)')
-ax[0].set_xlim([-0.2, 1.0])
-ax[0].set_title('Cell count', fontsize=10)
-ax[0].set_aspect('equal')
+# %% Supp: AC+FC vs. completeness, distance
+cell_ct, _ = AC.getAdjacency('CellCount', do_log=False)
+completeness = (AC.CompletenessMatrix.to_numpy() + AC.CompletenessMatrix.to_numpy().T) / 2
+fc = FC.CorrelationMatrix.to_numpy()[FC.upper_inds]
+compl = completeness[FC.upper_inds]
 
-# 2: Synapse count
-x, keep_inds = AC.getAdjacency('WeightedSynapseCount', do_log=True)
-y = FC.CorrelationMatrix.to_numpy()[FC.upper_inds][keep_inds]
-x = x.reshape(-1, 1)
+figS2_1, ax = plt.subplots(1, 2, figsize=(6,3))
+ax[0].plot(compl, cell_ct, 'ko', alpha=0.25)
+r, p = plotting.addLinearFit(ax[0], compl, cell_ct, alpha=1.0)
+ax[0].set_xlabel('Completeness')
+ax[0].set_ylabel('Anat. conn. (cells)')
+ax[0].set_xlim([0, 1])
+ax[0].annotate('r={:.2f}'.format(r), (0.72, 3400))
 
-regressor = LinearRegression()
-regressor.fit(x, y);
-pred = regressor.predict(x)
-cv_results = cross_validate(regressor, x, y, cv=rkf, scoring='r2');
-scores_synapse_count = cv_results['test_score']
-avg_r2 = scores_synapse_count.mean()
-err = scores_synapse_count.std()
-print('r2 = {:.2f}+/-{:.2f}'.format(avg_r2, err))
-ax[1].plot([-0.2, 1.0], [-0.2, 1.0], 'k--')
-ax[1].plot(pred, y, 'ko', alpha=0.25)
-ax[1].annotate('$r^2$={:.2f}'.format(avg_r2), (-0.15, 0.95))
-ax[1].set_xlabel('Predicted FC (z)')
-ax[1].set_xlim([-0.2, 1.0])
-ax[1].set_title('Weighted synapse count', fontsize=10)
-ax[1].set_aspect('equal')
+ax[1].plot(compl, fc, 'ko', alpha=0.25)
+r, p = plotting.addLinearFit(ax[1], compl, fc, alpha=1.0)
+ax[1].set_xlabel('Completeness')
+ax[1].set_ylabel('Functional correlation (z)')
+ax[1].set_xlim([0, 1])
+ax[1].annotate('r={:.2f}'.format(r), (0.05, 1.02))
 
-# 3: Tbars
-x, keep_inds = AC.getAdjacency('TBars', do_log=True)
-y = FC.CorrelationMatrix.to_numpy()[FC.upper_inds][keep_inds]
-x = x.reshape(-1, 1)
-
-regressor = LinearRegression()
-regressor.fit(x, y);
-pred = regressor.predict(x)
-cv_results = cross_validate(regressor, x, y, cv=rkf, scoring='r2');
-scores_tbars = cv_results['test_score']
-avg_r2 = scores_tbars.mean()
-err = scores_tbars.std()
-print('r2 = {:.2f}+/-{:.2f}'.format(avg_r2, err))
-ax[2].plot([-0.2, 1.0], [-0.2, 1.0], 'k--')
-ax[2].plot(pred, y, 'ko', alpha=0.25)
-ax[2].annotate('$r^2$={:.2f}'.format(avg_r2), (-0.15, 0.95))
-ax[2].set_xlim([-0.2, 1.0])
-ax[2].set_title('T-Bar count', fontsize=10)
-ax[2].set_aspect('equal')
-
-fig2_5.suptitle('Direct connectivity')
-fig2_5.savefig(os.path.join(analysis_dir, 'figpanels', 'Fig2_5.pdf'), format='pdf', transparent=True)
-
-# %% regression model on shortest path steps
-fig2_6, ax = plt.subplots(1, 3, figsize=(9, 3.5))
-
-rkf = RepeatedKFold(n_splits=10, n_repeats=100, random_state=0)
-
-# 1: Cell count
-anat_connect = AC.getConnectivityMatrix('CellCount', diag=None)
-shortest_path_distance, shortest_path_steps, shortest_path_weight, hub_count = bridge.getShortestPathStats(anat_connect)
-x = np.log10(((shortest_path_distance.T + shortest_path_distance.T)/2).to_numpy()[FC.upper_inds])
-y = FC.CorrelationMatrix.to_numpy()[FC.upper_inds]
-x = x.reshape(-1, 1)
-
-regressor = LinearRegression()
-regressor.fit(x, y);
-pred = regressor.predict(x)
-cv_results = cross_validate(regressor, x, y, cv=rkf, scoring='r2');
-avg_r2 = cv_results['test_score'].mean()
-err = cv_results['test_score'].std()
-print('r2 = {:.2f}+/-{:.2f}'.format(avg_r2, err))
-ax[0].plot([-0.2, 1.0], [-0.2, 1.0], 'k--')
-ax[0].plot(pred, y, 'ko', alpha=0.25)
-ax[0].annotate('$r^2$={:.2f}'.format(avg_r2), (-0.15, 0.95))
-ax[0].set_ylabel('Measured FC (z)')
-ax[0].set_xlim([-0.2, 1.0])
-ax[0].set_title('Cell count', fontsize=10)
-ax[0].set_aspect('equal')
-
-# 2: Synapse count
-anat_connect = AC.getConnectivityMatrix('WeightedSynapseCount', diag=None)
-shortest_path_distance, shortest_path_steps, shortest_path_weight, hub_count = bridge.getShortestPathStats(anat_connect)
-x = np.log10(((shortest_path_distance.T + shortest_path_distance.T)/2).to_numpy()[FC.upper_inds])
-y = FC.CorrelationMatrix.to_numpy()[FC.upper_inds]
-x = x.reshape(-1, 1)
-
-regressor = LinearRegression()
-regressor.fit(x, y);
-pred = regressor.predict(x)
-cv_results = cross_validate(regressor, x, y, cv=rkf, scoring='r2');
-avg_r2 = cv_results['test_score'].mean()
-err = cv_results['test_score'].std()
-print('r2 = {:.2f}+/-{:.2f}'.format(avg_r2, err))
-ax[1].plot([-0.2, 1.0], [-0.2, 1.0], 'k--')
-ax[1].plot(pred, y, 'ko', alpha=0.25)
-ax[1].annotate('$r^2$={:.2f}'.format(avg_r2), (-0.15, 0.95))
-ax[1].set_xlabel('Predicted FC (z)')
-ax[1].set_xlim([-0.2, 1.0])
-ax[1].set_title('Weighted synapse count', fontsize=10)
-ax[1].set_aspect('equal')
-
-# 3: Tbars
-anat_connect = AC.getConnectivityMatrix('TBars', diag=None)
-shortest_path_distance, shortest_path_steps, shortest_path_weight, hub_count = bridge.getShortestPathStats(anat_connect)
-x = np.log10(((shortest_path_distance.T + shortest_path_distance.T)/2).to_numpy()[FC.upper_inds])
-y = FC.CorrelationMatrix.to_numpy()[FC.upper_inds]
-x = x.reshape(-1, 1)
-
-regressor = LinearRegression()
-regressor.fit(x, y);
-pred = regressor.predict(x)
-cv_results = cross_validate(regressor, x, y, cv=rkf, scoring='r2');
-avg_r2 = cv_results['test_score'].mean()
-err = cv_results['test_score'].std()
-print('r2 = {:.2f}+/-{:.2f}'.format(avg_r2, err))
-ax[2].plot([-0.2, 1.0], [-0.2, 1.0], 'k--')
-ax[2].plot(pred, y, 'ko', alpha=0.25)
-ax[2].annotate('$r^2$={:.2f}'.format(avg_r2), (-0.15, 0.95))
-ax[2].set_xlim([-0.2, 1.0])
-ax[2].set_title('T-Bar count', fontsize=10)
-ax[2].set_aspect('equal')
-
-fig2_6.suptitle('Shortest path connectivity')
-fig2_6.savefig(os.path.join(analysis_dir, 'figpanels', 'Fig2_6.pdf'), format='pdf', transparent=True)
-
-# %% multiple regression model to try to get highest r2 possible
-
-fh, ax = plt.subplots(1, 1, figsize=(4, 4))
-# Cell ct + tbars
-sp_cell_count, _, _, _ = bridge.getShortestPathStats(AC.getConnectivityMatrix('CellCount', diag=None))
-sp_tbars, _, _, _ = bridge.getShortestPathStats(AC.getConnectivityMatrix('TBars', diag=None))
-
-x = np.vstack([
-               np.log10(((sp_cell_count.T + sp_cell_count.T)/2).to_numpy()[FC.upper_inds]),
-               np.log10(((sp_tbars.T + sp_tbars.T)/2).to_numpy()[FC.upper_inds]),
-               FC.SizeMatrix.to_numpy()[FC.upper_inds],
-               FC.DistanceMatrix.to_numpy()[FC.upper_inds],
-               ]).T
-
-
-y = FC.CorrelationMatrix.to_numpy()[FC.upper_inds]
-# x = x.reshape(-1, 1)
-
-regressor = LinearRegression()
-regressor.fit(x, y);
-pred = regressor.predict(x)
-cv_results = cross_validate(regressor, x, y, cv=rkf, scoring='r2');
-avg_r2 = cv_results['test_score'].mean()
-err = cv_results['test_score'].std()
-print('r2 = {:.2f}+/-{:.2f}'.format(avg_r2, err))
-ax.plot([-0.2, 1.0], [-0.2, 1.0], 'k--')
-ax.plot(pred, y, 'ko', alpha=0.25)
-ax.annotate('$r^2$={:.2f}'.format(avg_r2), (-0.15, 0.95))
-ax.set_xlim([-0.2, 1.0])
-ax.set_title('Multiple regression model', fontsize=10)
-ax.set_aspect('equal')
-
-# fig2_6.savefig(os.path.join(analysis_dir, 'figpanels', 'Fig2_6.pdf'), format='pdf', transparent=True)
-
-
-# %% Basic SC-FC with synapse count
-figS2_0, ax = plt.subplots(1, 2, figsize=(10, 5))
-df = AC.getConnectivityMatrix('WeightedSynapseCount', diag=np.nan)
-sns.heatmap(np.log10(AC.getConnectivityMatrix('WeightedSynapseCount', diag=np.nan)).replace([np.inf, -np.inf], 0), ax=ax[0], yticklabels=True, xticklabels=True, cmap="cividis", rasterized=True, cbar=False)
-cb = figS2_0.colorbar(matplotlib.cm.ScalarMappable(norm=matplotlib.colors.SymLogNorm(vmin=1, vmax=np.nanmax(df.to_numpy()), base=10, linthresh=0.1, linscale=1), cmap="cividis"), ax=ax[0], shrink=0.75, label='Weighted synapse count')
-cb.outline.set_linewidth(0)
-ax[0].set_xlabel('Target');
-ax[0].set_ylabel('Source');
-ax[0].set_aspect('equal')
-ax[0].tick_params(axis='both', which='major', labelsize=8)
-sns.heatmap(FC.CorrelationMatrix, ax=ax[1], yticklabels=True, xticklabels=True, cbar_kws={'label': 'Functional Correlation (z)','shrink': .75}, cmap="cividis", rasterized=True)
-ax[1].set_aspect('equal')
-ax[1].tick_params(axis='both', which='major', labelsize=8)
-
-# Make adjacency matrices
-# Log transform anatomical connectivity
-anatomical_adjacency, keep_inds = AC.getAdjacency('WeightedSynapseCount', do_log=True)
-functional_adjacency = FC.CorrelationMatrix.to_numpy()[FC.upper_inds][keep_inds]
-
-r, p = pearsonr(anatomical_adjacency, functional_adjacency)
-coef = np.polyfit(anatomical_adjacency, functional_adjacency, 1)
-linfit = np.poly1d(coef)
-
-figS2_1, ax = plt.subplots(1,1,figsize=(4, 4))
-ax.plot(10**anatomical_adjacency, functional_adjacency, color='k', marker='o', linestyle='none', alpha=0.25)
-xx = np.linspace(anatomical_adjacency.min(), anatomical_adjacency.max(), 100)
-ax.plot(10**xx, linfit(xx), color='k', linewidth=2, marker=None)
-ax.set_xscale('log')
-ax.set_xlabel('Anatomical adjacency (synapses)')
-ax.set_ylabel('Functional correlation (z)')
-ax.annotate('r = {:.2f}'.format(r), xy=(1, 1.0));
-
-r_vals = []
-for c_ind in range(FC.cmats.shape[2]):
-    cmat = FC.cmats[:, :, c_ind]
-    functional_adjacency_new = cmat[FC.upper_inds][keep_inds]
-
-    r_new, _ = pearsonr(anatomical_adjacency, functional_adjacency_new)
-    r_vals.append(r_new)
-
-figS2_2, ax = plt.subplots(1,1,figsize=(1.75, 3.5))
-figS2_2.tight_layout(pad=4)
-sns.stripplot(x=np.ones_like(r_vals), y=r_vals, color='k')
-sns.violinplot(y=r_vals)
-ax.set_ylabel('Structure-function corr. (z)')
-ax.set_xticks([])
-ax.set_ylim([0, 1]);
-
-figS2_0.savefig(os.path.join(analysis_dir, 'figpanels', 'FigS2_0.svg'), format='svg', transparent=True)
-figS2_1.savefig(os.path.join(analysis_dir, 'figpanels', 'FigS2_1.svg'), format='svg', transparent=True)
-figS2_2.savefig(os.path.join(analysis_dir, 'figpanels', 'FigS2_2.svg'), format='svg', transparent=True)
+figS2_1.savefig(os.path.join(analysis_dir, 'figpanels', 'figS2_1.svg'), format='svg', transparent=True)
