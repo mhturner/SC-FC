@@ -107,15 +107,15 @@ ax.tick_params(axis='both', which='major', labelsize=7)
 # %% Average diffs within super-regions, look at fly-to-fly variability and compare super-regions
 from scipy.stats import ttest_1samp, ttest_ind
 
-regions = {'MB': ['MBCA(R)', 'MBML(R)', 'MBML(L)', 'MBPED(R)', 'MBVL(R)'],
+regions = {'AL/LH': ['AL(R)', 'LH(R)'],
+           'MB': ['MBCA(R)', 'MBML(R)', 'MBML(L)', 'MBPED(R)', 'MBVL(R)'],
            'CX': ['EB', 'FB', 'PB', 'NO'],
            'LX': ['BU(L)', 'BU(R)', 'LAL(R)'],
-           'VLNP': ['AOTU(R)', 'AVLP(R)', 'PVLP(R)', 'PLP(R)', 'WED(R)'],
-           'SNP': ['SLP(R)', 'SIP(R)', 'SMP(R)', 'SMP(L)'],
            'INP': ['CRE(L)', 'CRE(R)', 'SCL(R)', 'ICL(R)', 'IB', 'ATL(L)', 'ATL(R)'],
            'VMNP': ['VES(R)', 'EPA(R)', 'GOR(L)', 'GOR(R)', 'SPS(R)' ],
+           'SNP': ['SLP(R)', 'SIP(R)', 'SMP(R)', 'SMP(L)'],
+           'VLNP': ['AOTU(R)', 'AVLP(R)', 'PVLP(R)', 'PLP(R)', 'WED(R)'],
            # 'PENP': ['CAN(R)'],
-           'AL/LH': ['AL(R)', 'LH(R)']
          }
 
 # log transform anatomical connectivity values
@@ -181,7 +181,52 @@ colors = sns.color_palette('deep', 8)
 
 sns.palplot(colors)
 np.array(colors)
-fig3_2.savefig(os.path.join(analysis_dir, 'figpanels', 'fig3_2.svg'), format='svg', transparent=True)
+# fig3_2.savefig(os.path.join(analysis_dir, 'figpanels', 'fig3_2.svg'), format='svg', transparent=True)
+# %%
+from scipy.stats import ttest_1samp, ttest_ind
+
+# log transform anatomical connectivity values
+anatomical_mat = AC.getConnectivityMatrix('CellCount', diag=0).to_numpy().copy()
+keep_inds_diff = np.where(anatomical_mat > 0)
+anatomical_adj = np.log10(anatomical_mat[keep_inds_diff])
+
+diff_by_region = []
+for c_ind in range(FC.cmats.shape[2]):
+    cmat = FC.cmats[:, :, c_ind]
+    functional_adj = cmat[keep_inds_diff]
+
+    F_zscore_fly = zscore(functional_adj)
+    A_zscore_fly = zscore(anatomical_adj)
+
+    diff = F_zscore_fly - A_zscore_fly
+
+    diff_m = np.zeros_like(anatomical_mat)
+    diff_m[keep_inds_diff] = diff
+    diff_by_region.append(diff_m.mean(axis=0))
+
+diff_by_region = np.vstack(diff_by_region).T  # region x fly
+
+colors = sns.color_palette('deep', 8)
+fh, ax = plt.subplots(1, 1, figsize=(6, 4))
+plot_ct = 0
+for r_ind, reg in enumerate(regions):
+    in_inds = np.where([r in regions[reg] for r in FC.rois])[0]
+    # ax.annotate(reg, (plot_ct, 1.5))
+    for i, included in enumerate(in_inds):
+        new_mean = np.mean(diff_by_region[included,:])
+        new_err = np.std(diff_by_region[included,:])
+        ax.plot(plot_ct, new_mean, linestyle='None', marker='o', color=colors[r_ind])
+        ax.plot([plot_ct, plot_ct], [new_mean-new_err, new_mean+new_err], linestyle='-', linewidth=2, marker='None', color=colors[r_ind])
+        ax.annotate(np.array(FC.rois)[included], (plot_ct-0.25, 1.1), rotation=90, fontsize=8)
+        plot_ct+=1
+    plot_ct +=1
+
+
+ax.set_ylim([-1.5, 1.5])
+ax.set_xticks([])
+ax.spines['right'].set_visible(False)
+ax.axhline(0, color=[0.8, 0.8, 0.8], linestyle='-', zorder=0)
+ax.set_ylabel('Region avg. difference (FC - SC)')
 
 
 # %%
