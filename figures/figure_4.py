@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 from neuprint import Client
 import numpy as np
 import networkx as nx
-from scipy.stats import pearsonr, powerlaw
+from scipy.stats import pearsonr, powerlaw, ttest_1samp
 import os
 import socket
 import seaborn as sns

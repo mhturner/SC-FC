@@ -36,7 +36,7 @@ w_ie = 4 # e to i (4)
   # CellCount, log: ~0.5
  # WeightedSynapseCount: ~7
  # TBars, log:
-w_internode = 0.43
+w_internode = 0.7
 do_log = True
 
 pulse_size = 5 # (5)
@@ -47,8 +47,14 @@ FC = functional_connectivity.FunctionalConnectivity(data_dir=data_dir, fs=1.2, c
 
 # Get AnatomicalConnectivity object
 AC = anatomical_connectivity.AnatomicalConnectivity(data_dir=data_dir, neuprint_client=None, mapping=bridge.getRoiMapping())
-tmp = AC.getConnectivityMatrix('TBars').to_numpy().copy()
+tmp = AC.getConnectivityMatrix('CellCount').to_numpy().copy()
 np.fill_diagonal(tmp, 0)
+
+# # # #
+tmp = AC.makeModelAdjacency(type='CellCount', model='lognorm', by_row=True).to_numpy().copy()
+np.fill_diagonal(tmp, 0)
+# # # #
+
 if do_log:
     keep_inds = np.where(tmp > 0)
     C = np.zeros_like(tmp)

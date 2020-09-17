@@ -35,7 +35,41 @@ FC = functional_connectivity.FunctionalConnectivity(data_dir=data_dir, fs=1.2, c
 AC = anatomical_connectivity.AnatomicalConnectivity(data_dir=data_dir, neuprint_client=neuprint_client, mapping=bridge.getRoiMapping())
 
 plot_colors = plt.get_cmap('tab10')(np.arange(8)/8)
+# %%
+import pandas as pd
+from scfc.rate_model import RateModel
 
+AC = anatomical_connectivity.AnatomicalConnectivity(data_dir=data_dir, neuprint_client=None, mapping=bridge.getRoiMapping())
+tmp = AC.getConnectivityMatrix('CellCount').to_numpy().copy()
+np.fill_diagonal(tmp, 0)
+
+keep_inds = np.where(tmp > 0)
+C = np.zeros_like(tmp)
+base = 10
+C[keep_inds] = np.log(tmp[keep_inds]) / np.log(base)
+
+RM = RateModel(C=C, tau_i=2, tau_e=10, w_e=2, w_i=4, w_internode=0.50)
+t, r_e, r_i = RM.solve(tdim=10000, r0=None, pulse_size=10, spike_rate=10, stimulus=None)
+
+
+cmat = np.arctanh(np.corrcoef(r_e[100:, :].T))
+np.fill_diagonal(cmat, np.nan)
+pred_cmat = pd.DataFrame(data=cmat, index=FC.rois, columns=FC.rois)
+
+plt.plot(t, r_e)
+
+y = FC.CorrelationMatrix.to_numpy()[FC.upper_inds]
+y_hat = pred_cmat.to_numpy()[FC.upper_inds]
+
+r2 = 1 - np.var(y-y_hat)/np.var(y)
+
+r, _ = pearsonr(y, y_hat)
+fh, ax = plt.subplots(1, 1, figsize=(4, 4))
+ax.plot(pred_cmat.to_numpy()[FC.upper_inds], FC.CorrelationMatrix.to_numpy()[FC.upper_inds], 'ko')
+ax.plot([-0.2, 1.0], [-0.2, 1.0], 'k--')
+ax.set_xlabel('Predicted')
+ax.set_ylabel('Measured')
+ax.set_title('r2 = {:.3f}'.format(r2));
 
 # %% DIRECT CONN MODEL
 
@@ -97,7 +131,7 @@ vals, bins = np.histogram(lognorm_fc, bins=nbins, density=True)
 ax.plot(bins[:-1], vals/np.sum(vals), 'r')
 
 # %% SHORTEST PATH MODEL
-import pandas as pd
+# import pandas as pd
 
 rkf = RepeatedKFold(n_splits=10, n_repeats=100, random_state=0)
 
@@ -124,65 +158,254 @@ ax.set_xlabel('Predicted FC (z)')
 ax.set_xlim([-0.2, 1.0])
 ax.set_aspect('equal')
 
+
+iterations = 10
 # 2 norm random model
-norm_model = norm(loc=np.mean(ConnectivityMatrix.to_numpy()), scale=np.std(ConnectivityMatrix.to_numpy()))
-norm_vals = norm_model.rvs(size=(len(AC.rois), len(AC.rois)))
-norm_vals[norm_vals<0] = 0
-norm_df = pd.DataFrame(data=norm_vals, index=AC.rois, columns=AC.rois)
-norm_sp, norm_steps, _, norm_hub = bridge.getShortestPathStats(norm_df)
-x = np.log10(((norm_sp.T + norm_sp.T)/2).to_numpy()[FC.upper_inds])
+norm_fc = []
+norm_sp = []
+norm_dc = []
+for it in range(iterations):
+    norm_adj = AC.makeModelAdjacency(type='CellCount', model='norm', by_row=False)
+    sp, norm_steps, _, norm_hub = bridge.getShortestPathStats(norm_adj)
+    x = np.log10(((sp.T + sp.T)/2).to_numpy()[FC.upper_inds])
+    x = x.reshape(-1, 1)
+    norm_fc.append(regressor.predict(x))
+    norm_sp.append(sp)
+    norm_dc.append(norm_adj.to_numpy().ravel())
+norm_fc = np.vstack(norm_fc)
+norm_sp = np.vstack(norm_sp)
+norm_dc = np.vstack(norm_dc)
+
+iterations = 10
+# 3 norm random model
+uniform_fc = []
+uniform_sp = []
+uniform_dc = []
+for it in range(iterations):
+    norm_adj = AC.makeModelAdjacency(type='CellCount', model='uniform', by_row=False)
+    sp, norm_steps, _, norm_hub = bridge.getShortestPathStats(norm_adj)
+    x = np.log10(((sp.T + sp.T)/2).to_numpy()[FC.upper_inds])
+    x = x.reshape(-1, 1)
+    uniform_fc.append(regressor.predict(x))
+    uniform_sp.append(sp)
+    uniform_dc.append(norm_adj.to_numpy().ravel())
+uniform_fc = np.vstack(uniform_fc)
+uniform_sp = np.vstack(uniform_sp)
+uniform_dc = np.vstack(uniform_dc)
+
+# 4 lognorm model
+lognorm_fc = []
+lognorm_sp = []
+lognorm_dc = []
+for it in range(iterations):
+    lognorm_adj = AC.makeModelAdjacency(type='CellCount', model='lognorm', by_row=False)
+    sp, lognorm_steps, _, lognorm_hub = bridge.getShortestPathStats(lognorm_adj)
+    x = np.log10(((sp.T + sp.T)/2).to_numpy()[FC.upper_inds])
+    x = x.reshape(-1, 1)
+    lognorm_fc.append(regressor.predict(x))
+    lognorm_sp.append(sp)
+    lognorm_dc.append(lognorm_adj.to_numpy().ravel())
+lognorm_fc = np.vstack(lognorm_fc)
+lognorm_sp = np.vstack(lognorm_sp)
+lognorm_dc = np.vstack(lognorm_dc)
+
+
+# %% PLOT
+
+def plotHistograms(measured, norm, uniform, lognorm, bins, ax):
+    vals, bins = np.histogram(measured, bins=bins, density=True)
+    ax.plot(bins[:-1], vals/np.sum(vals), 'k-o', label='Measured')
+
+    vals = []
+    for it in range(iterations):
+        new_vals, _ = np.histogram(norm[it, :], bins=bins, density=True)
+        vals.append(new_vals/np.sum(new_vals))
+    vals = np.vstack(vals)
+    avg = np.mean(vals, axis=0)
+    err = np.std(vals, axis=0) / np.sqrt(iterations)
+    ax.fill_between(bins[:-1], avg-err, avg+err, color=plot_colors[0], alpha=0.25)
+    ax.plot(bins[:-1], avg, color=plot_colors[0], label='norm. model')
+
+    vals = []
+    for it in range(iterations):
+        new_vals, bins = np.histogram(uniform[it, :], bins=bins, density=True)
+        vals.append(new_vals/np.sum(new_vals))
+    vals = np.vstack(vals)
+    avg = np.mean(vals, axis=0)
+    err = np.std(vals, axis=0) / np.sqrt(iterations)
+    ax.fill_between(bins[:-1], avg-err, avg+err, color=plot_colors[1], alpha=0.25)
+    ax.plot(bins[:-1], avg, color=plot_colors[1], label='uniform model')
+
+    vals = []
+    for it in range(iterations):
+        new_vals, bins = np.histogram(lognorm[it, :], bins=bins, density=True)
+        vals.append(new_vals/np.sum(new_vals))
+    vals = np.vstack(vals)
+    avg = np.mean(vals, axis=0)
+    err = np.std(vals, axis=0) / np.sqrt(iterations)
+    ax.fill_between(bins[:-1], avg-err, avg+err, color=plot_colors[2], alpha=0.25)
+    ax.plot(bins[:-1], avg, color=plot_colors[2], label='lognorm. model')
+
+
+fh, ax = plt.subplots(1, 3, figsize=(12,4))
+# direct conn.
+bins = np.logspace(0.1, 4, 20)
+measured = anat_connect.to_numpy().ravel()
+plotHistograms(measured, norm_dc, uniform_dc, lognorm_dc, bins, ax[0])
+ax[0].set_xlabel('Direct connectivity (cells)')
+ax[0].set_xscale('log')
+ax[0].set_ylabel('Prob.')
+ax[0].legend()
+
+# shortest path distances
+bins = 20
+plotHistograms(measured_sp, norm_sp, uniform_sp, lognorm_sp, bins, ax[1])
+ax[1].set_xlabel('Shortest path distance')
+ax[1].set_xscale('log')
+ax[1].set_ylabel('Prob.')
+
+# FC
+bins = 20
+plotHistograms(measured_fc, norm_fc, uniform_fc, lognorm_fc, bins, ax[2])
+ax[2].set_xlabel('Functional connectivity (z)')
+ax[2].set_ylabel('Prob.')
+
+# %% DIRECT CELL COUNT MODEL
+
+rkf = RepeatedKFold(n_splits=10, n_repeats=100, random_state=0)
+
+# 1: Cell count measured
+
+anat_connect, keep_inds = AC.getAdjacency('CellCount', do_log=True)
+x = anat_connect
+measured_fc = FC.CorrelationMatrix.to_numpy()[FC.upper_inds][keep_inds]
 x = x.reshape(-1, 1)
-norm_fc = regressor.predict(x)
+regressor = LinearRegression()
+regressor.fit(x, measured_fc);
 
-# 3 lognorm model
-conns = ConnectivityMatrix.to_numpy().copy()
-lognorm_model = norm(loc=np.mean(np.log10(conns[conns>0])), scale=np.std(np.log10(conns[conns>0])))
-lognorm_vals = lognorm_model.rvs(size=(len(AC.rois), len(AC.rois)))
-lognorm_vals[lognorm_vals<0] = 0
-lognorm_vals = 10**lognorm_vals
-lognorm_df = pd.DataFrame(data=lognorm_vals, index=AC.rois, columns=AC.rois)
-lognorm_sp, lognorm_steps, _, lognorm_hub = bridge.getShortestPathStats(lognorm_df)
-x = np.log10(((lognorm_sp.T + lognorm_sp.T)/2).to_numpy()[FC.upper_inds])
-x = x.reshape(-1, 1)
-lognorm_fc = regressor.predict(x)
+pred = regressor.predict(x)
+cv_results = cross_validate(regressor, x, measured_fc, cv=rkf, scoring='r2');
+avg_r2 = cv_results['test_score'].mean()
+err = cv_results['test_score'].std()
+print('r2 = {:.2f}+/-{:.2f}'.format(avg_r2, err))
+fh, ax = plt.subplots(1, 1, figsize=(3,3))
+ax.plot([-0.2, 1.0], [-0.2, 1.0], 'k--')
+ax.plot(pred, measured_fc, 'ko', alpha=0.25)
+ax.annotate('$r^2$={:.2f}'.format(avg_r2), (-0.15, 0.95))
+ax.set_ylabel('Measured FC (z)')
+ax.set_xlabel('Predicted FC (z)')
+ax.set_xlim([-0.2, 1.0])
+ax.set_aspect('equal')
 
-nbins = 25
-fh, ax = plt.subplots(1, 1, figsize=(8,4))
-vals, bins = np.histogram(measured_fc, bins=nbins, density=True)
-ax.plot(bins[:-1], vals/np.sum(vals), 'k', label='Measured')
+iterations = 10
+# 2 norm random model
+norm_fc = []
+norm_sp = []
+norm_dc = []
+for it in range(iterations):
+    norm_adj = AC.makeModelAdjacency(type='CellCount', model='norm', by_row=False)
+    keep_inds = np.where(norm_adj.to_numpy()[AC.upper_inds] > 0)
+    x = np.log10(norm_adj.to_numpy()[FC.upper_inds][keep_inds])
+    x = x.reshape(-1, 1)
+    norm_fc.append(regressor.predict(x))
+    norm_sp.append(sp)
+    norm_dc.append(norm_adj.to_numpy().ravel())
+# norm_fc = np.vstack(norm_fc)
+# norm_sp = np.vstack(norm_sp)
+# norm_dc = np.vstack(norm_dc)
 
-vals, bins = np.histogram(norm_fc, bins=nbins, density=True)
-ax.plot(bins[:-1], vals/np.sum(vals), color=plot_colors[0], label='norm. model')
+iterations = 10
+# 3 uniform random model
+uniform_fc = []
+uniform_sp = []
+uniform_dc = []
+for it in range(iterations):
+    uniform_adj = AC.makeModelAdjacency(type='CellCount', model='uniform', by_row=False)
+    keep_inds = np.where(uniform_adj.to_numpy()[AC.upper_inds] > 0)
+    x = np.log10(uniform_adj.to_numpy()[FC.upper_inds][keep_inds])
+    x = x.reshape(-1, 1)
+    uniform_fc.append(regressor.predict(x))
+    uniform_sp.append(sp)
+    uniform_dc.append(norm_adj.to_numpy().ravel())
+# uniform_fc = np.vstack(uniform_fc)
+# uniform_sp = np.vstack(uniform_sp)
+# uniform_dc = np.vstack(uniform_dc)
 
-vals, bins = np.histogram(lognorm_fc, bins=nbins, density=True)
-ax.plot(bins[:-1], vals/np.sum(vals), color=plot_colors[1], label='lognorm. model')
-ax.set_xlabel('Functional connectivity (z)')
-ax.set_ylabel('Prob.')
-ax.legend()
+# 4 lognorm model
+lognorm_fc = []
+lognorm_sp = []
+lognorm_dc = []
+for it in range(iterations):
+    lognorm_adj = AC.makeModelAdjacency(type='CellCount', model='lognorm', by_row=False)
+    keep_inds = np.where(lognorm_adj.to_numpy()[AC.upper_inds] > 0)
+    x = np.log10(lognorm_adj.to_numpy()[FC.upper_inds][keep_inds])
+    x = x.reshape(-1, 1)
+    lognorm_fc.append(regressor.predict(x))
+    lognorm_sp.append(sp)
+    lognorm_dc.append(lognorm_adj.to_numpy().ravel())
+# lognorm_fc = np.vstack(lognorm_fc)
+# lognorm_sp = np.vstack(lognorm_sp)
+# lognorm_dc = np.vstack(lognorm_dc)
+
+
+# %% PLOT
+
+def plotHistograms(measured, norm, uniform, lognorm, bins, ax):
+    vals, bins = np.histogram(measured, bins=bins, density=True)
+    ax.plot(bins[:-1], vals/np.sum(vals), 'k-o', label='Measured')
+
+    vals = []
+    for it in range(iterations):
+        new_vals, _ = np.histogram(norm[it], bins=bins, density=True)
+        vals.append(new_vals/np.sum(new_vals))
+    vals = np.vstack(vals)
+    avg = np.mean(vals, axis=0)
+    err = np.std(vals, axis=0) / np.sqrt(iterations)
+    ax.fill_between(bins[:-1], avg-err, avg+err, color=plot_colors[0], alpha=0.25)
+    ax.plot(bins[:-1], avg, color=plot_colors[0], label='norm. model')
+
+    vals = []
+    for it in range(iterations):
+        new_vals, bins = np.histogram(uniform[it], bins=bins, density=True)
+        vals.append(new_vals/np.sum(new_vals))
+    vals = np.vstack(vals)
+    avg = np.mean(vals, axis=0)
+    err = np.std(vals, axis=0) / np.sqrt(iterations)
+    ax.fill_between(bins[:-1], avg-err, avg+err, color=plot_colors[1], alpha=0.25)
+    ax.plot(bins[:-1], avg, color=plot_colors[1], label='uniform model')
+
+    vals = []
+    for it in range(iterations):
+        new_vals, bins = np.histogram(lognorm[it], bins=bins, density=True)
+        vals.append(new_vals/np.sum(new_vals))
+    vals = np.vstack(vals)
+    avg = np.mean(vals, axis=0)
+    err = np.std(vals, axis=0) / np.sqrt(iterations)
+    ax.fill_between(bins[:-1], avg-err, avg+err, color=plot_colors[2], alpha=0.25)
+    ax.plot(bins[:-1], avg, color=plot_colors[2], label='lognorm. model')
+
+
+fh, ax = plt.subplots(1, 3, figsize=(12,4))
+# direct conn.
+bins = np.logspace(0.1, 4, 20)
+measured = AC.getConnectivityMatrix('CellCount')
+plotHistograms(measured, norm_dc, uniform_dc, lognorm_dc, bins, ax[0])
+ax[0].set_xlabel('Direct connectivity (cells)')
+ax[0].set_xscale('log')
+ax[0].set_ylabel('Prob.')
+ax[0].legend()
+
+# shortest path distances
+bins = 20
+plotHistograms(measured_sp, norm_sp, uniform_sp, lognorm_sp, bins, ax[1])
+ax[1].set_xlabel('Shortest path distance')
+ax[1].set_xscale('log')
+ax[1].set_ylabel('Prob.')
+
+# FC
+bins = 20
+plotHistograms(measured_fc, norm_fc, uniform_fc, lognorm_fc, bins, ax[2])
+ax[2].set_xlabel('Functional connectivity (z)')
+ax[2].set_ylabel('Prob.')
 
 # %%
-nbin=5
-fh, ax = plt.subplots(1, 1, figsize=(3,3))
-vals, bins = np.histogram(measured_steps.to_numpy().ravel(), bins=nbins, density=True)
-ax.plot(bins[:-1], vals/np.sum(vals), label='Measured', color='k')
-
-vals, bins = np.histogram(norm_steps.to_numpy().ravel(), bins=nbins, density=True)
-ax.plot(bins[:-1], vals/np.sum(vals), label='Norm. model', color=plot_colors[0])
-
-vals, bins = np.histogram(lognorm_steps.to_numpy().ravel(), bins=nbins, density=True)
-ax.plot(bins[:-1], vals/np.sum(vals), label='Lognorm. model', color=plot_colors[1])
-ax.legend()
-
-
-nbin=25
-fh, ax = plt.subplots(1, 1, figsize=(3,3))
-vals, bins = np.histogram(measured_hub.to_numpy().ravel(), bins=nbins, density=True)
-ax.plot(bins[:-1], vals/np.sum(vals), label='Measured', color='k')
-
-vals, bins = np.histogram(norm_hub.to_numpy().ravel(), bins=nbins, density=True)
-ax.plot(bins[:-1], vals/np.sum(vals), label='Norm. model', color=plot_colors[0])
-
-vals, bins = np.histogram(lognorm_hub.to_numpy().ravel(), bins=nbins, density=True)
-ax.plot(bins[:-1], vals/np.sum(vals), label='Lognorm. model', color=plot_colors[1])
-
-ax.legend()

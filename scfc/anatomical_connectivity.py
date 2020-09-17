@@ -3,6 +3,7 @@ import numpy as np
 import pandas as pd
 import os
 import networkx as nx
+from scipy.stats import norm, uniform
 """
 References:
 https://connectome-neuprint.github.io/neuprint-python/docs/index.html
@@ -274,3 +275,54 @@ class AnatomicalConnectivity():
             adjacency = ConnectivityMatrix.to_numpy().copy()[self.upper_inds]
 
         return adjacency, keep_inds
+
+    def makeModelAdjacency(self, type, model='norm', by_row=False):
+        ConnectivityMatrix = self.getConnectivityMatrix(type=type, symmetrize=True)
+
+        if model == 'norm':
+            if by_row:
+                vals = np.zeros_like(ConnectivityMatrix)
+                for p_ind, pr in enumerate(ConnectivityMatrix.index):
+                    outbound = ConnectivityMatrix.loc[pr, :]
+                    norm_model = norm(loc=np.mean(outbound), scale=np.std(outbound))
+                    row_vals = norm_model.rvs(size=len(outbound))
+                    row_vals[row_vals<0] = 0
+                    vals[p_ind, :] = row_vals
+            else:
+                norm_model = norm(loc=np.mean(ConnectivityMatrix.to_numpy()), scale=np.std(ConnectivityMatrix.to_numpy()))
+                vals = norm_model.rvs(size=ConnectivityMatrix.shape)
+                vals[vals<0] = 0
+
+        elif model == 'uniform':
+            if by_row:
+                vals = np.zeros_like(ConnectivityMatrix)
+                for p_ind, pr in enumerate(ConnectivityMatrix.index):
+                    outbound = ConnectivityMatrix.loc[pr, :]
+                    uniform_model = uniform(loc=np.mean(outbound), scale=np.std(outbound))
+                    row_vals = uniform_model.rvs(size=len(outbound))
+                    row_vals[row_vals<0] = 0
+                    vals[p_ind, :] = row_vals
+            else:
+                uniform_model = uniform(loc=np.mean(ConnectivityMatrix.to_numpy()), scale=np.std(ConnectivityMatrix.to_numpy()))
+                vals = uniform_model.rvs(size=ConnectivityMatrix.shape)
+                vals[vals<0] = 0
+
+        elif model == 'lognorm':
+            conns = ConnectivityMatrix.to_numpy().copy()
+            if by_row: # separate model for each row (outbound from each region)
+                vals = np.zeros_like(ConnectivityMatrix)
+                for p_ind, pr in enumerate(ConnectivityMatrix.index):
+                    outbound = ConnectivityMatrix.loc[pr, :]
+                    lognorm_model = norm(loc=np.mean(np.log10(outbound[outbound>0])), scale=np.std(np.log10(outbound[outbound>0])))
+                    row_vals = lognorm_model.rvs(size=len(outbound))
+                    row_vals[row_vals<0] = 0
+                    row_vals = 10**row_vals
+                    vals[p_ind, :] = row_vals
+            else: # one lognorm model for entire adjacency matrix
+                lognorm_model = norm(loc=np.mean(np.log10(conns[conns>0])), scale=np.std(np.log10(conns[conns>0])))
+                vals = lognorm_model.rvs(size=ConnectivityMatrix.shape)
+                vals[vals<0] = 0
+                vals = 10**vals
+
+        model_adjacency = pd.DataFrame(data=vals, index=self.rois, columns=self.rois)
+        return model_adjacency
