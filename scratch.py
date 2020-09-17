@@ -5,6 +5,9 @@ import networkx as nx
 from scipy.stats import pearsonr, spearmanr
 import os
 import socket
+from sklearn.linear_model import LinearRegression
+from sklearn.model_selection import RepeatedKFold, cross_validate
+from scipy.stats import norm
 
 from scfc import bridge, anatomical_connectivity, functional_connectivity, plotting
 import matplotlib
@@ -34,108 +37,152 @@ AC = anatomical_connectivity.AnatomicalConnectivity(data_dir=data_dir, neuprint_
 plot_colors = plt.get_cmap('tab10')(np.arange(8)/8)
 
 
-# %%
-# %% regression model on shortest path steps
-fig2_6, ax = plt.subplots(1, 3, figsize=(9, 3.5))
+# %% DIRECT CONN MODEL
+
 
 rkf = RepeatedKFold(n_splits=10, n_repeats=100, random_state=0)
 
-# 1: Cell count
-anat_connect = AC.getConnectivityMatrix('CellCount', diag=None)
-shortest_path_distance, shortest_path_steps, shortest_path_weight, hub_count = bridge.getShortestPathStats(anat_connect)
-x = np.log10(((shortest_path_distance.T + shortest_path_distance.T)/2).to_numpy()[FC.upper_inds])
-y = FC.CorrelationMatrix.to_numpy()[FC.upper_inds]
+# 1: Cell count measured
+ConnectivityMatrix = AC.getConnectivityMatrix('CellCount', diag=0, symmetrize=True)
+keep_inds = np.where(ConnectivityMatrix.to_numpy()[AC.upper_inds] > 0) # for log-transforming anatomical connectivity, toss zero values
+x = np.log10(ConnectivityMatrix.to_numpy().copy()[AC.upper_inds][keep_inds])
+measured_fc = FC.CorrelationMatrix.to_numpy()[FC.upper_inds][keep_inds]
 x = x.reshape(-1, 1)
-
 regressor = LinearRegression()
-regressor.fit(x, y);
+regressor.fit(x, measured_fc);
+
 pred = regressor.predict(x)
-cv_results = cross_validate(regressor, x, y, cv=rkf, scoring='r2');
+cv_results = cross_validate(regressor, x, measured_fc, cv=rkf, scoring='r2');
 avg_r2 = cv_results['test_score'].mean()
 err = cv_results['test_score'].std()
 print('r2 = {:.2f}+/-{:.2f}'.format(avg_r2, err))
-ax[0].plot([-0.2, 1.0], [-0.2, 1.0], 'k--')
-ax[0].plot(pred, y, 'ko', alpha=0.25)
-ax[0].annotate('$r^2$={:.2f}'.format(avg_r2), (-0.15, 0.95))
-ax[0].set_ylabel('Measured FC (z)')
-ax[0].set_xlim([-0.2, 1.0])
-ax[0].set_title('Cell count', fontsize=10)
-ax[0].set_aspect('equal')
-
-# 2: Synapse count
-anat_connect = AC.getConnectivityMatrix('WeightedSynapseCount', diag=None)
-shortest_path_distance, shortest_path_steps, shortest_path_weight, hub_count = bridge.getShortestPathStats(anat_connect)
-x = np.log10(((shortest_path_distance.T + shortest_path_distance.T)/2).to_numpy()[FC.upper_inds])
-y = FC.CorrelationMatrix.to_numpy()[FC.upper_inds]
-x = x.reshape(-1, 1)
-
-regressor = LinearRegression()
-regressor.fit(x, y);
-pred = regressor.predict(x)
-cv_results = cross_validate(regressor, x, y, cv=rkf, scoring='r2');
-avg_r2 = cv_results['test_score'].mean()
-err = cv_results['test_score'].std()
-print('r2 = {:.2f}+/-{:.2f}'.format(avg_r2, err))
-ax[1].plot([-0.2, 1.0], [-0.2, 1.0], 'k--')
-ax[1].plot(pred, y, 'ko', alpha=0.25)
-ax[1].annotate('$r^2$={:.2f}'.format(avg_r2), (-0.15, 0.95))
-ax[1].set_xlabel('Predicted FC (z)')
-ax[1].set_xlim([-0.2, 1.0])
-ax[1].set_title('Weighted synapse count', fontsize=10)
-ax[1].set_aspect('equal')
-
-# 3: Tbars
-anat_connect = AC.getConnectivityMatrix('TBars', diag=None)
-shortest_path_distance, shortest_path_steps, shortest_path_weight, hub_count = bridge.getShortestPathStats(anat_connect)
-x = np.log10(((shortest_path_distance.T + shortest_path_distance.T)/2).to_numpy()[FC.upper_inds])
-y = FC.CorrelationMatrix.to_numpy()[FC.upper_inds]
-x = x.reshape(-1, 1)
-
-regressor = LinearRegression()
-regressor.fit(x, y);
-pred = regressor.predict(x)
-cv_results = cross_validate(regressor, x, y, cv=rkf, scoring='r2');
-avg_r2 = cv_results['test_score'].mean()
-err = cv_results['test_score'].std()
-print('r2 = {:.2f}+/-{:.2f}'.format(avg_r2, err))
-ax[2].plot([-0.2, 1.0], [-0.2, 1.0], 'k--')
-ax[2].plot(pred, y, 'ko', alpha=0.25)
-ax[2].annotate('$r^2$={:.2f}'.format(avg_r2), (-0.15, 0.95))
-ax[2].set_xlim([-0.2, 1.0])
-ax[2].set_title('T-Bar count', fontsize=10)
-ax[2].set_aspect('equal')
-
-fig2_6.suptitle('Shortest path connectivity')
-# fig2_6.savefig(os.path.join(analysis_dir, 'figpanels', 'Fig2_6.pdf'), format='pdf', transparent=True)
-
-# %% multiple regression model to try to get highest r2
-
-fh, ax = plt.subplots(1, 1, figsize=(4, 4))
-# Cell ct + tbars
-sp_cell_count, _, _, _ = bridge.getShortestPathStats(AC.getConnectivityMatrix('CellCount', diag=None))
-sp_tbars, _, _, _ = bridge.getShortestPathStats(AC.getConnectivityMatrix('TBars', diag=None))
-
-x = np.vstack([
-               np.log10(((sp_cell_count.T + sp_cell_count.T)/2).to_numpy()[FC.upper_inds]),
-               np.log10(((sp_tbars.T + sp_tbars.T)/2).to_numpy()[FC.upper_inds]),
-               FC.SizeMatrix.to_numpy()[FC.upper_inds],
-               FC.DistanceMatrix.to_numpy()[FC.upper_inds],
-               ]).T
-
-
-y = FC.CorrelationMatrix.to_numpy()[FC.upper_inds]
-# x = x.reshape(-1, 1)
-
-regressor = LinearRegression()
-regressor.fit(x, y);
-pred = regressor.predict(x)
-cv_results = cross_validate(regressor, x, y, cv=rkf, scoring='r2');
-avg_r2 = cv_results['test_score'].mean()
-err = cv_results['test_score'].std()
-print('r2 = {:.2f}+/-{:.2f}'.format(avg_r2, err))
+fh, ax = plt.subplots(1, 1, figsize=(3,3))
 ax.plot([-0.2, 1.0], [-0.2, 1.0], 'k--')
-ax.plot(pred, y, 'ko', alpha=0.25)
+ax.plot(pred, measured_fc, 'ko', alpha=0.25)
 ax.annotate('$r^2$={:.2f}'.format(avg_r2), (-0.15, 0.95))
+ax.set_ylabel('Measured FC (z)')
+ax.set_xlabel('Predicted FC (z)')
 ax.set_xlim([-0.2, 1.0])
-ax.set_title('Multiple regression model', fontsize=10)
 ax.set_aspect('equal')
+
+# 2 norm random model
+norm_model = norm(loc=np.mean(ConnectivityMatrix.to_numpy()), scale=np.std(ConnectivityMatrix.to_numpy()))
+norm_vals = norm_model.rvs(size=(len(AC.rois), len(AC.rois)))
+norm_vals[norm_vals<0] = 0
+keep_inds = np.where(norm_vals[AC.upper_inds] > 0) # for log-transforming anatomical connectivity, toss zero values
+x = np.log10(norm_vals[AC.upper_inds][keep_inds])
+x = x.reshape(-1, 1)
+norm_fc = regressor.predict(x)
+
+# 3 lognorm model
+conns = ConnectivityMatrix.to_numpy().copy()
+lognorm_model = norm(loc=np.mean(np.log10(conns[conns>0])), scale=np.std(np.log10(conns[conns>0])))
+lognorm_vals = lognorm_model.rvs(size=(len(AC.rois), len(AC.rois)))
+lognorm_vals[lognorm_vals<0] = 0
+lognorm_vals = 10**lognorm_vals
+keep_inds = np.where(lognorm_vals[AC.upper_inds] > 0) # for log-transforming anatomical connectivity, toss zero values
+x = np.log10(lognorm_vals[AC.upper_inds][keep_inds])
+x = x.reshape(-1, 1)
+lognorm_fc = regressor.predict(x)
+
+nbins = 25
+fh, ax = plt.subplots(1, 1, figsize=(8,4))
+vals, bins = np.histogram(measured_fc, bins=nbins, density=True)
+ax.plot(bins[:-1], vals/np.sum(vals), 'k')
+
+vals, bins = np.histogram(norm_fc, bins=nbins, density=True)
+ax.plot(bins[:-1], vals/np.sum(vals), 'b')
+
+vals, bins = np.histogram(lognorm_fc, bins=nbins, density=True)
+ax.plot(bins[:-1], vals/np.sum(vals), 'r')
+
+# %% SHORTEST PATH MODEL
+import pandas as pd
+
+rkf = RepeatedKFold(n_splits=10, n_repeats=100, random_state=0)
+
+# 1: Cell count measured
+anat_connect = AC.getConnectivityMatrix('CellCount', diag=None)
+measured_sp, measured_steps, _, measured_hub = bridge.getShortestPathStats(anat_connect)
+x = np.log10(((measured_sp.T + measured_sp.T)/2).to_numpy()[FC.upper_inds])
+measured_fc = FC.CorrelationMatrix.to_numpy()[FC.upper_inds]
+x = x.reshape(-1, 1)
+regressor = LinearRegression()
+regressor.fit(x, measured_fc);
+
+pred = regressor.predict(x)
+cv_results = cross_validate(regressor, x, measured_fc, cv=rkf, scoring='r2');
+avg_r2 = cv_results['test_score'].mean()
+err = cv_results['test_score'].std()
+print('r2 = {:.2f}+/-{:.2f}'.format(avg_r2, err))
+fh, ax = plt.subplots(1, 1, figsize=(3,3))
+ax.plot([-0.2, 1.0], [-0.2, 1.0], 'k--')
+ax.plot(pred, measured_fc, 'ko', alpha=0.25)
+ax.annotate('$r^2$={:.2f}'.format(avg_r2), (-0.15, 0.95))
+ax.set_ylabel('Measured FC (z)')
+ax.set_xlabel('Predicted FC (z)')
+ax.set_xlim([-0.2, 1.0])
+ax.set_aspect('equal')
+
+# 2 norm random model
+norm_model = norm(loc=np.mean(ConnectivityMatrix.to_numpy()), scale=np.std(ConnectivityMatrix.to_numpy()))
+norm_vals = norm_model.rvs(size=(len(AC.rois), len(AC.rois)))
+norm_vals[norm_vals<0] = 0
+norm_df = pd.DataFrame(data=norm_vals, index=AC.rois, columns=AC.rois)
+norm_sp, norm_steps, _, norm_hub = bridge.getShortestPathStats(norm_df)
+x = np.log10(((norm_sp.T + norm_sp.T)/2).to_numpy()[FC.upper_inds])
+x = x.reshape(-1, 1)
+norm_fc = regressor.predict(x)
+
+# 3 lognorm model
+conns = ConnectivityMatrix.to_numpy().copy()
+lognorm_model = norm(loc=np.mean(np.log10(conns[conns>0])), scale=np.std(np.log10(conns[conns>0])))
+lognorm_vals = lognorm_model.rvs(size=(len(AC.rois), len(AC.rois)))
+lognorm_vals[lognorm_vals<0] = 0
+lognorm_vals = 10**lognorm_vals
+lognorm_df = pd.DataFrame(data=lognorm_vals, index=AC.rois, columns=AC.rois)
+lognorm_sp, lognorm_steps, _, lognorm_hub = bridge.getShortestPathStats(lognorm_df)
+x = np.log10(((lognorm_sp.T + lognorm_sp.T)/2).to_numpy()[FC.upper_inds])
+x = x.reshape(-1, 1)
+lognorm_fc = regressor.predict(x)
+
+nbins = 25
+fh, ax = plt.subplots(1, 1, figsize=(8,4))
+vals, bins = np.histogram(measured_fc, bins=nbins, density=True)
+ax.plot(bins[:-1], vals/np.sum(vals), 'k', label='Measured')
+
+vals, bins = np.histogram(norm_fc, bins=nbins, density=True)
+ax.plot(bins[:-1], vals/np.sum(vals), color=plot_colors[0], label='norm. model')
+
+vals, bins = np.histogram(lognorm_fc, bins=nbins, density=True)
+ax.plot(bins[:-1], vals/np.sum(vals), color=plot_colors[1], label='lognorm. model')
+ax.set_xlabel('Functional connectivity (z)')
+ax.set_ylabel('Prob.')
+ax.legend()
+
+# %%
+nbin=5
+fh, ax = plt.subplots(1, 1, figsize=(3,3))
+vals, bins = np.histogram(measured_steps.to_numpy().ravel(), bins=nbins, density=True)
+ax.plot(bins[:-1], vals/np.sum(vals), label='Measured', color='k')
+
+vals, bins = np.histogram(norm_steps.to_numpy().ravel(), bins=nbins, density=True)
+ax.plot(bins[:-1], vals/np.sum(vals), label='Norm. model', color=plot_colors[0])
+
+vals, bins = np.histogram(lognorm_steps.to_numpy().ravel(), bins=nbins, density=True)
+ax.plot(bins[:-1], vals/np.sum(vals), label='Lognorm. model', color=plot_colors[1])
+ax.legend()
+
+
+nbin=25
+fh, ax = plt.subplots(1, 1, figsize=(3,3))
+vals, bins = np.histogram(measured_hub.to_numpy().ravel(), bins=nbins, density=True)
+ax.plot(bins[:-1], vals/np.sum(vals), label='Measured', color='k')
+
+vals, bins = np.histogram(norm_hub.to_numpy().ravel(), bins=nbins, density=True)
+ax.plot(bins[:-1], vals/np.sum(vals), label='Norm. model', color=plot_colors[0])
+
+vals, bins = np.histogram(lognorm_hub.to_numpy().ravel(), bins=nbins, density=True)
+ax.plot(bins[:-1], vals/np.sum(vals), label='Lognorm. model', color=plot_colors[1])
+
+ax.legend()

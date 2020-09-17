@@ -39,6 +39,7 @@ AC = anatomical_connectivity.AnatomicalConnectivity(data_dir=data_dir, neuprint_
 plot_colors = plt.get_cmap('tab10')(np.arange(8)/8)
 
 # %%
+from scipy.stats import ttest_1samp
 
 fig2_0, ax = plt.subplots(1, 2, figsize=(10, 5))
 df = AC.getConnectivityMatrix('CellCount', diag=np.nan)

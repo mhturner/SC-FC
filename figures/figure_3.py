@@ -241,8 +241,11 @@ max_path = 6
 n_nodes = len(FC.rois)
 
 adj = AC.getConnectivityMatrix('CellCount', symmetrize=True, diag=0).to_numpy()
+# adj = FC.CorrelationMatrix.to_numpy()
+# np.fill_diagonal(adj, 0)
+adj[adj<0] = 0
 G = nx.from_numpy_matrix(adj, create_using=nx.DiGraph)
-n2v = Node2Vec(graph=G, walk_length=2*max_path, num_walks=20*n_nodes, dimensions=n_nodes, q=1, p=1)
+n2v = Node2Vec(graph=G, walk_length=2*max_path, num_walks=20*n_nodes, dimensions=n_nodes, q=0.5, p=1)
 w2v = n2v.fit(sg=0, seed=1)
 embedding_w2v = np.vstack([np.array(w2v[str(u)]) for u in sorted(G.nodes)]) # n_nodes x n_dimensions
 
@@ -259,31 +262,12 @@ ax.set_ylabel('Frac. var')
 ax.set_xticks([])
 
 
-fig3_5, ax = plt.subplots(1, 1, figsize=(5, 5))
-
+fig3_5, ax = plt.subplots(1, 1, figsize=(6, 6))
 ax.scatter(u[:, 0], u[:, 1], c=c, cmap="RdBu", vmin=-lim, vmax=lim, s=80, edgecolors='k',)
 ax.set_xlabel('PC 1')
 ax.set_ylabel('PC 2')
 
+
+
 for r_ind, r in enumerate(AC.rois):
     ax.annotate(r, (u[r_ind, 0], u[r_ind, 1]), fontsize=8, fontweight='bold')
-
-# %%
-from scipy.spatial.distance import pdist
-
-# 1) Embed anatomical graph using node2vec
-max_path = 6
-n_nodes = len(FC.rois)
-
-adj = AC.getConnectivityMatrix('CellCount', symmetrize=True, diag=0).to_numpy()
-G = nx.from_numpy_matrix(adj, create_using=nx.DiGraph)
-n2v = Node2Vec(graph=G, walk_length=20, num_walks=10*n_nodes, dimensions=20, q=0.5, p=0.5)
-w2v = n2v.fit(sg=1, seed=1)
-embedding_w2v = np.vstack([np.array(w2v[str(u)]) for u in sorted(G.nodes)]) # n_nodes x n_dimensions
-
-w2v_distance = pdist(embedding_w2v)
-
-r, p = pearsonr(w2v_distance, FC.CorrelationMatrix.to_numpy()[FC.upper_inds])
-fh, ax = plt.subplots(1, 1, figsize=(6, 4))
-ax.plot(w2v_distance, FC.CorrelationMatrix.to_numpy()[FC.upper_inds], 'ko')
-ax.set_title(r)

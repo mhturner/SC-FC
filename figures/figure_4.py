@@ -279,11 +279,17 @@ for step_no in range(2, 8):
     fc_pts.append(y[pull_inds])
     len_pts.append(x[pull_inds])
 
+h, p = ttest_1samp(FC.cmats, 0, axis=2)
+p_cutoff = 0.05 / p.size # Bonferroni corrected p cutoff
+p_vals = p[AC.upper_inds]
+p_vals = p_vals<p_cutoff
+c = p_vals
+
 r, p = pearsonr(x, y)
 coef = np.polyfit(x, y, 1)
 linfit = np.poly1d(coef)
 xx = np.linspace(x.min(), x.max(), 100)
-ax[1].plot(10**x, y, 'ko', alpha=0.5, marker='o', color=[0.5, 0.5, 0.5])
+ax[1].scatter(10**x, y, c=c, alpha=0.5, marker='o', cmap='RdGy')
 ax[1].plot(10**xx, linfit(xx), color='k', linestyle='--', linewidth=2, marker=None)
 ax[1].set_title('r = {:.2f}'.format(r));
 ax[1].set_xlabel('Shortest path distance')
@@ -305,7 +311,8 @@ for b_ind in range(num_bins):
     ax[1].plot([10**bin_mean_x, 10**bin_mean_x], bin_spread_y, linestyle='-', marker='None', color='k', alpha=1, linewidth=2)
 
 
-fig4_4.savefig(os.path.join(analysis_dir, 'figpanels', 'fig4_4.svg'), format='svg', transparent=True)
+# fig4_4.savefig(os.path.join(analysis_dir, 'figpanels', 'fig4_4.svg'), format='svg', transparent=True)
+
 
 # %% Supp: connectome degree stats: scale free + small world comparisons
 
@@ -340,24 +347,23 @@ random_degree = np.vstack(random_degree)
 
 # %% Plot degree distribution vs power law distribution
 
-figS4_0 = plt.figure(figsize=(12, 4))
-ax = figS4_0.add_subplot(1, 3, 3)
-
+figS4_0 = plt.figure(figsize=(8, 4))
+ax = figS4_0.add_subplot(1, 2, 2)
 anat_connect = AC.getConnectivityMatrix('CellCount', diag=None)
 edge_weights = anat_connect.to_numpy().copy().ravel()
-
 bins = np.arange(0, edge_weights.max(), 1)
 vals, bins = np.histogram(edge_weights, bins=bins, density=True)
 
 # fit power law
-p_opt = powerlaw.fit(edge_weights)
+fit_thresh = np.quantile(edge_weights, 0.1) # exclude weakest 10% of connections in fit
+p_opt = powerlaw.fit(edge_weights[edge_weights>fit_thresh])
 a = p_opt[0]
-xx = np.arange(1, 1000)
-yy = powerlaw.pdf(xx, p_opt[0], loc=p_opt[1], scale=p_opt[2])
+xx = np.arange(fit_thresh, 1000)
+yy = a * xx**(a-1)
 ax.plot(xx, yy/yy.sum(), linestyle='-', linewidth=2, alpha=1.0, color=[0,0,0])
 ax.annotate('$p(w)=a*w^{{a-1}}$ \na={:.2f}'.format(a), (200, 2e-2))
 
-ax.plot(bins[:-1], vals, 'bo', alpha=0.25)
+ax.plot(bins[:-1], vals, marker='o', color=plot_colors[0], linestyle='None', alpha=0.50)
 
 ax.set_xlim([1, edge_weights.max()])
 ax.set_xscale('log')
@@ -366,20 +372,27 @@ ax.set_xlabel('Edge weight')
 ax.set_ylabel('P(weight)')
 
 # plot path length and clustering for random vs. connectome
-ax = figS4_0.add_subplot(2, 3, 1)
+ax = figS4_0.add_subplot(2, 4, 1)
 ax.set_axis_off()
 ax.imshow(adj_data, cmap='Greys', vmin=-0.5, vmax=1)
-ax.set_title('Connectome')
-ax = figS4_0.add_subplot(2, 3, 4)
+ax.set_title('Connectome', color=plot_colors[0])
+ax = figS4_0.add_subplot(2, 4, 5)
 ax.set_axis_off()
 ax.imshow(adj_random, cmap='Greys', vmin=-0.5, vmax=1)
 ax.set_title('Random')
 
-ax = figS4_0.add_subplot(1, 3, 2)
-ax.plot(nx.average_shortest_path_length(G_data), nx.average_clustering(G_data), 'bs', label='Connectome')
-ax.plot(random_path_lens, random_clustering, 'ko', label='Random', alpha=0.25)
+ax = figS4_0.add_subplot(2, 4, 2)
+ax.hist(random_path_lens, bins=20, density=True, color='k')
+ax.axvline(nx.average_shortest_path_length(G_data))
+ax.set_xlim(1.4, 1.58)
 ax.set_xlabel('Path length')
-ax.set_ylabel('Clustering')
-ax.legend()
 
-figS4_0.savefig(os.path.join(analysis_dir, 'figpanels', 'figS4_0.svg'), format='svg', transparent=True)
+
+ax = figS4_0.add_subplot(2, 4, 6)
+ax.hist(random_clustering, bins=20, density=True, color='k')
+ax.axvline(nx.average_clustering(G_data))
+ax.set_xlim(0.45, 0.85)
+ax.set_xlabel('clustering')
+
+
+# figS4_0.savefig(os.path.join(analysis_dir, 'figpanels', 'figS4_0.svg'), format='svg', transparent=True)
