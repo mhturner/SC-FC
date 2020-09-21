@@ -1,126 +1,77 @@
-import numpy as np
-from scipy.integrate import odeint
-from scipy.special import erf
 import matplotlib.pyplot as plt
-import pandas as pd
+from neuprint import Client, fetch_neurons, NeuronCriteria
+import numpy as np
+import networkx as nx
+from scipy.stats import pearsonr, spearmanr
 import os
-import seaborn as sns
-import glob
-from scipy.stats import pearsonr
-from sklearn.metrics import explained_variance_score
+import socket
+from sklearn.linear_model import LinearRegression
+from sklearn.model_selection import RepeatedKFold, cross_validate
+from scipy.stats import norm
 
-from scfc import functional_connectivity, bridge, anatomical_connectivity
+from scfc import bridge, anatomical_connectivity, functional_connectivity, plotting
+import matplotlib
 from matplotlib import rcParams
-rcParams['svg.fonttype'] = 'none'
+rcParams.update({'font.size': 12})
+rcParams.update({'figure.autolayout': True})
+rcParams.update({'axes.spines.right': False})
+rcParams.update({'axes.spines.top': False})
+rcParams['svg.fonttype'] = 'none' # let illustrator handle the font type
 
-"""
-See coupled ei model here:
-https://elifesciences.org/articles/22425#s4
+if socket.gethostname() == 'MHT-laptop':  # windows
+    data_dir = r'C:\Users\mhturner/Dropbox/ClandininLab/Analysis/SC-FC/data'
+    analysis_dir = r'C:\Users\mhturner/Dropbox/ClandininLab/Analysis/SC-FC'
+elif socket.gethostname() == 'max-laptop':  # linux
+    data_dir = '/home/mhturner/Dropbox/ClandininLab/Analysis/SC-FC/data'
+    analysis_dir = '/home/mhturner/Dropbox/ClandininLab/Analysis/SC-FC'
 
-"""
-
-data_dir = '/home/mhturner/Dropbox/ClandininLab/Analysis/SC-FC/data'
-analysis_dir = '/home/mhturner/Dropbox/ClandininLab/Analysis/SC-FC'
-
-tdim = 4000
-
-tau_i = 2 # msec (2)
-tau_e = 10 # msec (10)
-# w_: within subnetwork weights
-w_ee = 2 # e self drive (2)
-w_ei = 4 # i to e (4)
-w_ie = 4 # e to i (4)
-
- # scaling of weights between excitatory populations
- # CellCount: ~2
-  # CellCount, log: ~0.5
- # WeightedSynapseCount: ~7
- # TBars, log:
-w_internode = 0.7
-do_log = True
-
-pulse_size = 5 # (5)
-spike_rate = 5 #hz (5)
+# start client
+neuprint_client = Client('neuprint.janelia.org', dataset='hemibrain:v1.1', token=bridge.getNeuprintToken())
 
 # Get FunctionalConnectivity object
 FC = functional_connectivity.FunctionalConnectivity(data_dir=data_dir, fs=1.2, cutoff=0.01, mapping=bridge.getRoiMapping())
 
 # Get AnatomicalConnectivity object
+AC = anatomical_connectivity.AnatomicalConnectivity(data_dir=data_dir, neuprint_client=neuprint_client, mapping=bridge.getRoiMapping())
+
+plot_colors = plt.get_cmap('tab10')(np.arange(8)/8)
+# %%
+
+import pandas as pd
+from scfc.rate_model import RateModel
+
 AC = anatomical_connectivity.AnatomicalConnectivity(data_dir=data_dir, neuprint_client=None, mapping=bridge.getRoiMapping())
 tmp = AC.getConnectivityMatrix('CellCount').to_numpy().copy()
 np.fill_diagonal(tmp, 0)
 
-# # # #
-tmp = AC.makeModelAdjacency(type='CellCount', model='lognorm', by_row=True).to_numpy().copy()
-np.fill_diagonal(tmp, 0)
-# # # #
+keep_inds = np.where(tmp > 0)
+C = np.zeros_like(tmp)
+base = 10
+C[keep_inds] = np.log(tmp[keep_inds]) / np.log(base)
 
-if do_log:
-    keep_inds = np.where(tmp > 0)
-    C = np.zeros_like(tmp)
-    base = 10
-    C[keep_inds] = np.log(tmp[keep_inds]) / np.log(base)
-else:
-    C = tmp
-
-C = C / C.max()
+RM = RateModel(C=C, tau_i=2, tau_e=10, w_e=2, w_i=4, w_internode=0.50)
+t, r_e, r_i = RM.solve(tdim=3000, r0=None, pulse_size=5, spike_rate=5, stimulus=None)
 
 
-# C = np.random.rand(C.shape[0], C.shape[1])
-# np.fill_diagonal(C, 0)
+cmat = np.arctanh(np.corrcoef(r_e[100:, :].T))
+np.fill_diagonal(cmat, np.nan)
+pred_cmat = pd.DataFrame(data=cmat, index=FC.rois, columns=FC.rois)
 
-n_nodes = C.shape[0]
+fh, ax = plt.subplots(1, 1, figsize=(4, 2))
+ax.plot(t, r_e)
 
-# poisson noise in all nodes
-cutoff_prob = spike_rate / 1000 # spikes per msec bin
-spikes = np.random.uniform(low=0, high=1, size=(n_nodes, tdim)) <= cutoff_prob
-nez_e = pulse_size * spikes
+y = FC.CorrelationMatrix.to_numpy()[FC.upper_inds]
+y_hat = pred_cmat.to_numpy()[FC.upper_inds]
 
-stimulus = None
+r2 = 1 - np.var(y-y_hat)/np.var(y)
 
-C_internode = w_internode * C
-
-# IC stats from end of run
-# r_i[-1, :].std()
-r0 = np.hstack([0.3+0.3*np.random.rand(n_nodes), # exc initial conditions
-                3+3*np.random.rand(n_nodes)]) # inh initial conditions
-
-def threshlinear(input):
-    output = np.array(input)
-    output[output < 0] = 0
-    return output
-
-def sigmoid(input, thresh=0, scale=5):
-    output = scale*erf((np.array(input)-thresh)/scale)
-    output[output < 0] = 0
-    return output
-
-def dXdt(X, t, nez_e, stimulus):
-    """
-    Input is X := r_exc, r_inh... at time t
-    Output is dX/dt
-    """
-    r_e = X[:n_nodes]
-    r_i = X[n_nodes:2*n_nodes]
-    if stimulus is not None:
-        stim = stimulus[:, int(t)]
-    else:
-        stim = 0
-
-    internode_inputs = C_internode.T @ r_e
-    exc_inputs = w_ee*r_e - w_ei*r_i
-    edot = (-r_e + sigmoid(internode_inputs + exc_inputs) + nez_e[:, int(t)] + stim) / tau_e
-
-    inh_inputs = w_ie*r_e
-    idot = (-r_i + sigmoid(inh_inputs) + stim) / tau_i
-
-    return np.hstack([edot, idot])
-
-# solve
-t = np.arange(0, tdim) # sec
-X = odeint(dXdt, r0, t, args=(nez_e, stimulus))
-r_e = X[:, :n_nodes]
-r_i = X[:, n_nodes:2*n_nodes]
+r, _ = pearsonr(y, y_hat)
+fh, ax = plt.subplots(1, 1, figsize=(4, 4))
+ax.plot(pred_cmat.to_numpy()[FC.upper_inds], FC.CorrelationMatrix.to_numpy()[FC.upper_inds], 'ko')
+ax.plot([-0.2, 1.0], [-0.2, 1.0], 'k--')
+ax.set_xlabel('Predicted')
+ax.set_ylabel('Measured')
+ax.set_title('r2 = {:.3f}'.format(r2));
 
 # %%
 # # plot responses
