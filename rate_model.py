@@ -49,9 +49,8 @@ C = np.zeros_like(tmp)
 base = 10
 C[keep_inds] = np.log(tmp[keep_inds]) / np.log(base)
 
-RM = RateModel(C=C, tau_i=2, tau_e=10, w_e=2, w_i=4, w_internode=0.50)
-t, r_e, r_i = RM.solve(tdim=3000, r0=None, pulse_size=5, spike_rate=5, stimulus=None)
-
+RM = RateModel(C=C, tau_i=2, tau_e=10, w_e=2, w_i=4, w_internode=0.5)
+t, r_e, r_i = RM.solve(tdim=6000, r0=None, pulse_size=10, spike_rate=5, stimulus=None)
 
 cmat = np.arctanh(np.corrcoef(r_e[100:, :].T))
 np.fill_diagonal(cmat, np.nan)
@@ -60,19 +59,93 @@ pred_cmat = pd.DataFrame(data=cmat, index=FC.rois, columns=FC.rois)
 fh, ax = plt.subplots(1, 1, figsize=(4, 2))
 ax.plot(t, r_e)
 
-y = FC.CorrelationMatrix.to_numpy()[FC.upper_inds]
-y_hat = pred_cmat.to_numpy()[FC.upper_inds]
+measured_fc = FC.CorrelationMatrix.to_numpy()[FC.upper_inds]
+predicted_fc = pred_cmat.to_numpy()[FC.upper_inds]
 
-r2 = 1 - np.var(y-y_hat)/np.var(y)
+r2 = 1 - np.var(measured_fc-predicted_fc)/np.var(measured_fc)
 
-r, _ = pearsonr(y, y_hat)
+r, _ = pearsonr(measured_fc, predicted_fc)
 fh, ax = plt.subplots(1, 1, figsize=(4, 4))
-ax.plot(pred_cmat.to_numpy()[FC.upper_inds], FC.CorrelationMatrix.to_numpy()[FC.upper_inds], 'ko')
+ax.plot(predicted_fc, measured_fc, 'ko')
 ax.plot([-0.2, 1.0], [-0.2, 1.0], 'k--')
 ax.set_xlabel('Predicted')
 ax.set_ylabel('Measured')
 ax.set_title('r2 = {:.3f}'.format(r2));
 
+# %%
+# # # ------------------------------ # # #
+tmp = AC.makeModelAdjacency(type='CellCount', model='lognorm', by_row=True).to_numpy().copy()
+np.fill_diagonal(tmp, 0)
+keep_inds = np.where(tmp > 0)
+C = np.zeros_like(tmp)
+base = 10
+C[keep_inds] = np.log(tmp[keep_inds]) / np.log(base)
+
+RM = RateModel(C=C, tau_i=2, tau_e=10, w_e=2, w_i=4, w_internode=0.65)
+t, r_e, r_i = RM.solve(tdim=6000, r0=None, pulse_size=10, spike_rate=5, stimulus=None)
+fh, ax = plt.subplots(1, 1, figsize=(4, 2))
+ax.plot(t, r_e)
+
+cmat = np.arctanh(np.corrcoef(r_e[100:, :].T))
+np.fill_diagonal(cmat, np.nan)
+
+lognorm_fc = cmat[FC.upper_inds]
+
+
+# %%
+fh, ax = plt.subplots(1, 1, figsize=(6, 4))
+bins = np.linspace(0, 1, 20)
+
+vals, bins = np.histogram(measured_fc, bins=bins, density=True)
+bin_ctrs = bins[:-1] + np.mean(np.diff(bins))/2
+ax.plot(bin_ctrs, vals/np.sum(vals), 'k-o', label='Measured')
+
+vals, bins = np.histogram(predicted_fc, bins=bins, density=True)
+bin_ctrs = bins[:-1] + np.mean(np.diff(bins))/2
+ax.plot(bin_ctrs, vals/np.sum(vals), color=plot_colors[0], linestyle='-', marker='o', label='Predicted')
+
+vals, bins = np.histogram(lognorm_fc, bins=bins, density=True)
+bin_ctrs = bins[:-1] + np.mean(np.diff(bins))/2
+ax.plot(bin_ctrs, vals/np.sum(vals), color=plot_colors[2], linestyle='-', marker='o', label='Lognorm. model')
+
+
+ax.set_xlabel('Functional connectivity (z)')
+ax.set_ylabel('Prob.')
+ax.legend()
+ax.set_xlim([0, 1])
+
+# %%
+AC = anatomical_connectivity.AnatomicalConnectivity(data_dir=data_dir, neuprint_client=None, mapping=bridge.getRoiMapping())
+
+sigma = 1
+"""
+https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0157292
+"""
+
+# # # REAL
+c = 0.025 # crit is around 0.05, best is <0.01
+tmp = AC.getConnectivityMatrix('CellCount').to_numpy().copy()
+
+W = np.zeros_like(tmp)
+base = 10
+W[keep_inds] = np.log(tmp[keep_inds]) / np.log(base)
+W = W/W.max()
+
+A = -1*np.eye(36) + c * W
+c_predicted = (-(sigma**2)/2) * np.linalg.inv(A)
+
+fh, ax = plt.subplots(1, 2, figsize=(8,4))
+w, v = np.linalg.eig(A)
+ax[0].plot(w, 'k-o')
+
+
+measured_fc = FC.CorrelationMatrix.to_numpy()[FC.upper_inds]
+
+r, p = pearsonr(c_predicted[FC.upper_inds], measured_fc)
+ax[1].plot(c_predicted[FC.upper_inds], measured_fc,  'ko')
+ax[1].set_title(r)
+ax[1].set_ylabel('Measured FC')
+ax[1].set_xlabel('Predicted covariance')
 # %%
 # # plot responses
 events = []

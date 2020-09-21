@@ -324,5 +324,7 @@ class AnatomicalConnectivity():
                 vals[vals<0] = 0
                 vals = 10**vals
 
+        # symmetrize:
+        # vals = (vals + vals.T)/2
         model_adjacency = pd.DataFrame(data=vals, index=self.rois, columns=self.rois)
         return model_adjacency

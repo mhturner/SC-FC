@@ -35,10 +35,8 @@ FC = functional_connectivity.FunctionalConnectivity(data_dir=data_dir, fs=1.2, c
 AC = anatomical_connectivity.AnatomicalConnectivity(data_dir=data_dir, neuprint_client=neuprint_client, mapping=bridge.getRoiMapping())
 
 plot_colors = plt.get_cmap('tab10')(np.arange(8)/8)
-# %%
 
 # %% SHORTEST PATH MODEL
-# import pandas as pd
 
 rkf = RepeatedKFold(n_splits=10, n_repeats=100, random_state=0)
 
@@ -72,7 +70,7 @@ norm_fc = []
 norm_sp = []
 norm_dc = []
 for it in range(iterations):
-    norm_adj = AC.makeModelAdjacency(type='CellCount', model='norm', by_row=False)
+    norm_adj = AC.makeModelAdjacency(type='CellCount', model='norm', by_row=True)
     sp, norm_steps, _, norm_hub = bridge.getShortestPathStats(norm_adj)
     x = np.log10(((sp.T + sp.T)/2).to_numpy()[FC.upper_inds])
     x = x.reshape(-1, 1)
@@ -89,7 +87,7 @@ uniform_fc = []
 uniform_sp = []
 uniform_dc = []
 for it in range(iterations):
-    norm_adj = AC.makeModelAdjacency(type='CellCount', model='uniform', by_row=False)
+    norm_adj = AC.makeModelAdjacency(type='CellCount', model='uniform', by_row=True)
     sp, norm_steps, _, norm_hub = bridge.getShortestPathStats(norm_adj)
     x = np.log10(((sp.T + sp.T)/2).to_numpy()[FC.upper_inds])
     x = x.reshape(-1, 1)
@@ -105,7 +103,7 @@ lognorm_fc = []
 lognorm_sp = []
 lognorm_dc = []
 for it in range(iterations):
-    lognorm_adj = AC.makeModelAdjacency(type='CellCount', model='lognorm', by_row=False)
+    lognorm_adj = AC.makeModelAdjacency(type='CellCount', model='lognorm', by_row=True)
     sp, lognorm_steps, _, lognorm_hub = bridge.getShortestPathStats(lognorm_adj)
     x = np.log10(((sp.T + sp.T)/2).to_numpy()[FC.upper_inds])
     x = x.reshape(-1, 1)
@@ -157,22 +155,15 @@ def plotHistograms(measured, norm, uniform, lognorm, bins, ax):
 fh, ax = plt.subplots(1, 3, figsize=(12,4))
 # direct conn.
 bins = np.logspace(0.1, 4, 20)
-# shortest path distances
-bins = 20
-plotHistograms(measured_sp, norm_sp, uniform_sp, lognorm_sp, bins, ax[1])
-ax[1].set_xlabel('Shortest path distance')
-ax[1].set_xscale('log')
-ax[1].set_ylabel('Prob.')
-
-measured = anat_connect.to_numpy().ravel()
-plotHistograms(measured, norm_dc, uniform_dc, lognorm_dc, bins, ax[0])
+measured_dc = AC.getConnectivityMatrix('CellCount')
+plotHistograms(measured_dc, norm_dc, uniform_dc, lognorm_dc, bins, ax[0])
 ax[0].set_xlabel('Direct connectivity (cells)')
 ax[0].set_xscale('log')
 ax[0].set_ylabel('Prob.')
 ax[0].legend()
 
 # shortest path distances
-bins = 20
+bins = np.logspace(-3.7, -1.75, 20)
 plotHistograms(measured_sp, norm_sp, uniform_sp, lognorm_sp, bins, ax[1])
 ax[1].set_xlabel('Shortest path distance')
 ax[1].set_xscale('log')
@@ -180,9 +171,13 @@ ax[1].set_ylabel('Prob.')
 
 # FC
 bins = 20
+# plotHistograms(pred, norm_fc, uniform_fc, lognorm_fc, bins, ax[2])
 plotHistograms(measured_fc, norm_fc, uniform_fc, lognorm_fc, bins, ax[2])
 ax[2].set_xlabel('Functional connectivity (z)')
 ax[2].set_ylabel('Prob.')
+
+# %%
+# TODO: need a stat model for connectivity that reproduces FC well with this regression model
 
 # %% DIRECT CELL COUNT MODEL
 
@@ -214,52 +209,40 @@ ax.set_aspect('equal')
 iterations = 10
 # 2 norm random model
 norm_fc = []
-norm_sp = []
 norm_dc = []
 for it in range(iterations):
-    norm_adj = AC.makeModelAdjacency(type='CellCount', model='norm', by_row=False)
+    norm_adj = AC.makeModelAdjacency(type='CellCount', model='norm', by_row=True)
     keep_inds = np.where(norm_adj.to_numpy()[AC.upper_inds] > 0)
     x = np.log10(norm_adj.to_numpy()[FC.upper_inds][keep_inds])
     x = x.reshape(-1, 1)
     norm_fc.append(regressor.predict(x))
-    norm_sp.append(sp)
     norm_dc.append(norm_adj.to_numpy().ravel())
-# norm_fc = np.vstack(norm_fc)
-# norm_sp = np.vstack(norm_sp)
-# norm_dc = np.vstack(norm_dc)
 
-iterations = 10
 # 3 uniform random model
 uniform_fc = []
 uniform_sp = []
 uniform_dc = []
 for it in range(iterations):
-    uniform_adj = AC.makeModelAdjacency(type='CellCount', model='uniform', by_row=False)
+    uniform_adj = AC.makeModelAdjacency(type='CellCount', model='uniform', by_row=True)
     keep_inds = np.where(uniform_adj.to_numpy()[AC.upper_inds] > 0)
     x = np.log10(uniform_adj.to_numpy()[FC.upper_inds][keep_inds])
     x = x.reshape(-1, 1)
     uniform_fc.append(regressor.predict(x))
-    uniform_sp.append(sp)
     uniform_dc.append(norm_adj.to_numpy().ravel())
-# uniform_fc = np.vstack(uniform_fc)
-# uniform_sp = np.vstack(uniform_sp)
-# uniform_dc = np.vstack(uniform_dc)
+
 
 # 4 lognorm model
 lognorm_fc = []
 lognorm_sp = []
 lognorm_dc = []
 for it in range(iterations):
-    lognorm_adj = AC.makeModelAdjacency(type='CellCount', model='lognorm', by_row=False)
+    lognorm_adj = AC.makeModelAdjacency(type='CellCount', model='lognorm', by_row=True)
     keep_inds = np.where(lognorm_adj.to_numpy()[AC.upper_inds] > 0)
     x = np.log10(lognorm_adj.to_numpy()[FC.upper_inds][keep_inds])
     x = x.reshape(-1, 1)
     lognorm_fc.append(regressor.predict(x))
-    lognorm_sp.append(sp)
     lognorm_dc.append(lognorm_adj.to_numpy().ravel())
-# lognorm_fc = np.vstack(lognorm_fc)
-# lognorm_sp = np.vstack(lognorm_sp)
-# lognorm_dc = np.vstack(lognorm_dc)
+
 
 
 # %% PLOT
@@ -302,8 +285,8 @@ def plotHistograms(measured, norm, uniform, lognorm, bins, ax):
 fh, ax = plt.subplots(1, 2, figsize=(12,4))
 # direct conn.
 bins = np.logspace(0.1, 4, 20)
-measured = AC.getConnectivityMatrix('CellCount')
-plotHistograms(measured, norm_dc, uniform_dc, lognorm_dc, bins, ax[0])
+measured_dc = AC.getConnectivityMatrix('CellCount')
+plotHistograms(measured_dc, norm_dc, uniform_dc, lognorm_dc, bins, ax[0])
 ax[0].set_xlabel('Direct connectivity (cells)')
 ax[0].set_xscale('log')
 ax[0].set_ylabel('Prob.')
