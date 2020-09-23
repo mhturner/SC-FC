@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 from neuprint import Client
 import numpy as np
 import os
-from scipy.stats import zscore, pearsonr
+from scipy.stats import zscore, pearsonr, spearmanr
 import pandas as pd
 import seaborn as sns
 import socket
@@ -208,7 +208,7 @@ for c_ind in range(FC.cmats.shape[2]):  #loop over fly
 diff_by_region = np.vstack(diff_by_region).T  # region x fly
 
 colors = sns.color_palette('deep', 8)
-fh, ax = plt.subplots(1, 1, figsize=(6, 3))
+fh, ax = plt.subplots(1, 1, figsize=(7, 3.5))
 plot_ct = 0
 for r_ind, reg in enumerate(regions):
     in_inds = np.where([r in regions[reg] for r in FC.rois])[0]
@@ -238,10 +238,49 @@ shortest_path_distance, shortest_path_steps, shortest_path_weight, hub_count = b
 plt.plot(np.mean(shortest_path_distance, axis=1), np.mean(diff_by_region, axis=1), 'ko')
 
 # %%
-fh, ax = plt.subplots(1, 1, figsize=(6, 6))
-ax.plot(shortest_path_distance.to_numpy().ravel(), DifferenceMatrix.to_numpy().ravel(), 'ko')
-# ax.set_xscale('log')
-ax.axhline(color='k')
+direct_dist = (1/AC.getConnectivityMatrix('CellCount', diag=None).to_numpy()).ravel()
+fh, ax = plt.subplots(1, 2, figsize=(8, 4))
+c = DifferenceMatrix.to_numpy().ravel()
+
+sc = ax[0].scatter(direct_dist, shortest_path_distance.to_numpy().ravel(), c=c, alpha=1, cmap='Blues', marker='.')
+
+ax[0].set_xscale('log')
+ax[0].set_yscale('log')
+ax[0].set_xlabel('Direct distance (1/cells)')
+ax[0].set_ylabel('Shortest path distance (1/cells)');
+ax[0].set_ylim([2e-4, 3e-2])
+fh.colorbar(sc, ax=ax[0])
+
+
+shortest_path_factor = direct_dist / shortest_path_distance.to_numpy().ravel()
+x = shortest_path_factor
+y = DifferenceMatrix.to_numpy().ravel()
+keep_inds = np.where(x>1)
+
+x = x[keep_inds]
+y = y[keep_inds]
+
+
+ax[1].plot(x, y, color=[0.8, 0.8, 0.8], marker='.', alpha=0.25, linestyle='None')
+ax[1].set_xscale('log')
+ax[1].set_xlabel('Shortest path factor')
+ax[1].set_ylabel('Diff. (FC-SC)')
+r, p = spearmanr(shortest_path_factor, DifferenceMatrix.to_numpy().ravel())
+print('Spearman r is {}'.format(r))
+
+num_bins = 18 # equally populated bins
+points_per_bin = int(len(x)/num_bins)
+for b_ind in range(num_bins):
+    inds = np.argsort(x)[(b_ind*points_per_bin):(b_ind+1)*points_per_bin]
+    bin_mean_x = x[inds].mean()
+    bin_mean_y = y[inds].mean()
+    ax[1].plot(bin_mean_x, bin_mean_y, color=plot_colors[0], marker='s', alpha=1, linestyle='none')
+
+    err_x = x[inds].std()/np.sqrt(len(inds))
+    ax[1].plot([bin_mean_x - err_x, bin_mean_x + err_x], [bin_mean_y, bin_mean_y], linestyle='-', marker='None', color=plot_colors[0], alpha=1, linewidth=2)
+
+    err_y = y[inds].std()/np.sqrt(len(inds))
+    ax[1].plot([bin_mean_x, bin_mean_x], [bin_mean_y - err_y, bin_mean_y + err_y], linestyle='-', marker='None', color=plot_colors[0], alpha=1, linewidth=2)
 
 
 # %%
@@ -249,6 +288,7 @@ import networkx as nx
 from node2vec import Node2Vec
 from sklearn.decomposition import PCA
 from scipy.stats import ttest_ind
+from scipy.spatial.distance import pdist, squareform
 
 
 # 1) Embed anatomical graph using node2vec
@@ -263,6 +303,7 @@ G = nx.from_numpy_matrix(adj, create_using=nx.DiGraph)
 n2v = Node2Vec(graph=G, walk_length=2*max_path, num_walks=20*n_nodes, dimensions=n_nodes, q=0.5, p=1)
 w2v = n2v.fit(sg=0, seed=1)
 embedding_w2v = np.vstack([np.array(w2v[str(u)]) for u in sorted(G.nodes)]) # n_nodes x n_dimensions
+
 
 # %%
 # 2) do SVD/PCA on embeddings to visualize in 2D
@@ -286,3 +327,6 @@ ax.set_ylabel('PC 2')
 
 for r_ind, r in enumerate(AC.rois):
     ax.annotate(r, (u[r_ind, 0], u[r_ind, 1]), fontsize=8, fontweight='bold')
+
+# %%
+plt.plot(u[:, 0], c, 'ko')
