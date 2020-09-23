@@ -197,7 +197,7 @@ cv_results = cross_validate(regressor, x, measured_fc, cv=rkf, scoring='r2');
 avg_r2 = cv_results['test_score'].mean()
 err = cv_results['test_score'].std()
 print('r2 = {:.2f}+/-{:.2f}'.format(avg_r2, err))
-fh, ax = plt.subplots(1, 1, figsize=(3,3))
+fh, ax = plt.subplots(1, 1, figsize=(6,6))
 ax.plot([-0.2, 1.0], [-0.2, 1.0], 'k--')
 ax.plot(pred, measured_fc, 'ko', alpha=0.25)
 ax.annotate('$r^2$={:.2f}'.format(avg_r2), (-0.15, 0.95))
@@ -282,7 +282,7 @@ def plotHistograms(measured, norm, uniform, lognorm, bins, ax):
     ax.plot(bins[:-1], avg, color=plot_colors[2], label='lognorm. model')
 
 
-fh, ax = plt.subplots(1, 2, figsize=(12,4))
+fh, ax = plt.subplots(1, 2, figsize=(14,7))
 # direct conn.
 bins = np.logspace(0.1, 4, 20)
 measured_dc = AC.getConnectivityMatrix('CellCount')

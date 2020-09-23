@@ -1,11 +1,12 @@
+
 import matplotlib.pyplot as plt
 from neuprint import Client
 import numpy as np
-import networkx as nx
-from scipy.stats import pearsonr, powerlaw, ttest_1samp
 import os
-import socket
+from scipy.stats import zscore, pearsonr
+import pandas as pd
 import seaborn as sns
+import socket
 
 from scfc import bridge, anatomical_connectivity, functional_connectivity, plotting
 import matplotlib
@@ -14,7 +15,7 @@ rcParams.update({'font.size': 12})
 rcParams.update({'figure.autolayout': True})
 rcParams.update({'axes.spines.right': False})
 rcParams.update({'axes.spines.top': False})
-rcParams['svg.fonttype'] = 'none' # let illustrator handle the font type
+rcParams['svg.fonttype'] = 'none'  # let illustrator handle the font type
 
 if socket.gethostname() == 'MHT-laptop':  # windows
     data_dir = r'C:\Users\mhturner/Dropbox/ClandininLab/Analysis/SC-FC/data'
@@ -34,365 +35,254 @@ AC = anatomical_connectivity.AnatomicalConnectivity(data_dir=data_dir, neuprint_
 
 plot_colors = plt.get_cmap('tab10')(np.arange(8)/8)
 
-# %% get adjacency matrices for graphs
-anat_position = {}
-for r in range(len(FC.coms)):
-    anat_position[r] = FC.coms[r, :]
+# %% Difference matrix
 
-adjacency_anat = AC.getConnectivityMatrix('CellCount', symmetrize=True, diag=0).to_numpy()
-adjacency_fxn = FC.CorrelationMatrix.to_numpy().copy()
-np.fill_diagonal(adjacency_fxn, 0)
+# # compute difference matrix using original, asymmetric anatomical connectivity matrix
+anatomical_mat = AC.getConnectivityMatrix('CellCount', diag=0).to_numpy().copy()
+functional_mat = FC.CorrelationMatrix.to_numpy().copy()
+np.fill_diagonal(functional_mat, 0)
 
-# normalize each adjacency
-adjacency_anat = adjacency_anat / adjacency_anat.max()
-adjacency_fxn = adjacency_fxn / adjacency_fxn.max()
-# %% Plot fxn and anat graphs in 3D brain space
+# log transform anatomical connectivity values
+keep_inds_diff = np.where(anatomical_mat > 0)
+functional_adjacency_diff = functional_mat[keep_inds_diff]
+anatomical_adjacency_diff = np.log10(anatomical_mat[keep_inds_diff])
 
-take_top_pct = 0.2 # top fraction to include in network graphs
-roilabels_to_skip = ['ATL(R)', 'IB', 'MPED(R)', 'SIP(R)', 'PLP(R)', 'SPS(R)', 'GOR(R)', 'GOR(L)', 'ICL(R)','BU(L)', 'BU(R)', 'SCL(R)', 'CRE(R)']
+F_zscore = zscore(functional_adjacency_diff)
+A_zscore = zscore(anatomical_adjacency_diff)
+diff = F_zscore - A_zscore
 
-cmap = plt.get_cmap('Blues')
+diff_m = np.zeros_like(anatomical_mat)
+diff_m[keep_inds_diff] = diff
+DifferenceMatrix = pd.DataFrame(data=diff_m, index=FC.rois, columns=FC.rois)
 
-cutoff = np.quantile(adjacency_anat, 1-take_top_pct)
-print('Threshold included {} of {} edges in anatomical connectivity matrix'.format((adjacency_anat>=cutoff).sum(), adjacency_anat.size))
-temp_adj_anat = adjacency_anat.copy() # threshold only for display graph
-temp_adj_anat[temp_adj_anat<cutoff] = 0
-G_anat = nx.from_numpy_matrix(temp_adj_anat/temp_adj_anat.max(), create_using=nx.DiGraph)
 
-cutoff = np.quantile(adjacency_fxn[adjacency_fxn>0], 1-take_top_pct)
-print('Threshold included {} of {} sig edges in functional connectivity matrix'.format((adjacency_fxn>=cutoff).sum(), (adjacency_fxn>0).sum()))
-temp_adj_fxn = adjacency_fxn.copy() # threshold only for display graph
-temp_adj_fxn[temp_adj_fxn<cutoff] = 0
-G_fxn = nx.from_numpy_matrix(temp_adj_fxn/temp_adj_fxn.max(), create_using=nx.DiGraph)
+# %% sort difference matrix by most to least different rois
+diff_by_region = DifferenceMatrix.mean()
+sort_inds = np.argsort(diff_by_region)[::-1]
+sort_keys = DifferenceMatrix.index[sort_inds]
+sorted_diff = pd.DataFrame(data=np.zeros_like(DifferenceMatrix),columns=sort_keys, index=sort_keys)
+for r_ind, r_key in enumerate(sort_keys):
+    for c_ind, c_key in enumerate(sort_keys):
+        sorted_diff.iloc[r_ind, c_ind]=DifferenceMatrix.loc[[r_key], [c_key]].to_numpy()
 
-fig4_0 = plt.figure(figsize=(9, 4.5))
-ax_anat = fig4_0.add_subplot(1, 2, 1, projection='3d')
-ax_fxn = fig4_0.add_subplot(1, 2, 2, projection='3d')
+fig3_0, ax = plt.subplots(1, 1, figsize=(3.5, 3.5))
+lim = np.nanmax(np.abs(DifferenceMatrix.to_numpy().ravel()))
+ax.scatter(A_zscore, F_zscore, alpha=1, c=diff, cmap="RdBu",  vmin=-lim, vmax=lim, edgecolors='k', linewidths=0.5)
+ax.plot([-3, 4], [-3, 4], 'k-')
+ax.set_xlabel('Structural Conn. (z-score)')
+ax.set_ylabel('Functional Conn. (z-score)');
 
-ax_anat.view_init(-70, -95)
-ax_anat.set_axis_off()
-# ax_anat.set_title('Structural', fontweight='bold', fontsize=12)
+fig3_1, ax = plt.subplots(1, 1, figsize=(4.5, 4.5))
+sns.heatmap(sorted_diff, ax=ax, yticklabels=True, xticklabels=True, cbar_kws={'label': 'Difference (FC - SC)','shrink': .65}, cmap="RdBu", rasterized=True, vmin=-lim, vmax=lim)
+ax.set_aspect('equal')
+ax.tick_params(axis='both', which='major', labelsize=7)
 
-ax_fxn.view_init(-70, -95)
-ax_fxn.set_axis_off()
-# ax_fxn.set_title('Functional', fontweight='bold', fontsize=12)
+# fig3_0.savefig(os.path.join(analysis_dir, 'figpanels', 'fig3_0.svg'), format='svg', transparent=True)
+# fig3_1.savefig(os.path.join(analysis_dir, 'figpanels', 'fig3_1.svg'), format='svg', transparent=True)
 
-for key, value in anat_position.items():
-    xi = value[0]
-    yi = value[1]
-    zi = value[2]
-
-    # Plot nodes
-    ax_anat.scatter(xi, yi, zi, c='b', s=5+40*G_anat.degree(weight='weight')[key], edgecolors='k', alpha=0.25)
-    ax_fxn.scatter(xi, yi, zi, c='b', s=5+20*G_fxn.degree(weight='weight')[key], edgecolors='k', alpha=0.25)
-    if FC.rois[key] not in roilabels_to_skip:
-        ax_anat.text(xi, yi, zi+2, FC.rois[key], zdir=(0,0,0), fontsize=7, fontweight='bold')
-        ax_fxn.text(xi, yi, zi+2, FC.rois[key], zdir=(0,0,0), fontsize=7, fontweight='bold')
-
-# plot connections
-for i,j in enumerate(G_anat.edges()):
-    x = np.array((anat_position[j[0]][0], anat_position[j[1]][0]))
-    y = np.array((anat_position[j[0]][1], anat_position[j[1]][1]))
-    z = np.array((anat_position[j[0]][2], anat_position[j[1]][2]))
-
-    # Plot the connecting lines
-    line_wt = (G_anat.get_edge_data(j[0], j[1], default={'weight':0})['weight'] + G_anat.get_edge_data(j[1], j[0], default={'weight':0})['weight'])/2
-    color = cmap(line_wt)
-    ax_anat.plot(x, y, z, c=color, alpha=line_wt, linewidth=2)
-
-    line_wt = (G_fxn.get_edge_data(j[0], j[1], default={'weight':0})['weight'] + G_fxn.get_edge_data(j[1], j[0], default={'weight':0})['weight'])/2
-    color = cmap(line_wt)
-    ax_fxn.plot(x, y, z, c=color, alpha=line_wt, linewidth=2)
-
-fig4_0.savefig(os.path.join(analysis_dir, 'figpanels', 'fig4_0.svg'), format='svg', transparent=True)
-# %% compare anat + fxnal graph metrics: degree and clustering
-
-roilabels_to_show = ['BU(R)', 'AVLP(R)', 'MBML(R)', 'PVLP(R)', 'AL(R)', 'LH(R)', 'EB', 'PLP(R)', 'AOTU(R)']
-
-# Plot clustering and degree using full adjacency to make graphs
-G_anat = nx.from_numpy_matrix(adjacency_anat, create_using=nx.DiGraph)
-G_fxn = nx.from_numpy_matrix(adjacency_fxn, create_using=nx.DiGraph)
-
-fig4_1, ax = plt.subplots(1, 2, figsize=(7, 3.5))
-deg_fxn = np.array([val for (node, val) in G_fxn.degree(weight='weight')])
-deg_anat = np.array([val for (node, val) in G_anat.degree(weight='weight')])
-plotting.addLinearFit(ax[0], deg_anat, deg_fxn, alpha=0.5)
-ax[0].plot(deg_anat, deg_fxn, alpha=1.0, marker='o', linestyle='none')
-for r_ind, r in enumerate(FC.rois):
-    if r in roilabels_to_show:
-        ax[0].annotate(r, (deg_anat[r_ind]+0.4, deg_fxn[r_ind]-0.2), fontsize=8, fontweight='bold')
-
-ax[0].set_xlabel('Structural')
-ax[0].set_ylabel('Functional')
-ax[0].set_ylim([0, 37])
-
-clust_fxn = np.real(np.array(list(nx.clustering(G_fxn, weight='weight').values())))
-clust_anat = np.array(list(nx.clustering(G_anat, weight='weight').values()))
-plotting.addLinearFit(ax[1], clust_anat, clust_fxn, alpha=0.5)
-ax[1].plot(clust_anat, clust_fxn, alpha=1.0, marker='o', linestyle='none')
-for r_ind, r in enumerate(FC.rois):
-    if r in roilabels_to_show:
-        ax[1].annotate(r, (clust_anat[r_ind]+0.002, clust_fxn[r_ind]-0.003), fontsize=8, fontweight='bold')
-ax[1].set_xlabel('Structural')
-ax[1].set_ylabel('Functional')
-ax[1].set_ylim([0, 0.445])
-ax[1].set_xlim([0, 0.124])
+# # Diff by region map
+# diff_by_region = DifferenceMatrix.mean()
+# diff_brain = np.zeros(shape=FC.roi_mask[0].shape)
+# diff_brain[:] = np.nan
+# for r_ind, r in enumerate(FC.roi_mask):
+#     diff_brain[r] = diff_by_region[r_ind]
 #
-# cent_fxn = np.real(np.array(list(nx.eigenvector_centrality(G_fxn, weight='weight').values())))
-# cent_anat = np.array(list(nx.eigenvector_centrality(G_anat, weight='weight').values()))
-# plotting.addLinearFit(ax[2], cent_anat, cent_fxn, alpha=0.5)
-# ax[2].plot(cent_anat, cent_fxn, alpha=1.0, marker='o', linestyle='none')
-# for r_ind, r in enumerate(FC.rois):
-#     if r in roilabels_to_show:
-#         ax[2].annotate(r, (cent_anat[r_ind]+0.002, cent_fxn[r_ind]-0.003), fontsize=8, fontweight='bold')
-# ax[2].set_xlabel('Structural')
-# ax[2].set_ylabel('Functional')
-# ax[2].set_ylim([0, 0.26])
-# ax[2].set_xlim([0, 0.39])
+# zslices = np.linspace(5, 60, 8)
+# lim = np.nanmax(np.abs(diff_brain.ravel()))
+#
+# fig3_x = plt.figure(figsize=(7, 3.5))
+# for z_ind, z in enumerate(zslices):
+#     ax = fig3_2.add_subplot(2, 4, z_ind+1)
+#     img = ax.imshow(diff_brain[:, :, int(z)].T, cmap="RdBu", rasterized=False, vmin=-lim, vmax=lim)
+#     ax.set_axis_off()
+#     ax.set_aspect('equal')
+#     ax.set_xlim([0, 102])
+#     ax.set_ylim([107, 5])
+#
+# fig3_x, ax = plt.subplots(1, 1, figsize=(1, 3))
+# ax.set_axis_off()
+# cb = fig3_3.colorbar(img, ax=ax)
+# cb.set_label(label='Region-average diff.', weight='bold', color='k')
+# cb.ax.tick_params(labelsize=12, color='k')
 
-fig4_1.savefig(os.path.join(analysis_dir, 'figpanels', 'fig4_1.svg'), format='svg', transparent=True)
+# %% Average diffs within super-regions, look at fly-to-fly variability and compare super-regions
+from scipy.stats import ttest_1samp, ttest_ind
 
-# %% Illustration schematics of graph metrics
+regions = {'AL/LH': ['AL(R)', 'LH(R)'],
+           'MB': ['MBCA(R)', 'MBML(R)', 'MBML(L)', 'MBPED(R)', 'MBVL(R)'],
+           'CX': ['EB', 'FB', 'PB', 'NO'],
+           'LX': ['BU(L)', 'BU(R)', 'LAL(R)'],
+           'INP': ['CRE(L)', 'CRE(R)', 'SCL(R)', 'ICL(R)', 'IB', 'ATL(L)', 'ATL(R)'],
+           'VMNP': ['VES(R)', 'EPA(R)', 'GOR(L)', 'GOR(R)', 'SPS(R)' ],
+           'SNP': ['SLP(R)', 'SIP(R)', 'SMP(R)', 'SMP(L)'],
+           'VLNP': ['AOTU(R)', 'AVLP(R)', 'PVLP(R)', 'PLP(R)', 'WED(R)'],
+           # 'PENP': ['CAN(R)'],
+         }
 
-# Illustration schematic: node degree
-G = nx.Graph()
-G.add_edge(1, 2, weight=1)
-G.add_edge(1, 3, weight=1)
-G.add_edge(3, 2, weight=10)
+# log transform anatomical connectivity values
+anatomical_mat = AC.getConnectivityMatrix('CellCount', diag=0).to_numpy().copy()
+keep_inds_diff = np.where(anatomical_mat > 0)
+anatomical_adj = np.log10(anatomical_mat[keep_inds_diff])
 
-fig4_2, ax = plt.subplots(1, 3, figsize=(3.5, 1))
-[x.set_xlim([-1, 1]) for x in ax.ravel()]
-[x.set_ylim([-1, 1]) for x in ax.ravel()]
-# graph 1: low degree
-position = nx.circular_layout(G, scale=0.7)
-edges,weights = zip(*nx.get_edge_attributes(G,'weight').items())
-deg = [val for (node, val) in G.degree(weight='weight')]
-nx.draw(G, ax=ax[0], pos=position, width=np.array(weights)/3, node_color=['r', 'k', 'k'], node_size=75)
-nx.draw_networkx_edge_labels(G, ax=ax[0], pos=position, edge_labels=nx.get_edge_attributes(G,'weight'))
-ax[0].annotate(deg[0], position[1] + [-0.0, 0.2], fontsize=12, weight='bold')
-# graph 2: mod degree
-G.add_edge(1, 2, weight=0)
-G.add_edge(1, 3, weight=10)
-G.add_edge(3, 2, weight=10)
-position = nx.circular_layout(G, scale=0.7)
-edges,weights = zip(*nx.get_edge_attributes(G,'weight').items())
-deg = [val for (node, val) in G.degree(weight='weight')]
-nx.draw(G, ax=ax[1], pos=position, width=np.array(weights)/3, node_color=['r', 'k', 'k'], node_size=75)
-nx.draw_networkx_edge_labels(G, ax=ax[1], pos=position, edge_labels=nx.get_edge_attributes(G,'weight'))
-ax[1].annotate(deg[0], position[1] + [-0.0, 0.2], fontsize=12, weight='bold')
+diff_by_region = []
+for c_ind in range(FC.cmats.shape[2]):
+    cmat = FC.cmats[:, :, c_ind]
+    functional_adj = cmat[keep_inds_diff]
 
-# graph 3: high degree
-G.add_edge(1, 2, weight=10)
-G.add_edge(1, 3, weight=10)
-G.add_edge(3, 2, weight=1)
-position = nx.circular_layout(G, scale=0.7)
-edges,weights = zip(*nx.get_edge_attributes(G,'weight').items())
-deg = [val for (node, val) in G.degree(weight='weight')]
-nx.draw(G, ax=ax[2], pos=position, width=np.array(weights)/3, node_color=['r', 'k', 'k'], node_size=75)
-nx.draw_networkx_edge_labels(G, ax=ax[2], pos=position, edge_labels=nx.get_edge_attributes(G,'weight'))
-ax[2].annotate(deg[0], position[1] + [-0.0, 0.2], fontsize=12, weight='bold');
+    F_zscore_fly = zscore(functional_adj)
+    A_zscore_fly = zscore(anatomical_adj)
 
-# Illustration schematic: clustering coefficient
-high = 10
-low = 1
-G = nx.Graph()
-G.add_edge(1, 2, weight=high)
-G.add_edge(1, 3, weight=high)
-G.add_edge(3, 2, weight=0)
-G.add_edge(3, 4, weight=0)
-G.add_edge(2, 4, weight=0)
-G.add_edge(1, 4, weight=high)
+    diff = F_zscore_fly - A_zscore_fly
 
+    diff_m = np.zeros_like(anatomical_mat)
+    diff_m[keep_inds_diff] = diff
+    diff_by_region.append(diff_m.mean(axis=0))
 
-fig4_3, ax = plt.subplots(1, 3, figsize=(3.5, 1))
-[x.set_xlim([-1, 1]) for x in ax.ravel()]
-[x.set_ylim([-1, 1]) for x in ax.ravel()]
-# graph 1: low clustering
-position = nx.circular_layout(G, scale=0.7)
-edges,weights = zip(*nx.get_edge_attributes(G,'weight').items())
-clust = list(nx.clustering(G, weight='weight').values())
-nx.draw(G, ax=ax[0], pos=position, width=np.array(weights)/3, node_color=['r', 'k', 'k', 'k'], node_size=75)
-ax[0].annotate('{:.2f}'.format(clust[0]), position[1] + [-0.0, 0.2], fontsize=12, weight='bold')
+diff_by_region = np.vstack(diff_by_region).T  # region x fly
 
-# graph 2: mod clustering
-G = nx.Graph()
-G.add_edge(1, 2, weight=high)
-G.add_edge(1, 3, weight=high)
-G.add_edge(3, 2, weight=low)
-G.add_edge(3, 4, weight=low)
-G.add_edge(2, 4, weight=low)
-G.add_edge(1, 4, weight=high)
-position = nx.circular_layout(G, scale=0.7)
-edges,weights = zip(*nx.get_edge_attributes(G,'weight').items())
-clust = list(nx.clustering(G, weight='weight').values())
-nx.draw(G, ax=ax[1], pos=position, width=np.array(weights)/3, node_color=['r', 'k', 'k', 'k'], node_size=75)
-ax[1].annotate('{:.2f}'.format(clust[0]), position[1] + [-0.0, 0.2], fontsize=12, weight='bold')
-high
-# graph 3: high clustering
-G = nx.Graph()
-G.add_edge(1, 2, weight=high)
-G.add_edge(1, 3, weight=high)
-G.add_edge(3, 2, weight=high)
-G.add_edge(3, 4, weight=high)
-G.add_edge(2, 4, weight=high)
-G.add_edge(1, 4, weight=high)
-position = nx.circular_layout(G, scale=0.7)
-edges,weights = zip(*nx.get_edge_attributes(G,'weight').items())
-clust = list(nx.clustering(G, weight='weight').values())
-nx.draw(G, ax=ax[2], pos=position, width=np.array(weights)/3, node_color=['r', 'k', 'k', 'k'], node_size=75)
-ax[2].annotate('{:.2f}'.format(clust[0]), position[1] + [-0.0, 0.2], fontsize=12, weight='bold');
+fig3_2, ax = plt.subplots(1, 1, figsize=(7, 3.5))
+ax.axhline(0, color=[0.8, 0.8, 0.8], linestyle='-', zorder=0)
 
-fig4_2.savefig(os.path.join(analysis_dir, 'figpanels', 'fig4_2.svg'), format='svg', transparent=True)
-fig4_3.savefig(os.path.join(analysis_dir, 'figpanels', 'fig4_3.svg'), format='svg', transparent=True)
+iterations = 100
+p_vals = pd.DataFrame(data=np.zeros((1, len(regions))), columns=regions.keys())
+DiffBySuperRegion = pd.DataFrame(data=np.zeros((20, len(regions))), columns=regions.keys())
+ShuffledDiffByRegion = np.zeros(shape=(20, len(regions), iterations))
+for r_ind, reg in enumerate(regions):
+    in_inds = np.where([r in regions[reg] for r in FC.rois])[0]
+    in_diffs = np.mean(diff_by_region[in_inds, :], axis=0)  #  mean across all regions in super-region, for each fly
+    DiffBySuperRegion.loc[:, reg] = in_diffs
 
-# %% Shortest path analysis:
+    # Shuffle super-region indices to do bootstrap comparison
+
+    shuffle_diffs = []
+    for it in range(iterations):
+        shuffle_inds = np.random.choice(np.arange(0,len(FC.rois)), len(in_inds), replace=False)
+        new_diffs = np.mean(diff_by_region[shuffle_inds, :], axis=0)  #  mean across all regions in super-region
+        shuffle_diffs.append(new_diffs) # iterations x flies
+    shuffle_diffs = np.vstack(shuffle_diffs)
+
+    _, p = ttest_ind(shuffle_diffs.ravel(), in_diffs)
+
+    p_vals.loc[:, reg] = p
+
+# sort super regions by mean
+sort_inds = DiffBySuperRegion.mean().sort_values().index[::-1]
+DiffBySuperRegion_sorted = DiffBySuperRegion.reindex(sort_inds, axis=1)
+p_vals_sorted = p_vals.reindex(sort_inds, axis=1)
+
+print(p_vals_sorted)
+
+sns.stripplot(data=DiffBySuperRegion_sorted, color='k')
+sns.violinplot(data=DiffBySuperRegion_sorted, palette=sns.color_palette('deep', 8))
+
+# ax.set_ylim([-1.2, 1.2])
+ax.set_ylabel('Region avg. difference (FC - SC)')
+
+colors = sns.color_palette('deep', 8)
+
+sns.palplot(colors)
+np.array(colors)
+# fig3_2.savefig(os.path.join(analysis_dir, 'figpanels', 'fig3_2.svg'), format='svg', transparent=True)
+# %%
+from scipy.stats import ttest_1samp, ttest_ind
+
+# log transform anatomical connectivity values
+anatomical_mat = AC.getConnectivityMatrix('CellCount', diag=0).to_numpy().copy()
+keep_inds_diff = np.where(anatomical_mat > 0)
+anatomical_adj = np.log10(anatomical_mat[keep_inds_diff])
+
+diff_by_region = []
+for c_ind in range(FC.cmats.shape[2]):  #loop over fly
+    cmat = FC.cmats[:, :, c_ind]
+    functional_adj = cmat[keep_inds_diff]
+
+    F_zscore_fly = zscore(functional_adj)
+    A_zscore_fly = zscore(anatomical_adj)
+
+    diff = F_zscore_fly - A_zscore_fly
+
+    diff_m = np.zeros_like(anatomical_mat)
+    diff_m[keep_inds_diff] = diff
+    diff_by_region.append(diff_m.mean(axis=0))
+
+diff_by_region = np.vstack(diff_by_region).T  # region x fly
+
+colors = sns.color_palette('deep', 8)
+fh, ax = plt.subplots(1, 1, figsize=(6, 3))
+plot_ct = 0
+for r_ind, reg in enumerate(regions):
+    in_inds = np.where([r in regions[reg] for r in FC.rois])[0]
+    # ax.annotate(reg, (plot_ct, 1.5))
+    for i, included in enumerate(in_inds):
+        new_mean = np.mean(diff_by_region[included,:])
+        new_err = np.std(diff_by_region[included,:]) / np.sqrt(diff_by_region.shape[1])
+        ax.plot(plot_ct, new_mean, linestyle='None', marker='o', color=colors[r_ind])
+        ax.plot([plot_ct, plot_ct], [new_mean-new_err, new_mean+new_err], linestyle='-', linewidth=2, marker='None', color=colors[r_ind])
+        ax.annotate(np.array(FC.rois)[included], (plot_ct-0.25, 1.1), rotation=90, fontsize=8)
+        plot_ct+=1
+    plot_ct +=1
+
+ax.set_ylim([-1.5, 1.5])
+ax.set_xticks([])
+ax.spines['right'].set_visible(False)
+ax.axhline(0, color=[0.8, 0.8, 0.8], linestyle='-', zorder=0)
+ax.set_ylabel('Region avg. difference (FC - SC)')
+
+# %%
+
 anat_connect = AC.getConnectivityMatrix('CellCount', diag=None)
 shortest_path_distance, shortest_path_steps, shortest_path_weight, hub_count = bridge.getShortestPathStats(anat_connect)
 
-# for anatomical network: direct cell weight vs connectivity weight of shortest path
-direct_dist = (1/AC.getConnectivityMatrix('CellCount', diag=None).to_numpy())
-fig4_4, ax = plt.subplots(1, 2, figsize=(7, 3.5))
-step_count = shortest_path_steps - 1
-steps = np.unique(step_count.to_numpy()[AC.upper_inds])
-colors = plt.get_cmap('Dark2')(np.arange(len(steps))/len(steps))
-ax[0].plot([2e-4, 1], [2e-4, 1], color=[0.8, 0.8, 0.8], alpha=0.5, linestyle='-')
-for s_ind, s in enumerate(steps):
-    pull_inds = np.where(step_count == s)
-    ax[0].plot(direct_dist[pull_inds], shortest_path_distance.to_numpy()[pull_inds], linestyle='none', marker='.', color=colors[s_ind], label='{:d}'.format(int(s)), alpha=1.0)
+# %%
 
-ax[0].set_xscale('log')
-ax[0].set_yscale('log')
-ax[0].set_xlabel('Direct distance (1/cells)')
-ax[0].set_ylabel('Shortest path distance (1/cells)');
-ax[0].legend(fontsize='small', fancybox=True);
-ax[0].set_ylim([2e-4, 3e-2])
+plt.plot(np.mean(shortest_path_distance, axis=1), np.mean(diff_by_region, axis=1), 'ko')
+
+# %%
+fh, ax = plt.subplots(1, 1, figsize=(6, 6))
+ax.plot(shortest_path_distance.to_numpy().ravel(), DifferenceMatrix.to_numpy().ravel(), 'ko')
+# ax.set_xscale('log')
+ax.axhline(color='k')
 
 
-x = np.log10(shortest_path_distance.to_numpy()[AC.upper_inds])  # adjacency matrix gets symmetrized for shortest path algorithms
-y = FC.CorrelationMatrix.to_numpy()[AC.upper_inds]
-steps = shortest_path_steps.to_numpy()[AC.upper_inds]
-
-fc_pts = []
-len_pts = []
-for step_no in range(2, 8):
-    pull_inds = np.where(steps == step_no)
-    fc_pts.append(y[pull_inds])
-    len_pts.append(x[pull_inds])
-
-h, p = ttest_1samp(FC.cmats, 0, axis=2)
-p_cutoff = 0.05 / p.size # Bonferroni corrected p cutoff
-p_vals = p[AC.upper_inds]
-p_vals = p_vals<p_cutoff
-c = p_vals
-
-r, p = pearsonr(x, y)
-coef = np.polyfit(x, y, 1)
-linfit = np.poly1d(coef)
-xx = np.linspace(x.min(), x.max(), 100)
-ax[1].scatter(10**x, y, c=c, alpha=0.5, marker='o', cmap='RdGy')
-ax[1].plot(10**xx, linfit(xx), color='k', linestyle='--', linewidth=2, marker=None)
-ax[1].set_title('r = {:.2f}'.format(r));
-ax[1].set_xlabel('Shortest path distance')
-ax[1].set_ylabel('Functional connectivity (z)')
-ax[1].set_xscale('log')
-
-num_bins = 10 # equally populated bins
-points_per_bin = int(len(x)/num_bins)
-for b_ind in range(num_bins):
-    inds = np.argsort(x)[(b_ind*points_per_bin):(b_ind+1)*points_per_bin]
-    bin_mean_x = x[inds].mean()
-    bin_mean_y = y[inds].mean()
-    ax[1].plot(10**bin_mean_x, bin_mean_y, 'ks', alpha=1, linestyle='none')
-
-    bin_spread_x = np.quantile(x[inds], (0.05, 0.95))
-    ax[1].plot(10**bin_spread_x, [bin_mean_y, bin_mean_y], linestyle='-', marker='None', color='k', alpha=1, linewidth=2)
-
-    bin_spread_y = np.quantile(y[inds], (0.05, 0.95))
-    ax[1].plot([10**bin_mean_x, 10**bin_mean_x], bin_spread_y, linestyle='-', marker='None', color='k', alpha=1, linewidth=2)
+# %%
+import networkx as nx
+from node2vec import Node2Vec
+from sklearn.decomposition import PCA
+from scipy.stats import ttest_ind
 
 
-# fig4_4.savefig(os.path.join(analysis_dir, 'figpanels', 'fig4_4.svg'), format='svg', transparent=True)
+# 1) Embed anatomical graph using node2vec
+max_path = 6
+n_nodes = len(FC.rois)
+
+adj = AC.getConnectivityMatrix('CellCount', symmetrize=True, diag=0).to_numpy()
+# adj = FC.CorrelationMatrix.to_numpy()
+# np.fill_diagonal(adj, 0)
+adj[adj<0] = 0
+G = nx.from_numpy_matrix(adj, create_using=nx.DiGraph)
+n2v = Node2Vec(graph=G, walk_length=2*max_path, num_walks=20*n_nodes, dimensions=n_nodes, q=0.5, p=1)
+w2v = n2v.fit(sg=0, seed=1)
+embedding_w2v = np.vstack([np.array(w2v[str(u)]) for u in sorted(G.nodes)]) # n_nodes x n_dimensions
+
+# %%
+# 2) do SVD/PCA on embeddings to visualize in 2D
+c = DifferenceMatrix.mean().to_numpy()
+lim = np.max(np.abs(c))
+u, s, vh = np.linalg.svd(embedding_w2v, full_matrices=False)
+
+fig3_4, ax = plt.subplots(1, 1, figsize=(4, 2))
+ax.plot(s / np.sum(s), 'ko')
+ax.set_xlabel('Mode')
+ax.set_ylabel('Frac. var')
+ax.set_xticks([])
 
 
-# %% Supp: connectome degree stats: scale free + small world comparisons
-
-# 1) Binarize and compute random adjacency
-anat_connect = AC.getConnectivityMatrix('CellCount', diag=0)
-
-thresh_quant = 0.5 # quantile
-threshold = np.quantile(anat_connect.to_numpy().ravel(), thresh_quant)
-adj_data = anat_connect > threshold
-adj_data = adj_data.to_numpy().astype('int')
-G_data = nx.from_numpy_matrix(adj_data, create_using=nx.DiGraph)
-
-K = np.sum(adj_data.ravel())
-N = adj_data.shape[0]
-
-# Random adjacency
-rand_prob = K / (N**2 - N) # exclude diag, which stays 0
-
-iterations = 1000
-random_path_lens = []
-random_clustering = []
-random_degree = []
-for it in range(iterations):
-    adj_random = np.random.binomial(1, rand_prob, size=(N,N))
-    np.fill_diagonal(adj_random, 0)
-    G_random = nx.from_numpy_matrix(adj_random, create_using=nx.DiGraph)
-    random_path_lens.append(nx.average_shortest_path_length(G_random))
-    random_clustering.append(nx.average_clustering(G_random))
-    random_degree.append(np.array([val for (node, val) in G_random.degree(weight='weight')]))
-
-random_degree = np.vstack(random_degree)
-
-# %% Plot degree distribution vs power law distribution
-
-figS4_0 = plt.figure(figsize=(8, 4))
-ax = figS4_0.add_subplot(1, 2, 2)
-anat_connect = AC.getConnectivityMatrix('CellCount', diag=None)
-edge_weights = anat_connect.to_numpy().copy().ravel()
-bins = np.arange(0, edge_weights.max(), 1)
-vals, bins = np.histogram(edge_weights, bins=bins, density=True)
-
-# fit power law
-fit_thresh = np.quantile(edge_weights, 0.1) # exclude weakest 10% of connections in fit
-p_opt = powerlaw.fit(edge_weights[edge_weights>fit_thresh])
-a = p_opt[0]
-xx = np.arange(fit_thresh, 1000)
-yy = a * xx**(a-1)
-ax.plot(xx, yy/yy.sum(), linestyle='-', linewidth=2, alpha=1.0, color=[0,0,0])
-ax.annotate('$p(w)=a*w^{{a-1}}$ \na={:.2f}'.format(a), (200, 2e-2))
-
-ax.plot(bins[:-1], vals, marker='o', color=plot_colors[0], linestyle='None', alpha=0.50)
-
-ax.set_xlim([1, edge_weights.max()])
-ax.set_xscale('log')
-ax.set_yscale('log')
-ax.set_xlabel('Edge weight')
-ax.set_ylabel('P(weight)')
-
-# plot path length and clustering for random vs. connectome
-ax = figS4_0.add_subplot(2, 4, 1)
-ax.set_axis_off()
-ax.imshow(adj_data, cmap='Greys', vmin=-0.5, vmax=1)
-ax.set_title('Connectome', color=plot_colors[0])
-ax = figS4_0.add_subplot(2, 4, 5)
-ax.set_axis_off()
-ax.imshow(adj_random, cmap='Greys', vmin=-0.5, vmax=1)
-ax.set_title('Random')
-
-ax = figS4_0.add_subplot(2, 4, 2)
-ax.hist(random_path_lens, bins=20, density=True, color='k')
-ax.axvline(nx.average_shortest_path_length(G_data))
-ax.set_xlim(1.4, 1.58)
-ax.set_xlabel('Path length')
+fig3_5, ax = plt.subplots(1, 1, figsize=(6, 6))
+ax.scatter(u[:, 0], u[:, 1], c=c, cmap="RdBu", vmin=-lim, vmax=lim, s=80, edgecolors='k',)
+ax.set_xlabel('PC 1')
+ax.set_ylabel('PC 2')
 
 
-ax = figS4_0.add_subplot(2, 4, 6)
-ax.hist(random_clustering, bins=20, density=True, color='k')
-ax.axvline(nx.average_clustering(G_data))
-ax.set_xlim(0.45, 0.85)
-ax.set_xlabel('clustering')
 
-
-# figS4_0.savefig(os.path.join(analysis_dir, 'figpanels', 'figS4_0.svg'), format='svg', transparent=True)
+for r_ind, r in enumerate(AC.rois):
+    ax.annotate(r, (u[r_ind, 0], u[r_ind, 1]), fontsize=8, fontweight='bold')
