@@ -132,6 +132,7 @@ for r_ind, reg in enumerate(regions):
 
 ax.set_ylim([-1.5, 1.5])
 ax.set_xticks([])
+ax.set_yticks([-1.5, -1.0, -0.5, 0.0, 0.5, 1.0])
 ax.spines['right'].set_visible(False)
 ax.axhline(0, color=[0.8, 0.8, 0.8], linestyle='-', zorder=0)
 ax.set_ylabel('Region avg. difference (FC - SC)')
@@ -139,12 +140,6 @@ ax.set_ylabel('Region avg. difference (FC - SC)')
 sns.palplot(colors)
 np.array(colors)
 fig3_2.savefig(os.path.join(analysis_dir, 'figpanels', 'fig3_2.svg'), format='svg', transparent=True)
-
-# %%
-
-anat_connect = AC.getConnectivityMatrix('CellCount', diag=None)
-shortest_path_distance, shortest_path_steps, shortest_path_weight, hub_count = bridge.getShortestPathStats(anat_connect)
-
 
 # %%
 # Shortest path distance:
@@ -204,5 +199,3 @@ for b_ind in range(num_bins):
     ax[1].plot([bin_mean_x, bin_mean_x], [bin_mean_y - err_y, bin_mean_y + err_y], linestyle='-', marker='None', color=plot_colors[0], alpha=1, linewidth=2)
 
 fig3_3.savefig(os.path.join(analysis_dir, 'figpanels', 'fig3_3.svg'), format='svg', transparent=True)
-
-# %%
