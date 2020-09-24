@@ -65,20 +65,40 @@ for r_ind, r_key in enumerate(sort_keys):
     for c_ind, c_key in enumerate(sort_keys):
         sorted_diff.iloc[r_ind, c_ind]=DifferenceMatrix.loc[[r_key], [c_key]].to_numpy()
 
-fig3_0, ax = plt.subplots(1, 1, figsize=(3, 3))
-lim = np.nanmax(np.abs(DifferenceMatrix.to_numpy().ravel()))
-ax.scatter(A_zscore, F_zscore, alpha=1, c=diff, cmap="RdBu",  vmin=-lim, vmax=lim, edgecolors='k', linewidths=0.5)
-ax.plot([-3, 4], [-3, 4], 'k-')
-ax.set_xlabel('Structural Conn. (z-score)')
-ax.set_ylabel('Functional Conn. (z-score)');
 
-fig3_1, ax = plt.subplots(1, 1, figsize=(4, 4))
+fig4_0, ax = plt.subplots(1, 1, figsize=(1.6, 1.6))
+lim = np.nanmax(np.abs(DifferenceMatrix.to_numpy().ravel()))
+ax.scatter(10**anatomical_adjacency_diff, functional_adjacency_diff, alpha=1, color='k', marker='.')
+ax.set_xscale('log')
+ax.set_xlim([np.min(10**anatomical_adjacency_diff), np.max(10**anatomical_adjacency_diff)])
+ax.set_xlabel('SC (cells)', fontsize=10)
+ax.set_ylabel('FC (z)', fontsize=10)
+ax.tick_params(axis='both', which='major', labelsize=8)
+
+
+fig4_1, ax = plt.subplots(1, 1, figsize=(1.6, 1.6))
+lim = np.nanmax(np.abs(DifferenceMatrix.to_numpy().ravel()))
+ax.scatter(A_zscore, F_zscore, alpha=1, c=diff, cmap="RdBu",  vmin=-lim, vmax=lim, marker='.')
+ax.plot([-3.5, 3.5], [-3.5, 3.5], 'k-')
+ax.axhline(color='k', zorder=0, alpha=0.5)
+ax.axvline(color='k', zorder=0, alpha=0.5)
+ax.set_xticks([-2, 2])
+ax.set_yticks([-2, 2])
+ax.set_xticklabels(['-2$\sigma$', '+2$\sigma$'])
+ax.set_yticklabels(['-2$\sigma$', '+2$\sigma$'])
+ax.set_xlabel('SC', fontsize=10)
+ax.set_ylabel('FC', fontsize=10)
+ax.tick_params(axis='both', which='major', labelsize=8)
+ax.set_aspect(1)
+
+fig4_2, ax = plt.subplots(1, 1, figsize=(4, 4))
 sns.heatmap(sorted_diff, ax=ax, yticklabels=True, xticklabels=True, cbar_kws={'label': 'Difference (FC - SC)','shrink': .65}, cmap="RdBu", rasterized=True, vmin=-lim, vmax=lim)
 ax.set_aspect('equal')
 ax.tick_params(axis='both', which='major', labelsize=6)
 
-fig3_0.savefig(os.path.join(analysis_dir, 'figpanels', 'fig3_0.svg'), format='svg', transparent=True)
-fig3_1.savefig(os.path.join(analysis_dir, 'figpanels', 'fig3_1.svg'), format='svg', transparent=True)
+fig4_0.savefig(os.path.join(analysis_dir, 'figpanels', 'fig4_0.svg'), format='svg', transparent=True)
+fig4_1.savefig(os.path.join(analysis_dir, 'figpanels', 'fig4_1.svg'), format='svg', transparent=True)
+fig4_2.savefig(os.path.join(analysis_dir, 'figpanels', 'fig4_2.svg'), format='svg', transparent=True)
 
 
 # %% Average diff for each region, cluster and sort by super-regions
@@ -116,7 +136,7 @@ for c_ind in range(FC.cmats.shape[2]):  #loop over fly
 diff_by_region = np.vstack(diff_by_region).T  # region x fly
 
 colors = sns.color_palette('deep', 8)
-fig3_2, ax = plt.subplots(1, 1, figsize=(7, 3.5))
+fig4_3, ax = plt.subplots(1, 1, figsize=(5.5, 3.0))
 plot_ct = 0
 for r_ind, reg in enumerate(regions):
     in_inds = np.where([r in regions[reg] for r in FC.rois])[0]
@@ -130,16 +150,14 @@ for r_ind, reg in enumerate(regions):
         plot_ct+=1
     plot_ct +=1
 
-ax.set_ylim([-1.5, 1.5])
-ax.set_xticks([])
-ax.set_yticks([-1.5, -1.0, -0.5, 0.0, 0.5, 1.0])
+ax.set_ylim([-1.1, 1.1])
 ax.spines['right'].set_visible(False)
 ax.axhline(0, color=[0.8, 0.8, 0.8], linestyle='-', zorder=0)
-ax.set_ylabel('Region avg. difference (FC - SC)')
+ax.set_ylabel('Region avg. diff.\n(FC - SC)')
 
 sns.palplot(colors)
 np.array(colors)
-fig3_2.savefig(os.path.join(analysis_dir, 'figpanels', 'fig3_2.svg'), format='svg', transparent=True)
+fig4_3.savefig(os.path.join(analysis_dir, 'figpanels', 'fig4_3.svg'), format='svg', transparent=True)
 
 # %%
 # Shortest path distance:
@@ -155,15 +173,16 @@ direct_dist[np.isinf(direct_dist)] = np.nan
 # FC-SC difference:
 diff = DifferenceMatrix.to_numpy()[~np.eye(36,dtype=bool)]
 
-fig3_3, ax = plt.subplots(1, 2, figsize=(7, 3.5))
-sc = ax[0].scatter(direct_dist, shortest_path_dist, c=diff, alpha=1, cmap='Blues', marker='.')
+fig4_4, ax = plt.subplots(1, 2, figsize=(6, 3))
+lim = np.nanmax(np.abs(DifferenceMatrix.to_numpy().ravel()))
+sc = ax[0].scatter(direct_dist, shortest_path_dist, c=diff, alpha=1, cmap='RdBu', marker='.', vmin=-lim, vmax=lim)
 ax[0].set_xscale('log')
 ax[0].set_yscale('log')
 ax[0].set_xlabel('Direct distance')
 ax[0].set_ylabel('Shortest path distance');
 ax[0].plot([2e-4, 1], [2e-4, 1], color='k', linewidth=2, alpha=1.0, linestyle='-', zorder=0)
 ax[0].set_ylim([2e-4, 6e-2])
-fig3_3.colorbar(sc, ax=ax[0])
+fig4_4.colorbar(sc, ax=ax[0])
 
 shortest_path_factor = direct_dist / shortest_path_dist
 x = shortest_path_factor
@@ -173,7 +192,7 @@ keep_inds = np.where(x>1)
 x = x[keep_inds]
 y = y[keep_inds]
 
-ax[1].plot(x, y, color=[0.8, 0.8, 0.8], marker='.', alpha=0.5, linestyle='None')
+ax[1].scatter(x, y, c=diff[keep_inds], marker='.', alpha=1.0, linestyle='None', cmap='RdBu', vmin=-lim, vmax=lim)
 ax[1].axhline(color='k', linestyle='--')
 ax[1].set_xscale('log')
 ax[1].set_xlabel(r'Indirect path factor: $\dfrac{D_{direct}}{D_{shortest}}$')
@@ -190,12 +209,12 @@ for b_ind in range(num_bins):
     inds = np.where(np.logical_and(x > b_start, x < b_end))
     bin_mean_x = x[inds].mean()
     bin_mean_y = y[inds].mean()
-    ax[1].plot(bin_mean_x, bin_mean_y, color=plot_colors[0], marker='s', alpha=1, linestyle='none')
+    ax[1].plot(bin_mean_x, bin_mean_y, color='k', marker='s', alpha=1, linestyle='none')
 
     err_x = x[inds].std()/np.sqrt(len(inds))
-    ax[1].plot([bin_mean_x - err_x, bin_mean_x + err_x], [bin_mean_y, bin_mean_y], linestyle='-', marker='None', color=plot_colors[0], alpha=1, linewidth=2)
+    ax[1].plot([bin_mean_x - err_x, bin_mean_x + err_x], [bin_mean_y, bin_mean_y], linestyle='-', marker='None', color='k', alpha=1, linewidth=2)
 
     err_y = y[inds].std()/np.sqrt(len(inds))
-    ax[1].plot([bin_mean_x, bin_mean_x], [bin_mean_y - err_y, bin_mean_y + err_y], linestyle='-', marker='None', color=plot_colors[0], alpha=1, linewidth=2)
+    ax[1].plot([bin_mean_x, bin_mean_x], [bin_mean_y - err_y, bin_mean_y + err_y], linestyle='-', marker='None', color='k', alpha=1, linewidth=2)
 
-fig3_3.savefig(os.path.join(analysis_dir, 'figpanels', 'fig3_3.svg'), format='svg', transparent=True)
+fig4_4.savefig(os.path.join(analysis_dir, 'figpanels', 'fig4_4.svg'), format='svg', transparent=True)

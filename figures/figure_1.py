@@ -41,7 +41,7 @@ ConnectivityTBars = AC.getConnectivityMatrix('TBars')
 
 pull_region = 'AL(R)'
 
-fig1_0, ax = plt.subplots(2, 1, figsize=(6, 6))
+fig1_0, ax = plt.subplots(2, 1, figsize=(6, 4.5))
 ax = ax.ravel()
 fig1_0.tight_layout(w_pad=2, h_pad=8)
 
@@ -125,10 +125,11 @@ for p_ind, pr in enumerate(ConnectivityCount.index):
         ax[1].set_xticklabels(ct.index)
         ax[1].set_yscale('log')
         ax[1].set_ylim([0.05, 5e6])
+        ax[1].tick_params(axis='y', which='minor')
         for tick in ax[1].get_xticklabels():
             tick.set_rotation(90)
             tick.set_fontsize(8)
-        ax[1].set_ylabel('Presynapses')
+        ax[1].set_ylabel('T-Bars')
 
 figS1_0.text(-0.01, 0.5, 'Connections from source region (cells)', va='center', rotation='vertical', fontsize=14)
 
@@ -149,7 +150,7 @@ for iter in range(100):
     theory_distr.append(norm_model.rvs(size=len(data)))
 theory_distr = np.vstack(theory_distr)
 
-fig1_1, ax = plt.subplots(1, 1, figsize=(4, 3))
+fig1_1, ax = plt.subplots(1, 1, figsize=(3.5, 2.25))
 val, bin = np.histogram(data, 20, density=True)
 bin_ctrs = bin[:-1]
 xx = np.linspace(-3.5, 3.5)
@@ -162,7 +163,7 @@ ax.set_xticks([1e-2, 1, 1e2])
 
 
 # Q-Q plot of log-transformed data vs. fit normal distribution
-fig1_2, ax = plt.subplots(1, 1, figsize=(1.5, 1.5))
+fig1_2, ax = plt.subplots(1, 1, figsize=(1.2, 1.2))
 ax.plot([10**-4, 10**4], [10**-4, 10**4], 'k-')
 quants = np.linspace(0, 1, 20)
 for q in quants:
@@ -173,9 +174,13 @@ for q in quants:
 # ax.set_ylabel('Lognorm.', fontsize=8)
 ax.set_xscale('log')
 ax.set_yscale('log')
-ticks = [1e-2, 1, 1e2]
-ax.set_xticks(ticks)
-ax.set_yticks(ticks)
+
+ax.set_xticks([1e-2, 1e2])
+ax.set_yticks([1e-2, 1e2])
+ax.set_xticklabels(['-2$\sigma$', '+2$\sigma$'])
+ax.set_yticklabels(['-2$\sigma$', '+2$\sigma$'])
+ax.axhline(y=1, color='k', zorder=0, alpha=0.5)
+ax.axvline(x=1, color='k', zorder=0, alpha=0.5)
 for tick in ax.xaxis.get_major_ticks():
     tick.label.set_fontsize(8)
 for tick in ax.yaxis.get_major_ticks():
@@ -197,20 +202,20 @@ for iter in range(100):
     theory_distr.append(norm_model.rvs(size=len(data)))
 theory_distr = np.vstack(theory_distr)
 
-fig1_3, ax = plt.subplots(1, 1, figsize=(4, 3))
+fig1_3, ax = plt.subplots(1, 1, figsize=(3.5, 2.25))
 val, bin = np.histogram(data, 20, density=True)
 bin_ctrs = bin[:-1]
 xx = np.linspace(-3.5, 3.5)
 ax.plot(10**xx, norm_model.pdf(xx), linewidth=2, color='k', linestyle='--')
 ax.plot(10**bin_ctrs, val, linewidth=3)
 ax.set_xscale('log')
-ax.set_xlabel('Presynapses (z-score)')
+ax.set_xlabel('T-Bars (z-score)')
 ax.set_ylabel('Prob.')
 ax.set_xticks([1e-2, 1, 1e2])
 
 
 # Q-Q plot of log-transformed data vs. fit normal distribution
-fig1_4, ax = plt.subplots(1, 1, figsize=(1.5, 1.5))
+fig1_4, ax = plt.subplots(1, 1, figsize=(1.2, 1.2))
 ax.plot([10**-4, 10**4], [10**-4, 10**4], 'k-')
 quants = np.linspace(0, 1, 20)
 for q in quants:
@@ -221,9 +226,14 @@ for q in quants:
 # ax.set_ylabel('Lognorm.', fontsize=8)
 ax.set_xscale('log')
 ax.set_yscale('log')
-ticks = [1e-2, 1, 1e2]
-ax.set_xticks(ticks)
-ax.set_yticks(ticks)
+
+
+ax.set_xticks([1e-2, 1e2])
+ax.set_yticks([1e-2, 1e2])
+ax.set_xticklabels(['-2$\sigma$', '+2$\sigma$'])
+ax.set_yticklabels(['-2$\sigma$', '+2$\sigma$'])
+ax.axhline(y=1, color='k', zorder=0, alpha=0.5)
+ax.axvline(x=1, color='k', zorder=0, alpha=0.5)
 for tick in ax.xaxis.get_major_ticks():
     tick.label.set_fontsize(8)
 for tick in ax.yaxis.get_major_ticks():
