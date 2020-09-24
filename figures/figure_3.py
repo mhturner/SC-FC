@@ -60,7 +60,7 @@ temp_adj_anat[temp_adj_anat<cutoff] = 0
 G_anat = nx.from_numpy_matrix(temp_adj_anat/temp_adj_anat.max(), create_using=nx.DiGraph)
 
 cutoff = np.sort(adjacency_fxn.ravel())[::-1][take_top_edges]
-print('Threshold included {} of {} sig edges in functional connectivity matrix'.format((adjacency_fxn>=cutoff).sum(), (adjacency_fxn>0).sum()))
+print('Threshold included {} of {} edges in functional connectivity matrix'.format((adjacency_fxn>=cutoff).sum(), (adjacency_fxn>0).sum()))
 temp_adj_fxn = adjacency_fxn.copy() # threshold only for display graph
 temp_adj_fxn[temp_adj_fxn<cutoff] = 0
 G_fxn = nx.from_numpy_matrix(temp_adj_fxn/temp_adj_fxn.max(), create_using=nx.DiGraph)
