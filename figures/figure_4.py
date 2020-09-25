@@ -3,12 +3,12 @@ import matplotlib.pyplot as plt
 from neuprint import Client
 import numpy as np
 import os
-from scipy.stats import zscore, pearsonr, spearmanr
+from scipy.stats import zscore, spearmanr
 import pandas as pd
 import seaborn as sns
 import socket
 
-from scfc import bridge, anatomical_connectivity, functional_connectivity, plotting
+from scfc import bridge, anatomical_connectivity, functional_connectivity
 import matplotlib
 from matplotlib import rcParams
 rcParams.update({'font.size': 12})
@@ -219,3 +219,73 @@ for b_ind in range(num_bins):
     ax[1].plot([bin_mean_x, bin_mean_x], [bin_mean_y - err_y, bin_mean_y + err_y], linestyle='-', marker='None', color='k', alpha=1, linewidth=2)
 
 fig4_4.savefig(os.path.join(analysis_dir, 'figpanels', 'fig4_4.svg'), format='svg', transparent=True)
+
+# %% supp: multiple regression model on direct + shortest path
+from sklearn.linear_model import LinearRegression
+from sklearn.model_selection import RepeatedKFold, cross_validate
+
+rkf = RepeatedKFold(n_splits=10, n_repeats=100, random_state=0)
+
+figS4_0, ax = plt.subplots(1, 2, figsize=(8,4))
+# # # # # # #  2: Cell count connectivity # # # # # #
+# direct connectivity
+direct_connect, keep_inds = AC.getAdjacency('CellCount', do_log=True)
+
+# shortest path
+anat_connect = AC.getConnectivityMatrix('CellCount', diag=None)
+measured_sp, measured_steps, _, measured_hub = bridge.getShortestPathStats(anat_connect)
+shortest_path = np.log10(((measured_sp.T + measured_sp.T)/2).to_numpy()[FC.upper_inds][keep_inds])
+x = np.vstack([direct_connect,
+               shortest_path]).T
+
+measured_fc = FC.CorrelationMatrix.to_numpy()[FC.upper_inds][keep_inds]
+regressor = LinearRegression()
+regressor.fit(x, measured_fc);
+
+pred = regressor.predict(x)
+cv_results = cross_validate(regressor, x, measured_fc, cv=rkf, scoring='r2');
+avg_r2 = cv_results['test_score'].mean()
+err = cv_results['test_score'].std()
+print('r2 = {:.2f}+/-{:.2f}'.format(avg_r2, err))
+
+ax[0].plot([-0.2, 1.0], [-0.2, 1.0], 'k--')
+ax[0].plot(pred, measured_fc, 'ko', alpha=0.25)
+ax[0].annotate('$r^2$={:.2f}'.format(avg_r2), (-0.15, 0.95))
+ax[0].set_ylabel('Measured FC (z)')
+ax[0].set_xlabel('Predicted FC (z)')
+ax[0].set_xlim([-0.2, 1.0])
+ax[0].set_aspect('equal')
+ax[0].set_title('Cell count connectivity')
+
+# # # # # # #  2: TBars connectivity # # # # # #
+# direct connectivity
+direct_connect, keep_inds = AC.getAdjacency('TBars', do_log=True)
+
+# shortest path
+anat_connect = AC.getConnectivityMatrix('TBars', diag=None)
+measured_sp, measured_steps, _, measured_hub = bridge.getShortestPathStats(anat_connect)
+shortest_path = np.log10(((measured_sp.T + measured_sp.T)/2).to_numpy()[FC.upper_inds][keep_inds])
+x = np.vstack([direct_connect,
+               shortest_path]).T
+
+measured_fc = FC.CorrelationMatrix.to_numpy()[FC.upper_inds][keep_inds]
+regressor = LinearRegression()
+regressor.fit(x, measured_fc);
+
+pred = regressor.predict(x)
+cv_results = cross_validate(regressor, x, measured_fc, cv=rkf, scoring='r2');
+avg_r2 = cv_results['test_score'].mean()
+err = cv_results['test_score'].std()
+print('r2 = {:.2f}+/-{:.2f}'.format(avg_r2, err))
+
+ax[1].plot([-0.2, 1.0], [-0.2, 1.0], 'k--')
+ax[1].plot(pred, measured_fc, 'ko', alpha=0.25)
+ax[1].annotate('$r^2$={:.2f}'.format(avg_r2), (-0.15, 0.95))
+ax[1].set_ylabel('Measured FC (z)')
+ax[1].set_xlabel('Predicted FC (z)')
+ax[1].set_xlim([-0.2, 1.0])
+ax[1].set_aspect('equal')
+ax[1].set_title('T-Bar connectivity')
+
+
+figS4_0.savefig(os.path.join(analysis_dir, 'figpanels', 'figS4_0.svg'), format='svg', transparent=True)

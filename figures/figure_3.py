@@ -2,10 +2,9 @@ import matplotlib.pyplot as plt
 from neuprint import Client
 import numpy as np
 import networkx as nx
-from scipy.stats import pearsonr, powerlaw, ttest_1samp
+from scipy.stats import powerlaw
 import os
 import socket
-import seaborn as sns
 
 from scfc import bridge, anatomical_connectivity, functional_connectivity, plotting
 import matplotlib
@@ -144,18 +143,7 @@ ax[1].set_xlabel('Structural')
 ax[1].set_ylabel('Functional')
 ax[1].set_ylim([0, 0.445])
 ax[1].set_xlim([0, 0.124])
-#
-# cent_fxn = np.real(np.array(list(nx.eigenvector_centrality(G_fxn, weight='weight').values())))
-# cent_anat = np.array(list(nx.eigenvector_centrality(G_anat, weight='weight').values()))
-# plotting.addLinearFit(ax[2], cent_anat, cent_fxn, alpha=0.5)
-# ax[2].plot(cent_anat, cent_fxn, alpha=1.0, marker='o', linestyle='none')
-# for r_ind, r in enumerate(FC.rois):
-#     if r in roilabels_to_show:
-#         ax[2].annotate(r, (cent_anat[r_ind]+0.002, cent_fxn[r_ind]-0.003), fontsize=8, fontweight='bold')
-# ax[2].set_xlabel('Structural')
-# ax[2].set_ylabel('Functional')
-# ax[2].set_ylim([0, 0.26])
-# ax[2].set_xlim([0, 0.39])
+
 
 fig3_1.savefig(os.path.join(analysis_dir, 'figpanels', 'fig3_1.svg'), format='svg', transparent=True)
 
@@ -251,75 +239,6 @@ ax[2].annotate('{:.2f}'.format(clust[0]), position[1] + [-0.0, 0.2], fontsize=12
 
 fig3_2.savefig(os.path.join(analysis_dir, 'figpanels', 'fig3_2.svg'), format='svg', transparent=True)
 fig3_3.savefig(os.path.join(analysis_dir, 'figpanels', 'fig3_3.svg'), format='svg', transparent=True)
-
-# %% Shortest path analysis:
-anat_connect = AC.getConnectivityMatrix('CellCount', diag=None)
-shortest_path_distance, shortest_path_steps, shortest_path_weight, hub_count = bridge.getShortestPathStats(anat_connect)
-
-# for anatomical network: direct cell weight vs connectivity weight of shortest path
-direct_dist = (1/AC.getConnectivityMatrix('CellCount', diag=None).to_numpy())
-fig3_4, ax = plt.subplots(1, 2, figsize=(7, 3.5))
-step_count = shortest_path_steps - 1
-steps = np.unique(step_count.to_numpy()[AC.upper_inds])
-colors = plt.get_cmap('Dark2')(np.arange(len(steps))/len(steps))
-ax[0].plot([2e-4, 1], [2e-4, 1], color=[0.8, 0.8, 0.8], alpha=0.5, linestyle='-')
-for s_ind, s in enumerate(steps):
-    pull_inds = np.where(step_count == s)
-    ax[0].plot(direct_dist[pull_inds], shortest_path_distance.to_numpy()[pull_inds], linestyle='none', marker='.', color=colors[s_ind], label='{:d}'.format(int(s)), alpha=1.0)
-
-ax[0].set_xscale('log')
-ax[0].set_yscale('log')
-ax[0].set_xlabel('Direct distance (1/cells)')
-ax[0].set_ylabel('Shortest path distance (1/cells)');
-ax[0].legend(fontsize='small', fancybox=True);
-ax[0].set_ylim([2e-4, 3e-2])
-
-
-x = np.log10(shortest_path_distance.to_numpy()[AC.upper_inds])  # adjacency matrix gets symmetrized for shortest path algorithms
-y = FC.CorrelationMatrix.to_numpy()[AC.upper_inds]
-steps = shortest_path_steps.to_numpy()[AC.upper_inds]
-
-fc_pts = []
-len_pts = []
-for step_no in range(2, 8):
-    pull_inds = np.where(steps == step_no)
-    fc_pts.append(y[pull_inds])
-    len_pts.append(x[pull_inds])
-
-h, p = ttest_1samp(FC.cmats, 0, axis=2)
-p_cutoff = 0.05 / p.size # Bonferroni corrected p cutoff
-p_vals = p[AC.upper_inds]
-p_vals = p_vals<p_cutoff
-c = p_vals
-
-r, p = pearsonr(x, y)
-coef = np.polyfit(x, y, 1)
-linfit = np.poly1d(coef)
-xx = np.linspace(x.min(), x.max(), 100)
-ax[1].scatter(10**x, y, color='k', alpha=0.5, marker='o', cmap='RdGy')
-ax[1].plot(10**xx, linfit(xx), color='k', linestyle='--', linewidth=2, marker=None)
-ax[1].set_title('r = {:.2f}'.format(r));
-ax[1].set_xlabel('Shortest path distance')
-ax[1].set_ylabel('Functional connectivity (z)')
-ax[1].set_xscale('log')
-
-num_bins = 10 # equally populated bins
-points_per_bin = int(len(x)/num_bins)
-for b_ind in range(num_bins):
-    inds = np.argsort(x)[(b_ind*points_per_bin):(b_ind+1)*points_per_bin]
-    bin_mean_x = x[inds].mean()
-    bin_mean_y = y[inds].mean()
-    ax[1].plot(10**bin_mean_x, bin_mean_y, 'ks', alpha=1, linestyle='none')
-
-    bin_spread_x = np.quantile(x[inds], (0.05, 0.95))
-    ax[1].plot(10**bin_spread_x, [bin_mean_y, bin_mean_y], linestyle='-', marker='None', color='k', alpha=1, linewidth=2)
-
-    bin_spread_y = np.quantile(y[inds], (0.05, 0.95))
-    ax[1].plot([10**bin_mean_x, 10**bin_mean_x], bin_spread_y, linestyle='-', marker='None', color='k', alpha=1, linewidth=2)
-
-
-fig3_4.savefig(os.path.join(analysis_dir, 'figpanels', 'fig3_4.svg'), format='svg', transparent=True)
-
 
 # %% Supp: connectome degree stats: scale free + small world comparisons
 

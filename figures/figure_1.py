@@ -2,12 +2,10 @@ import matplotlib.pyplot as plt
 from neuprint import Client
 import numpy as np
 import os
-from scipy.stats import norm, zscore, kstest, pearsonr
-import pandas as pd
-import seaborn as sns
+from scipy.stats import norm, zscore, kstest
 import socket
 
-from scfc import bridge, anatomical_connectivity, functional_connectivity, plotting
+from scfc import bridge, anatomical_connectivity, functional_connectivity
 from matplotlib import rcParams
 rcParams.update({'font.size': 12})
 rcParams.update({'figure.autolayout': True})

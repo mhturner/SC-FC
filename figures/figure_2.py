@@ -2,11 +2,9 @@ import matplotlib.pyplot as plt
 from neuprint import Client
 import numpy as np
 import os
-from sklearn.linear_model import LinearRegression
-from scipy.stats import pearsonr, ttest_ind, spearmanr, ttest_rel
+from scipy.stats import pearsonr
 import pandas as pd
 import seaborn as sns
-from sklearn.model_selection import cross_validate, RepeatedKFold
 import socket
 import glob
 
@@ -146,7 +144,6 @@ fig2_1.savefig(os.path.join(analysis_dir, 'figpanels', 'fig2_1.svg'), format='sv
 fig2_2.savefig(os.path.join(analysis_dir, 'figpanels', 'fig2_2.svg'), format='svg', transparent=True)
 
 # %%
-from scipy.stats import ttest_1samp
 
 fig2_3, ax = plt.subplots(1, 2, figsize=(10, 5))
 df = AC.getConnectivityMatrix('CellCount', diag=np.nan)
@@ -274,6 +271,7 @@ ax2.plot(bins[:-1], cumulative)
 ax2.set_ylabel('Cumulative fraction')
 ax2.set_ylim([0, 1.05])
 ax2.set_xscale('log')
+ax2.spines['right'].set_visible(True)
 
 figS2_1.savefig(os.path.join(analysis_dir, 'figpanels', 'figS2_1.svg'), format='svg', transparent=True)
 

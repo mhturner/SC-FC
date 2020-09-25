@@ -26,25 +26,6 @@ class RateModel:
         self.w_i = w_i
         self.w_internode = w_internode
 
-        # tdim = 4000
-        # tau_i = 2 # msec (2)
-        # tau_e = 10 # msec (10)
-        # # w_: within subnetwork weights
-        # w_ee = 2 # e self drive (2)
-        # w_ei = 4 # i to e (4)
-        # w_ie = 4 # e to i (4)
-        #
-        #  # scaling of weights between excitatory populations
-        #  # CellCount: ~2
-        #   # CellCount, log: ~0.5
-        #  # WeightedSynapseCount: ~7
-        #  # TBars, log:
-        # w_internode = 0.7
-        # do_log = True
-        #
-        # pulse_size = 5 # (5)
-        # spike_rate = 5 #hz (5)
-
         # Connectivity matrix
         C = C / C.max()
         self.n_nodes = C.shape[0]
