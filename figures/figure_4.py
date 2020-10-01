@@ -226,66 +226,62 @@ from sklearn.model_selection import RepeatedKFold, cross_validate
 
 rkf = RepeatedKFold(n_splits=10, n_repeats=100, random_state=0)
 
-figS4_0, ax = plt.subplots(1, 2, figsize=(8,4))
-# # # # # # #  2: Cell count connectivity # # # # # #
-# direct connectivity
-direct_connect, keep_inds = AC.getAdjacency('CellCount', do_log=True)
+metrics = ['CellCount', 'TBars']
+for ind in range(2):
+    metric = metrics[ind]
 
-# shortest path
-anat_connect = AC.getConnectivityMatrix('CellCount', diag=None)
-measured_sp, measured_steps, _, measured_hub = bridge.getShortestPathStats(anat_connect)
-shortest_path = np.log10(((measured_sp.T + measured_sp.T)/2).to_numpy()[FC.upper_inds][keep_inds])
-x = np.vstack([direct_connect,
-               shortest_path]).T
+    # direct connectivity
+    direct_connect, keep_inds = AC.getAdjacency(metric, do_log=True)
 
-measured_fc = FC.CorrelationMatrix.to_numpy()[FC.upper_inds][keep_inds]
-regressor = LinearRegression()
-regressor.fit(x, measured_fc);
+    # shortest path
+    anat_connect = AC.getConnectivityMatrix(metric, diag=None)
+    measured_sp, measured_steps, _, measured_hub = bridge.getShortestPathStats(anat_connect)
+    shortest_path = np.log10(((measured_sp.T + measured_sp.T)/2).to_numpy()[FC.upper_inds][keep_inds])
 
-pred = regressor.predict(x)
-cv_results = cross_validate(regressor, x, measured_fc, cv=rkf, scoring='r2');
-avg_r2 = cv_results['test_score'].mean()
-err = cv_results['test_score'].std()
-print('r2 = {:.2f}+/-{:.2f}'.format(avg_r2, err))
+    # # # Direct only # # #
+    x = np.vstack([direct_connect]).T
 
-ax[0].plot([-0.2, 1.0], [-0.2, 1.0], 'k--')
-ax[0].plot(pred, measured_fc, 'ko', alpha=0.25)
-ax[0].annotate('$r^2$={:.2f}'.format(avg_r2), (-0.15, 0.95))
-ax[0].set_ylabel('Measured FC (z)')
-ax[0].set_xlabel('Predicted FC (z)')
-ax[0].set_xlim([-0.2, 1.0])
-ax[0].set_aspect('equal')
-ax[0].set_title('Cell count connectivity')
+    measured_fc = FC.CorrelationMatrix.to_numpy()[FC.upper_inds][keep_inds]
+    regressor = LinearRegression()
+    regressor.fit(x, measured_fc);
 
-# # # # # # #  2: TBars connectivity # # # # # #
-# direct connectivity
-direct_connect, keep_inds = AC.getAdjacency('TBars', do_log=True)
+    pred = regressor.predict(x)
+    cv_results = cross_validate(regressor, x, measured_fc, cv=rkf, scoring='r2');
+    avg_r2 = cv_results['test_score'].mean()
+    err = cv_results['test_score'].std()
+    print('r2 = {:.2f}+/-{:.2f}'.format(avg_r2, err))
 
-# shortest path
-anat_connect = AC.getConnectivityMatrix('TBars', diag=None)
-measured_sp, measured_steps, _, measured_hub = bridge.getShortestPathStats(anat_connect)
-shortest_path = np.log10(((measured_sp.T + measured_sp.T)/2).to_numpy()[FC.upper_inds][keep_inds])
-x = np.vstack([direct_connect,
-               shortest_path]).T
+    figS4_0, ax = plt.subplots(1, 2, figsize=(8,4))
+    ax[0].plot([-0.2, 1.0], [-0.2, 1.0], 'k--')
+    ax[0].plot(pred, measured_fc, 'ko', alpha=0.25)
+    ax[0].annotate('$r^2$={:.2f}'.format(avg_r2), (-0.15, 0.95))
+    ax[0].set_ylabel('Measured FC (z)')
+    ax[0].set_xlabel('Predicted FC (z)')
+    ax[0].set_xlim([-0.2, 1.0])
+    ax[0].set_aspect('equal')
+    ax[0].set_title('Direct connectivity')
 
-measured_fc = FC.CorrelationMatrix.to_numpy()[FC.upper_inds][keep_inds]
-regressor = LinearRegression()
-regressor.fit(x, measured_fc);
+    # # # Shortest path + direct # # #
+    x = np.vstack([direct_connect,
+                   shortest_path]).T
 
-pred = regressor.predict(x)
-cv_results = cross_validate(regressor, x, measured_fc, cv=rkf, scoring='r2');
-avg_r2 = cv_results['test_score'].mean()
-err = cv_results['test_score'].std()
-print('r2 = {:.2f}+/-{:.2f}'.format(avg_r2, err))
+    measured_fc = FC.CorrelationMatrix.to_numpy()[FC.upper_inds][keep_inds]
+    regressor = LinearRegression()
+    regressor.fit(x, measured_fc);
 
-ax[1].plot([-0.2, 1.0], [-0.2, 1.0], 'k--')
-ax[1].plot(pred, measured_fc, 'ko', alpha=0.25)
-ax[1].annotate('$r^2$={:.2f}'.format(avg_r2), (-0.15, 0.95))
-ax[1].set_ylabel('Measured FC (z)')
-ax[1].set_xlabel('Predicted FC (z)')
-ax[1].set_xlim([-0.2, 1.0])
-ax[1].set_aspect('equal')
-ax[1].set_title('T-Bar connectivity')
+    pred = regressor.predict(x)
+    cv_results = cross_validate(regressor, x, measured_fc, cv=rkf, scoring='r2');
+    avg_r2 = cv_results['test_score'].mean()
+    err = cv_results['test_score'].std()
+    print('r2 = {:.2f}+/-{:.2f}'.format(avg_r2, err))
 
+    ax[1].plot([-0.2, 1.0], [-0.2, 1.0], 'k--')
+    ax[1].plot(pred, measured_fc, 'ko', alpha=0.25)
+    ax[1].annotate('$r^2$={:.2f}'.format(avg_r2), (-0.15, 0.95))
+    ax[1].set_ylabel('Measured FC (z)')
+    ax[1].set_xlabel('Predicted FC (z)')
+    ax[1].set_xlim([-0.2, 1.0])
+    ax[1].set_aspect('equal')
+    ax[1].set_title('Direct + shortest path')
 
-figS4_0.savefig(os.path.join(analysis_dir, 'figpanels', 'figS4_0.svg'), format='svg', transparent=True)
+    figS4_0.savefig(os.path.join(analysis_dir, 'figpanels', 'figS4_{}.svg'.format(ind)), format='svg', transparent=True)

@@ -10,15 +10,19 @@
 
 
 \begin{flalign*}
-\tau_{e} \frac{de}{dt} = -e + f(C_{ij} \times e + w_{ee}e + w_{ei}i) + n(t) + stim(t)
+distance := \frac{1}{weight}
 \end{flalign}
 
 \begin{flalign*}
-\tau_{i} \frac{di}{dt} = -i + f(w_{ie}e) + stim(t)
+D_{direct}(A \rightarrow B) = \frac{1}{2} = 0.50
 \end{flalign}
 
 \begin{flalign*}
-f(x) = [s \times erf(\frac{x-\theta}{s})]_{+}
+D_{shortest}(A \rightarrow C \rightarrow C) = \frac{1}{5} + \frac{1}{20} = 0.25
+\end{flalign}
+
+\begin{flalign*}
+\text{Indirect path factor} = \frac{D_{direct}}{D_{shortest}} = \frac{0.50}{0.25} = 2.0
 \end{flalign}
 
 \end{document}
