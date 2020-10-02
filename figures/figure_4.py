@@ -224,7 +224,18 @@ fig4_4.savefig(os.path.join(analysis_dir, 'figpanels', 'fig4_4.svg'), format='sv
 from sklearn.linear_model import LinearRegression
 from sklearn.model_selection import RepeatedKFold, cross_validate
 
-rkf = RepeatedKFold(n_splits=10, n_repeats=100, random_state=0)
+
+def fitLinReg(x, y):
+    rkf = RepeatedKFold(n_splits=10, n_repeats=100, random_state=0)
+    regressor = LinearRegression()
+    regressor.fit(x, y);
+    pred = regressor.predict(x)
+
+    cv_results = cross_validate(regressor, x, measured_fc, cv=rkf, scoring='r2');
+    avg_r2 = cv_results['test_score'].mean()
+    err_r2 = cv_results['test_score'].std()
+
+    return pred, avg_r2, err_r2
 
 metrics = ['CellCount', 'TBars']
 for ind in range(2):
@@ -238,20 +249,16 @@ for ind in range(2):
     measured_sp, measured_steps, _, measured_hub = bridge.getShortestPathStats(anat_connect)
     shortest_path = np.log10(((measured_sp.T + measured_sp.T)/2).to_numpy()[FC.upper_inds][keep_inds])
 
-    # # # Direct only # # #
-    x = np.vstack([direct_connect]).T
-
     measured_fc = FC.CorrelationMatrix.to_numpy()[FC.upper_inds][keep_inds]
-    regressor = LinearRegression()
-    regressor.fit(x, measured_fc);
 
-    pred = regressor.predict(x)
-    cv_results = cross_validate(regressor, x, measured_fc, cv=rkf, scoring='r2');
-    avg_r2 = cv_results['test_score'].mean()
-    err = cv_results['test_score'].std()
-    print('r2 = {:.2f}+/-{:.2f}'.format(avg_r2, err))
 
-    figS4_0, ax = plt.subplots(1, 2, figsize=(8,4))
+    figS4_0, ax = plt.subplots(1, 3, figsize=(9,3))
+
+    # # # # Direct only # # #
+    x = np.vstack([direct_connect]).T
+    pred, avg_r2, err_r2 = fitLinReg(x=x, y=measured_fc)
+
+    print('r2 = {:.2f}+/-{:.2f}'.format(avg_r2, err_r2))
     ax[0].plot([-0.2, 1.0], [-0.2, 1.0], 'k--')
     ax[0].plot(pred, measured_fc, 'ko', alpha=0.25)
     ax[0].annotate('$r^2$={:.2f}'.format(avg_r2), (-0.15, 0.95))
@@ -261,20 +268,11 @@ for ind in range(2):
     ax[0].set_aspect('equal')
     ax[0].set_title('Direct connectivity')
 
-    # # # Shortest path + direct # # #
-    x = np.vstack([direct_connect,
-                   shortest_path]).T
+    # # # Shortest only # # #
+    x = np.vstack([shortest_path]).T
+    pred, avg_r2, err_r2 = fitLinReg(x=x, y=measured_fc)
 
-    measured_fc = FC.CorrelationMatrix.to_numpy()[FC.upper_inds][keep_inds]
-    regressor = LinearRegression()
-    regressor.fit(x, measured_fc);
-
-    pred = regressor.predict(x)
-    cv_results = cross_validate(regressor, x, measured_fc, cv=rkf, scoring='r2');
-    avg_r2 = cv_results['test_score'].mean()
-    err = cv_results['test_score'].std()
-    print('r2 = {:.2f}+/-{:.2f}'.format(avg_r2, err))
-
+    print('r2 = {:.2f}+/-{:.2f}'.format(avg_r2, err_r2))
     ax[1].plot([-0.2, 1.0], [-0.2, 1.0], 'k--')
     ax[1].plot(pred, measured_fc, 'ko', alpha=0.25)
     ax[1].annotate('$r^2$={:.2f}'.format(avg_r2), (-0.15, 0.95))
@@ -282,6 +280,21 @@ for ind in range(2):
     ax[1].set_xlabel('Predicted FC (z)')
     ax[1].set_xlim([-0.2, 1.0])
     ax[1].set_aspect('equal')
-    ax[1].set_title('Direct + shortest path')
+    ax[1].set_title('Shortest path')
+
+    # # # Shortest path + direct # # #
+    x = np.vstack([direct_connect,
+                   shortest_path]).T
+    pred, avg_r2, err_r2 = fitLinReg(x=x, y=measured_fc)
+
+    print('r2 = {:.2f}+/-{:.2f}'.format(avg_r2, err_r2))
+    ax[2].plot([-0.2, 1.0], [-0.2, 1.0], 'k--')
+    ax[2].plot(pred, measured_fc, 'ko', alpha=0.25)
+    ax[2].annotate('$r^2$={:.2f}'.format(avg_r2), (-0.15, 0.95))
+    ax[2].set_ylabel('Measured FC (z)')
+    ax[2].set_xlabel('Predicted FC (z)')
+    ax[2].set_xlim([-0.2, 1.0])
+    ax[2].set_aspect('equal')
+    ax[2].set_title('Direct + shortest path')
 
     figS4_0.savefig(os.path.join(analysis_dir, 'figpanels', 'figS4_{}.svg'.format(ind)), format='svg', transparent=True)

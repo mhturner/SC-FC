@@ -43,7 +43,7 @@ fig1_0, ax = plt.subplots(2, 1, figsize=(4.5, 4.5))
 ax = ax.ravel()
 fig1_0.tight_layout(w_pad=2, h_pad=8)
 
-figS1_0, axS1 = plt.subplots(4, 9, figsize=(18, 6))
+figS1_0, axS1 = plt.subplots(9, 4, figsize=(8, 9))
 axS1 = axS1.ravel()
 
 z_scored_cell = []
@@ -76,6 +76,7 @@ for p_ind, pr in enumerate(ConnectivityCount.index):
     axS1[p_ind].annotate('{}'.format(pr), (12, 6e3), fontsize=8)
     axS1[p_ind].set_yscale('log')
     axS1[p_ind].set_ylim([0.2, 5e4])
+    axS1[p_ind].set_yticks([1e0, 1e2, 1e4])
 
     if pr == pull_region:
         ax[0].fill_between(list(range(len(mod_mean))), err_up, err_down, color='k', alpha=0.4)
