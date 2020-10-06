@@ -16,7 +16,6 @@ rcParams.update({'figure.autolayout': True})
 rcParams.update({'axes.spines.right': False})
 rcParams.update({'axes.spines.top': False})
 rcParams['svg.fonttype'] = 'none' # let illustrator handle the font type
-rcParams['pdf.fonttype'] = 42
 
 if socket.gethostname() == 'MHT-laptop':  # windows
     data_dir = r'C:\Users\mhturner/Dropbox/ClandininLab/Analysis/SC-FC/data'
@@ -35,6 +34,7 @@ FC = functional_connectivity.FunctionalConnectivity(data_dir=data_dir, fs=1.2, c
 AC = anatomical_connectivity.AnatomicalConnectivity(data_dir=data_dir, neuprint_client=neuprint_client, mapping=bridge.getRoiMapping())
 
 plot_colors = plt.get_cmap('tab10')(np.arange(8)/8)
+save_dpi = 400
 
 # %% Eg region traces and cross corrs
 pull_regions = ['AL(R)', 'CAN(R)', 'LH(R)', 'SPS(R)']
@@ -139,9 +139,9 @@ for ind_1, eg1 in enumerate(pull_regions):
 
 plotting.addScaleBars(ax[0, 0], dT=-30, dF=0.25, T_value=time[-1], F_value=-0.15)
 sns.despine(top=True, right=True, left=True, bottom=True)
-fig2_0.savefig(os.path.join(analysis_dir, 'figpanels', 'fig2_0.svg'), format='svg', transparent=True)
-fig2_1.savefig(os.path.join(analysis_dir, 'figpanels', 'fig2_1.svg'), format='svg', transparent=True)
-fig2_2.savefig(os.path.join(analysis_dir, 'figpanels', 'fig2_2.svg'), format='svg', transparent=True)
+fig2_0.savefig(os.path.join(analysis_dir, 'figpanels', 'fig2_0.svg'), format='svg', transparent=True, dpi=save_dpi)
+fig2_1.savefig(os.path.join(analysis_dir, 'figpanels', 'fig2_1.svg'), format='svg', transparent=True, dpi=save_dpi)
+fig2_2.savefig(os.path.join(analysis_dir, 'figpanels', 'fig2_2.svg'), format='svg', transparent=True, dpi=save_dpi)
 
 # %%
 
@@ -218,9 +218,9 @@ ax.set_xticklabels(['Cell\ncount',
                     'Region\nnearness'])
 ax.tick_params(axis='x', labelsize=10)
 
-fig2_3.savefig(os.path.join(analysis_dir, 'figpanels', 'fig2_3.svg'), format='svg', transparent=True)
-fig2_4.savefig(os.path.join(analysis_dir, 'figpanels', 'fig2_4.svg'), format='svg', transparent=True)
-figS2_0.savefig(os.path.join(analysis_dir, 'figpanels', 'figS2_0.svg'), format='svg', transparent=True)
+fig2_3.savefig(os.path.join(analysis_dir, 'figpanels', 'fig2_3.svg'), format='svg', transparent=True, dpi=save_dpi)
+fig2_4.savefig(os.path.join(analysis_dir, 'figpanels', 'fig2_4.svg'), format='svg', transparent=True, dpi=save_dpi)
+figS2_0.savefig(os.path.join(analysis_dir, 'figpanels', 'figS2_0.svg'), format='svg', transparent=True, dpi=save_dpi)
 
 # %% Supp: subsampled region cmats and SC-FC corr
 
@@ -273,7 +273,7 @@ ax2.set_ylim([0, 1.05])
 ax2.set_xscale('log')
 ax2.spines['right'].set_visible(True)
 
-figS2_1.savefig(os.path.join(analysis_dir, 'figpanels', 'figS2_1.svg'), format='svg', transparent=True)
+figS2_1.savefig(os.path.join(analysis_dir, 'figpanels', 'figS2_1.svg'), format='svg', transparent=True, dpi=save_dpi)
 
 # %% Supp: AC+FC vs. completeness, distance
 cell_ct, _ = AC.getAdjacency('CellCount', do_log=False)
@@ -282,18 +282,18 @@ fc = FC.CorrelationMatrix.to_numpy()[FC.upper_inds]
 compl = completeness[FC.upper_inds]
 
 figS2_2, ax = plt.subplots(1, 2, figsize=(6,3))
-ax[0].plot(compl, cell_ct, 'ko', alpha=0.25)
+ax[0].plot(compl, cell_ct, 'k.', alpha=1.0, rasterized=True)
 r, p = plotting.addLinearFit(ax[0], compl, cell_ct, alpha=1.0)
 ax[0].set_xlabel('Completeness')
 ax[0].set_ylabel('Anat. conn. (cells)')
 ax[0].set_xlim([0, 1])
 ax[0].annotate('r={:.2f}'.format(r), (0.72, 3400))
 
-ax[1].plot(compl, fc, 'ko', alpha=0.25)
+ax[1].plot(compl, fc, 'k.', alpha=1.0, rasterized=True)
 r, p = plotting.addLinearFit(ax[1], compl, fc, alpha=1.0)
 ax[1].set_xlabel('Completeness')
 ax[1].set_ylabel('Functional correlation (z)')
 ax[1].set_xlim([0, 1])
 ax[1].annotate('r={:.2f}'.format(r), (0.05, 1.02))
 
-figS2_2.savefig(os.path.join(analysis_dir, 'figpanels', 'figS2_2.svg'), format='svg', transparent=True)
+figS2_2.savefig(os.path.join(analysis_dir, 'figpanels', 'figS2_2.svg'), format='svg', transparent=True, dpi=save_dpi)

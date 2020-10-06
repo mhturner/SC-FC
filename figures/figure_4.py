@@ -34,6 +34,7 @@ FC = functional_connectivity.FunctionalConnectivity(data_dir=data_dir, fs=1.2, c
 AC = anatomical_connectivity.AnatomicalConnectivity(data_dir=data_dir, neuprint_client=neuprint_client, mapping=bridge.getRoiMapping())
 
 plot_colors = plt.get_cmap('tab10')(np.arange(8)/8)
+save_dpi = 400
 
 # %% Difference matrix
 
@@ -68,7 +69,7 @@ for r_ind, r_key in enumerate(sort_keys):
 
 fig4_0, ax = plt.subplots(1, 1, figsize=(1.6, 1.6))
 lim = np.nanmax(np.abs(DifferenceMatrix.to_numpy().ravel()))
-ax.scatter(10**anatomical_adjacency_diff, functional_adjacency_diff, alpha=1, color='k', marker='.')
+ax.scatter(10**anatomical_adjacency_diff, functional_adjacency_diff, alpha=1, color='k', marker='.', rasterized=True, s=8)
 ax.set_xscale('log')
 ax.set_xlim([np.min(10**anatomical_adjacency_diff), np.max(10**anatomical_adjacency_diff)])
 ax.set_xlabel('SC (cells)', fontsize=10)
@@ -78,7 +79,7 @@ ax.tick_params(axis='both', which='major', labelsize=8)
 
 fig4_1, ax = plt.subplots(1, 1, figsize=(1.6, 1.6))
 lim = np.nanmax(np.abs(DifferenceMatrix.to_numpy().ravel()))
-ax.scatter(A_zscore, F_zscore, alpha=1, c=diff, cmap="RdBu",  vmin=-lim, vmax=lim, marker='.')
+ax.scatter(A_zscore, F_zscore, alpha=1, c=diff, cmap="RdBu",  vmin=-lim, vmax=lim, marker='.', rasterized=True, s=8)
 ax.plot([-3.5, 3.5], [-3.5, 3.5], 'k-')
 ax.axhline(color='k', zorder=0, alpha=0.5)
 ax.axvline(color='k', zorder=0, alpha=0.5)
@@ -96,9 +97,9 @@ sns.heatmap(sorted_diff, ax=ax, yticklabels=True, xticklabels=True, cbar_kws={'l
 ax.set_aspect('equal')
 ax.tick_params(axis='both', which='major', labelsize=6)
 
-fig4_0.savefig(os.path.join(analysis_dir, 'figpanels', 'fig4_0.svg'), format='svg', transparent=True)
-fig4_1.savefig(os.path.join(analysis_dir, 'figpanels', 'fig4_1.svg'), format='svg', transparent=True)
-fig4_2.savefig(os.path.join(analysis_dir, 'figpanels', 'fig4_2.svg'), format='svg', transparent=True)
+fig4_0.savefig(os.path.join(analysis_dir, 'figpanels', 'fig4_0.svg'), format='svg', transparent=True, dpi=save_dpi)
+fig4_1.savefig(os.path.join(analysis_dir, 'figpanels', 'fig4_1.svg'), format='svg', transparent=True, dpi=save_dpi)
+fig4_2.savefig(os.path.join(analysis_dir, 'figpanels', 'fig4_2.svg'), format='svg', transparent=True, dpi=save_dpi)
 
 
 # %% Average diff for each region, cluster and sort by super-regions
@@ -157,7 +158,7 @@ ax.set_ylabel('Region avg. diff.\n(FC - SC)')
 
 sns.palplot(colors)
 np.array(colors)
-fig4_3.savefig(os.path.join(analysis_dir, 'figpanels', 'fig4_3.svg'), format='svg', transparent=True)
+fig4_3.savefig(os.path.join(analysis_dir, 'figpanels', 'fig4_3.svg'), format='svg', transparent=True, dpi=save_dpi)
 
 # %%
 # Shortest path distance:
@@ -175,7 +176,7 @@ diff = DifferenceMatrix.to_numpy()[~np.eye(36,dtype=bool)]
 
 fig4_4, ax = plt.subplots(1, 2, figsize=(6, 3))
 lim = np.nanmax(np.abs(DifferenceMatrix.to_numpy().ravel()))
-sc = ax[0].scatter(direct_dist, shortest_path_dist, c=diff, alpha=1, cmap='RdBu', marker='.', vmin=-lim, vmax=lim)
+sc = ax[0].scatter(direct_dist, shortest_path_dist, c=diff, alpha=1, cmap='RdBu', marker='.', vmin=-lim, vmax=lim, rasterized=True)
 ax[0].set_xscale('log')
 ax[0].set_yscale('log')
 ax[0].set_xlabel('Direct distance')
@@ -192,7 +193,7 @@ keep_inds = np.where(x>1)
 x = x[keep_inds]
 y = y[keep_inds]
 
-ax[1].scatter(x, y, c=diff[keep_inds], marker='.', alpha=1.0, linestyle='None', cmap='RdBu', vmin=-lim, vmax=lim)
+ax[1].scatter(x, y, c=diff[keep_inds], marker='.', alpha=1.0, linestyle='None', cmap='RdBu', vmin=-lim, vmax=lim, rasterized=True)
 ax[1].axhline(color='k', linestyle='--')
 ax[1].set_xscale('log')
 ax[1].set_xlabel(r'Indirect path factor: $\dfrac{D_{direct}}{D_{shortest}}$')
@@ -218,7 +219,7 @@ for b_ind in range(num_bins):
     err_y = y[inds].std()/np.sqrt(len(inds))
     ax[1].plot([bin_mean_x, bin_mean_x], [bin_mean_y - err_y, bin_mean_y + err_y], linestyle='-', marker='None', color='k', alpha=1, linewidth=2)
 
-fig4_4.savefig(os.path.join(analysis_dir, 'figpanels', 'fig4_4.svg'), format='svg', transparent=True)
+fig4_4.savefig(os.path.join(analysis_dir, 'figpanels', 'fig4_4.svg'), format='svg', transparent=True, dpi=save_dpi)
 
 # %% supp: multiple regression model on direct + shortest path
 from sklearn.linear_model import LinearRegression
@@ -260,7 +261,7 @@ for ind in range(2):
 
     print('r2 = {:.2f}+/-{:.2f}'.format(avg_r2, err_r2))
     ax[0].plot([-0.2, 1.0], [-0.2, 1.0], 'k--')
-    ax[0].plot(pred, measured_fc, 'ko', alpha=0.25)
+    ax[0].scatter(pred, measured_fc, color='k', marker='.', alpha=1.0, rasterized=True)
     ax[0].annotate('$r^2$={:.2f}'.format(avg_r2), (-0.15, 0.95))
     ax[0].set_ylabel('Measured FC (z)')
     ax[0].set_xlabel('Predicted FC (z)')
@@ -274,7 +275,7 @@ for ind in range(2):
 
     print('r2 = {:.2f}+/-{:.2f}'.format(avg_r2, err_r2))
     ax[1].plot([-0.2, 1.0], [-0.2, 1.0], 'k--')
-    ax[1].plot(pred, measured_fc, 'ko', alpha=0.25)
+    ax[1].scatter(pred, measured_fc, color='k', marker='.', alpha=1.0, rasterized=True)
     ax[1].annotate('$r^2$={:.2f}'.format(avg_r2), (-0.15, 0.95))
     ax[1].set_ylabel('Measured FC (z)')
     ax[1].set_xlabel('Predicted FC (z)')
@@ -289,7 +290,7 @@ for ind in range(2):
 
     print('r2 = {:.2f}+/-{:.2f}'.format(avg_r2, err_r2))
     ax[2].plot([-0.2, 1.0], [-0.2, 1.0], 'k--')
-    ax[2].plot(pred, measured_fc, 'ko', alpha=0.25)
+    ax[2].scatter(pred, measured_fc, color='k', marker='.', alpha=1.0, rasterized=True)
     ax[2].annotate('$r^2$={:.2f}'.format(avg_r2), (-0.15, 0.95))
     ax[2].set_ylabel('Measured FC (z)')
     ax[2].set_xlabel('Predicted FC (z)')
@@ -297,4 +298,4 @@ for ind in range(2):
     ax[2].set_aspect('equal')
     ax[2].set_title('Direct + shortest path')
 
-    figS4_0.savefig(os.path.join(analysis_dir, 'figpanels', 'figS4_{}.svg'.format(ind)), format='svg', transparent=True)
+    figS4_0.savefig(os.path.join(analysis_dir, 'figpanels', 'figS4_{}.svg'.format(ind)), format='svg', transparent=True, dpi=save_dpi)

@@ -32,6 +32,7 @@ FC = functional_connectivity.FunctionalConnectivity(data_dir=data_dir, fs=1.2, c
 AC = anatomical_connectivity.AnatomicalConnectivity(data_dir=data_dir, neuprint_client=neuprint_client, mapping=bridge.getRoiMapping())
 
 plot_colors = plt.get_cmap('tab10')(np.arange(8)/8)
+save_dpi = 400
 
 # %% get adjacency matrices for graphs
 anat_position = {}
@@ -110,7 +111,7 @@ for i,j in enumerate(G_fxn.edges()):
     color = cmap(line_wt)
     ax_fxn.plot(x, y, z, c=plot_colors[0], alpha=0.25, linewidth=2)
 
-fig3_0.savefig(os.path.join(analysis_dir, 'figpanels', 'fig3_0.svg'), format='svg', transparent=True)
+fig3_0.savefig(os.path.join(analysis_dir, 'figpanels', 'fig3_0.svg'), format='svg', transparent=True, dpi=save_dpi)
 # %% compare anat + fxnal graph metrics: degree and clustering
 
 roilabels_to_show = ['BU(R)', 'AVLP(R)', 'MBML(R)', 'PVLP(R)', 'AL(R)', 'LH(R)', 'EB', 'PLP(R)', 'AOTU(R)']
@@ -145,7 +146,7 @@ ax[1].set_ylim([0, 0.445])
 ax[1].set_xlim([0, 0.124])
 
 
-fig3_1.savefig(os.path.join(analysis_dir, 'figpanels', 'fig3_1.svg'), format='svg', transparent=True)
+fig3_1.savefig(os.path.join(analysis_dir, 'figpanels', 'fig3_1.svg'), format='svg', transparent=True, dpi=save_dpi)
 
 # %% Illustration schematics of graph metrics
 
@@ -237,8 +238,8 @@ clust = list(nx.clustering(G, weight='weight').values())
 nx.draw(G, ax=ax[2], pos=position, width=np.array(weights)/3, node_color=['r', 'k', 'k', 'k'], node_size=75)
 ax[2].annotate('{:.2f}'.format(clust[0]), position[1] + [-0.0, 0.2], fontsize=12, weight='bold');
 
-fig3_2.savefig(os.path.join(analysis_dir, 'figpanels', 'fig3_2.svg'), format='svg', transparent=True)
-fig3_3.savefig(os.path.join(analysis_dir, 'figpanels', 'fig3_3.svg'), format='svg', transparent=True)
+fig3_2.savefig(os.path.join(analysis_dir, 'figpanels', 'fig3_2.svg'), format='svg', transparent=True, dpi=save_dpi)
+fig3_3.savefig(os.path.join(analysis_dir, 'figpanels', 'fig3_3.svg'), format='svg', transparent=True, dpi=save_dpi)
 
 # %% Supp: connectome degree stats: scale free + small world comparisons
 
@@ -289,7 +290,7 @@ yy = a * xx**(a-1)
 ax.plot(xx, yy/yy.sum(), linestyle='-', linewidth=2, alpha=1.0, color=[0,0,0])
 ax.annotate('$p(w)=a*w^{{a-1}}$ \na={:.2f}'.format(a), (200, 2e-2))
 
-ax.plot(bins[:-1], vals, marker='o', color=plot_colors[0], linestyle='None', alpha=0.50)
+ax.plot(bins[:-1], vals, marker='o', color=plot_colors[0], linestyle='None', alpha=0.50, rasterized=True)
 
 ax.set_xlim([1, edge_weights.max()])
 ax.set_xscale('log')
@@ -321,4 +322,4 @@ ax.set_xlim(0.45, 0.85)
 ax.set_xlabel('clustering')
 
 
-figS3_0.savefig(os.path.join(analysis_dir, 'figpanels', 'figS3_0.svg'), format='svg', transparent=True)
+figS3_0.savefig(os.path.join(analysis_dir, 'figpanels', 'figS3_0.svg'), format='svg', transparent=True, dpi=save_dpi)

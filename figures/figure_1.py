@@ -30,6 +30,7 @@ FC = functional_connectivity.FunctionalConnectivity(data_dir=data_dir, fs=1.2, c
 AC = anatomical_connectivity.AnatomicalConnectivity(data_dir=data_dir, neuprint_client=neuprint_client, mapping=bridge.getRoiMapping())
 
 plot_colors = plt.get_cmap('tab10')(np.arange(8)/8)
+save_dpi = 400
 
 
 # %% ~Lognormal distribtution of connection strengths
@@ -68,9 +69,9 @@ for p_ind, pr in enumerate(ConnectivityCount.index):
     err_down = 10**(np.mean(samples, axis=0) - 2*np.std(samples, axis=0))
     err_up = 10**(np.mean(samples, axis=0) + 2*np.std(samples, axis=0))
 
-    axS1[p_ind].fill_between(list(range(len(mod_mean))), err_up, err_down, color='k', alpha=0.4)
-    axS1[p_ind].plot(mod_mean, 'k--')
-    axS1[p_ind].plot(ct, marker='o', linestyle='none')
+    axS1[p_ind].fill_between(list(range(len(mod_mean))), err_up, err_down, color='k', alpha=0.4, rasterized=False)
+    axS1[p_ind].plot(mod_mean, 'k--', rasterized=False)
+    axS1[p_ind].plot(ct, marker='.', linestyle='none', rasterized=False)
 
     axS1[p_ind].set_xticks([])
     axS1[p_ind].annotate('{}'.format(pr), (12, 6e3), fontsize=8)
@@ -131,6 +132,9 @@ for p_ind, pr in enumerate(ConnectivityCount.index):
         ax[1].set_ylabel('T-Bars')
 
 figS1_0.text(-0.01, 0.5, 'Connections from source region (cells)', va='center', rotation='vertical', fontsize=14)
+
+fig1_0.savefig(os.path.join(analysis_dir, 'figpanels', 'fig1_0.svg'), format='svg', transparent=True, dpi=save_dpi)
+figS1_0.savefig(os.path.join(analysis_dir, 'figpanels', 'figS1_0.svg'), format='svg', transparent=True, dpi=save_dpi)
 
 # %% Summary across all regions: zscore within each outgoing and compare to lognorm
 # CELL COUNT:
@@ -239,10 +243,7 @@ for tick in ax.yaxis.get_major_ticks():
     tick.label.set_fontsize(8)
 
 
-fig1_0.savefig(os.path.join(analysis_dir, 'figpanels', 'fig1_0.svg'), format='svg', transparent=True)
-fig1_1.savefig(os.path.join(analysis_dir, 'figpanels', 'fig1_1.svg'), format='svg', transparent=True)
-fig1_2.savefig(os.path.join(analysis_dir, 'figpanels', 'fig1_2.svg'), format='svg', transparent=True)
-fig1_3.savefig(os.path.join(analysis_dir, 'figpanels', 'fig1_3.svg'), format='svg', transparent=True)
-fig1_4.savefig(os.path.join(analysis_dir, 'figpanels', 'fig1_4.svg'), format='svg', transparent=True)
-
-figS1_0.savefig(os.path.join(analysis_dir, 'figpanels', 'figS1_0.svg'), format='svg', transparent=True)
+fig1_1.savefig(os.path.join(analysis_dir, 'figpanels', 'fig1_1.svg'), format='svg', transparent=True, dpi=save_dpi)
+fig1_2.savefig(os.path.join(analysis_dir, 'figpanels', 'fig1_2.svg'), format='svg', transparent=True, dpi=save_dpi)
+fig1_3.savefig(os.path.join(analysis_dir, 'figpanels', 'fig1_3.svg'), format='svg', transparent=True, dpi=save_dpi)
+fig1_4.savefig(os.path.join(analysis_dir, 'figpanels', 'fig1_4.svg'), format='svg', transparent=True, dpi=save_dpi)
