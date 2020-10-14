@@ -112,7 +112,7 @@ regions = {'AL/LH': ['AL(R)', 'LH(R)'],
            'VMNP': ['VES(R)', 'EPA(R)', 'GOR(L)', 'GOR(R)', 'SPS(R)' ],
            'SNP': ['SLP(R)', 'SIP(R)', 'SMP(R)', 'SMP(L)'],
            'VLNP': ['AOTU(R)', 'AVLP(R)', 'PVLP(R)', 'PLP(R)', 'WED(R)'],
-           # 'PENP': ['CAN(R)'],
+           'PENP': ['CAN(R)'],
          }
 
 # log transform anatomical connectivity values
@@ -135,21 +135,36 @@ for c_ind in range(FC.cmats.shape[2]):  #loop over fly
     diff_by_region.append(diff_m.mean(axis=0))
 
 diff_by_region = np.vstack(diff_by_region).T  # region x fly
+sort_inds = np.argsort(diff_by_region.mean(axis=1))[::-1]
+diff_by_region.mean(axis=1)
+colors = sns.color_palette('deep', 9)
+fig4_3, ax = plt.subplots(1, 1, figsize=(6.0, 3.0))
 
-colors = sns.color_palette('deep', 8)
-fig4_3, ax = plt.subplots(1, 1, figsize=(5.5, 3.0))
-plot_ct = 0
-for r_ind, reg in enumerate(regions):
-    in_inds = np.where([r in regions[reg] for r in FC.rois])[0]
-    # ax.annotate(reg, (plot_ct, 1.5))
-    for i, included in enumerate(in_inds):
-        new_mean = np.mean(diff_by_region[included,:])
-        new_err = np.std(diff_by_region[included,:]) / np.sqrt(diff_by_region.shape[1])
-        ax.plot(plot_ct, new_mean, linestyle='None', marker='o', color=colors[r_ind])
-        ax.plot([plot_ct, plot_ct], [new_mean-new_err, new_mean+new_err], linestyle='-', linewidth=2, marker='None', color=colors[r_ind])
-        ax.annotate(np.array(FC.rois)[included], (plot_ct-0.25, 1.1), rotation=90, fontsize=8)
-        plot_ct+=1
-    plot_ct +=1
+for plot_position, r_ind in enumerate(sort_inds):
+    current_roi = FC.rois[r_ind]
+    super_region_ind = np.where([current_roi in regions[reg_key] for reg_key in regions.keys()])[0][0]
+    color = colors[super_region_ind]
+
+    new_mean = np.mean(diff_by_region[r_ind,:])
+    new_err = np.std(diff_by_region[r_ind,:]) / np.sqrt(diff_by_region.shape[1])
+    ax.plot(plot_position, new_mean, linestyle='None', marker='o', color=color)
+    ax.plot([plot_position, plot_position], [new_mean-new_err, new_mean+new_err], linestyle='-', linewidth=2, marker='None', color=color)
+    ax.annotate(current_roi, (plot_position-0.25, 1.1), rotation=90, fontsize=8)
+
+# colors = sns.color_palette('deep', 8)
+# fig4_3, ax = plt.subplots(1, 1, figsize=(5.5, 3.0))
+# plot_ct = 0
+# for r_ind, reg in enumerate(regions):
+#     in_inds = np.where([r in regions[reg] for r in FC.rois])[0]
+#     # ax.annotate(reg, (plot_ct, 1.5))
+#     for i, included in enumerate(in_inds):
+#         new_mean = np.mean(diff_by_region[included,:])
+#         new_err = np.std(diff_by_region[included,:]) / np.sqrt(diff_by_region.shape[1])
+#         ax.plot(plot_ct, new_mean, linestyle='None', marker='o', color=colors[r_ind])
+#         ax.plot([plot_ct, plot_ct], [new_mean-new_err, new_mean+new_err], linestyle='-', linewidth=2, marker='None', color=colors[r_ind])
+#         ax.annotate(np.array(FC.rois)[included], (plot_ct-0.25, 1.1), rotation=90, fontsize=8)
+#         plot_ct+=1
+#     plot_ct +=1
 
 ax.set_ylim([-1.1, 1.1])
 ax.spines['right'].set_visible(False)
