@@ -10,7 +10,7 @@ from scfc import bridge, anatomical_connectivity, functional_connectivity, plott
 import matplotlib
 from matplotlib import rcParams
 rcParams.update({'font.size': 12})
-rcParams.update({'figure.autolayout': True})
+# rcParams.update({'figure.autolayout': True})
 rcParams.update({'axes.spines.right': False})
 rcParams.update({'axes.spines.top': False})
 rcParams['svg.fonttype'] = 'none' # let illustrator handle the font type
@@ -111,6 +111,7 @@ for i,j in enumerate(G_fxn.edges()):
     color = cmap(line_wt)
     ax_fxn.plot(x, y, z, c=plot_colors[0], alpha=0.25, linewidth=2)
 
+fig3_0.subplots_adjust(wspace=0.01)
 fig3_0.savefig(os.path.join(analysis_dir, 'figpanels', 'fig3_0.svg'), format='svg', transparent=True, dpi=save_dpi)
 # %% compare anat + fxnal graph metrics: degree and clustering
 
@@ -120,7 +121,7 @@ roilabels_to_show = ['BU(R)', 'AVLP(R)', 'MBML(R)', 'PVLP(R)', 'AL(R)', 'LH(R)',
 G_anat = nx.from_numpy_matrix(adjacency_anat, create_using=nx.DiGraph)
 G_fxn = nx.from_numpy_matrix(adjacency_fxn, create_using=nx.DiGraph)
 
-fig3_1, ax = plt.subplots(1, 2, figsize=(7, 3.5))
+fig3_1, ax = plt.subplots(1, 2, figsize=(7.5, 3.5))
 deg_fxn = np.array([val for (node, val) in G_fxn.degree(weight='weight')])
 deg_anat = np.array([val for (node, val) in G_anat.degree(weight='weight')])
 plotting.addLinearFit(ax[0], deg_anat, deg_fxn, alpha=0.5)
@@ -145,7 +146,7 @@ ax[1].set_ylabel('Functional')
 ax[1].set_ylim([0, 0.445])
 ax[1].set_xlim([0, 0.124])
 
-
+fig3_1.subplots_adjust(wspace=0.5)
 fig3_1.savefig(os.path.join(analysis_dir, 'figpanels', 'fig3_1.svg'), format='svg', transparent=True, dpi=save_dpi)
 
 # %% Illustration schematics of graph metrics
@@ -274,8 +275,8 @@ random_degree = np.vstack(random_degree)
 
 # %% Plot degree distribution vs power law distribution
 
-figS3_0 = plt.figure(figsize=(8, 4))
-ax = figS3_0.add_subplot(1, 2, 2)
+fig3_4 = plt.figure(figsize=(8, 4))
+ax = fig3_4.add_subplot(1, 2, 2)
 anat_connect = AC.getConnectivityMatrix('CellCount', diag=None)
 edge_weights = anat_connect.to_numpy().copy().ravel()
 bins = np.arange(0, edge_weights.max(), 1)
@@ -299,27 +300,27 @@ ax.set_xlabel('Edge weight')
 ax.set_ylabel('P(weight)')
 
 # plot path length and clustering for random vs. connectome
-ax = figS3_0.add_subplot(2, 4, 1)
+ax = fig3_4.add_subplot(2, 4, 1)
 ax.set_axis_off()
 ax.imshow(adj_data, cmap='Greys', vmin=-0.5, vmax=1, interpolation='nearest', rasterized=False)
 ax.set_title('Connectome', color=plot_colors[0])
-ax = figS3_0.add_subplot(2, 4, 5)
+ax = fig3_4.add_subplot(2, 4, 5)
 ax.set_axis_off()
 ax.imshow(adj_random, cmap='Greys', vmin=-0.5, vmax=1, interpolation='nearest', rasterized=False)
 ax.set_title('Random')
 
-ax = figS3_0.add_subplot(2, 4, 2)
+ax = fig3_4.add_subplot(2, 4, 2)
 ax.hist(random_path_lens, bins=20, density=False, color='k')
 ax.axvline(nx.average_shortest_path_length(G_data))
 ax.set_xlim(1.4, 1.58)
 ax.set_xlabel('Path length')
 
 
-ax = figS3_0.add_subplot(2, 4, 6)
+ax = fig3_4.add_subplot(2, 4, 6)
 ax.hist(random_clustering, bins=20, density=False, color='k')
 ax.axvline(nx.average_clustering(G_data))
 ax.set_xlim(0.45, 0.85)
 ax.set_xlabel('clustering')
 
-
-figS3_0.savefig(os.path.join(analysis_dir, 'figpanels', 'figS3_0.svg'), format='svg', transparent=True, dpi=save_dpi)
+fig3_4.subplots_adjust(wspace=0.5, hspace=0.5)
+fig3_4.savefig(os.path.join(analysis_dir, 'figpanels', 'fig3_4.svg'), format='svg', transparent=True, dpi=save_dpi)
