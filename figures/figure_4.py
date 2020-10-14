@@ -138,7 +138,7 @@ diff_by_region = np.vstack(diff_by_region).T  # region x fly
 sort_inds = np.argsort(diff_by_region.mean(axis=1))[::-1]
 diff_by_region.mean(axis=1)
 colors = sns.color_palette('deep', 9)
-fig4_3, ax = plt.subplots(1, 1, figsize=(6.0, 3.0))
+fig4_3, ax = plt.subplots(1, 1, figsize=(5.5, 3.0))
 
 for plot_position, r_ind in enumerate(sort_inds):
     current_roi = FC.rois[r_ind]
@@ -149,7 +149,7 @@ for plot_position, r_ind in enumerate(sort_inds):
     new_err = np.std(diff_by_region[r_ind,:]) / np.sqrt(diff_by_region.shape[1])
     ax.plot(plot_position, new_mean, linestyle='None', marker='o', color=color)
     ax.plot([plot_position, plot_position], [new_mean-new_err, new_mean+new_err], linestyle='-', linewidth=2, marker='None', color=color)
-    ax.annotate(current_roi, (plot_position-0.25, 1.1), rotation=90, fontsize=8)
+    ax.annotate(current_roi, (plot_position-0.25, 1.1), rotation=90, fontsize=8, color=color, fontweight='bold')
 
 # colors = sns.color_palette('deep', 8)
 # fig4_3, ax = plt.subplots(1, 1, figsize=(5.5, 3.0))
