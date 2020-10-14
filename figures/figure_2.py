@@ -12,7 +12,6 @@ from scfc import bridge, anatomical_connectivity, functional_connectivity, plott
 import matplotlib
 from matplotlib import rcParams
 rcParams.update({'font.size': 12})
-rcParams.update({'figure.autolayout': True})
 rcParams.update({'axes.spines.right': False})
 rcParams.update({'axes.spines.top': False})
 rcParams['svg.fonttype'] = 'none' # let illustrator handle the font type
@@ -58,10 +57,10 @@ cmap = plt.get_cmap('Set2')
 colors = cmap(np.arange(len(pull_regions))/len(pull_regions))
 
 zslices = [12, 45]
-fig2_0 = plt.figure(figsize=(1.5, 4))
+fig2_0 = plt.figure(figsize=(2.5, 2.5))
 for z_ind, z in enumerate(zslices):
-    ax = fig2_0.add_subplot(3, 1, z_ind+2)
-    ax.annotate('z={} $ \mu m$'.format(z*voxel_size[2]), (1, 14), color='w', fontsize=10)
+    ax = fig2_0.add_subplot(2, 2, z_ind+3)
+    ax.annotate('z={} $ \mu m$'.format(z*voxel_size[2]), (1, 18), color='w', fontsize=10)
 
     overlay = plotting.overlayImage(meanbrain, masks, 0.5, colors=colors, z=z) + 60  # arbitrary brighten here for visualization
 
@@ -69,17 +68,19 @@ for z_ind, z in enumerate(zslices):
     ax.set_axis_off()
     ax.set_aspect('equal')
 
-ax = fig2_0.add_subplot(3, 1, 1)
+ax = fig2_0.add_subplot(2, 2, 2)
 ax.imshow(np.mean(meanbrain, axis=2).T, cmap='inferno')
-ax.annotate('Mean proj.', (23, 14), color='w', fontsize=10)
+ax.annotate('Mean proj.', (12, 18), color='w', fontsize=10)
 ax.set_axis_off()
 ax.set_aspect('equal')
 
 dx = 100  # um
 dx_pix = int(dx / voxel_size[0])
 ax.plot([5, dx_pix], [120, 120], 'w-')
+fig2_0.subplots_adjust(hspace=0.02, wspace=0.02)
 
-# # TODO: put this df/f processing stuff in functional_connectivity
+
+
 fs = 1.2  # Hz
 cutoff = 0.01
 
@@ -97,20 +98,20 @@ resp = functional_connectivity.filterRegionResponse(dff, cutoff=cutoff, fs=fs)
 resp = functional_connectivity.trimRegionResponse(file_id, resp)
 region_dff = pd.DataFrame(data=resp, index=region_response.index)
 
-fig2_1, ax = plt.subplots(4, 1, figsize=(6, 6))
-fig2_1.tight_layout(pad=2)
+fig2_1, ax = plt.subplots(4, 1, figsize=(3.5, 4))
 ax = ax.ravel()
 [x.set_axis_off() for x in ax]
 [x.set_ylim([-0.2, 0.29]) for x in ax]
 [x.set_xlim([-15, timevec[-1]]) for x in ax]
 for p_ind, pr in enumerate(pull_regions):
     ax[p_ind].plot(timevec, region_dff.loc[pr, x_start:(x_start+dt-1)], color=colors[p_ind])
-    ax[p_ind].annotate(pr, (-10, 0) , rotation=90)
+    ax[p_ind].annotate(pr, (-10, 0) , rotation=90, fontsize=10)
 
 plotting.addScaleBars(ax[0], dT=5, dF=0.10, T_value=-2.5, F_value=-0.10)
+fig2_1.subplots_adjust(hspace=0.02, wspace=0.02)
 
-fig2_2, ax = plt.subplots(3, 3, figsize=(4, 4))
-fig2_2.tight_layout(h_pad=4, w_pad=4)
+
+fig2_2, ax = plt.subplots(3, 3, figsize=(2.5, 2.5))
 [x.set_xticks([]) for x in ax.ravel()]
 [x.set_yticks([]) for x in ax.ravel()]
 for ind_1, eg1 in enumerate(pull_regions):
@@ -118,7 +119,6 @@ for ind_1, eg1 in enumerate(pull_regions):
         if ind_1 > ind_2:
 
             r, p = pearsonr(region_dff.loc[eg1, :], region_dff.loc[eg2, :])
-            # print('{}/{}: r = {}'.format(eg2, eg1, r))
 
             # normed xcorr plot
             window_size = 180
@@ -133,9 +133,10 @@ for ind_1, eg1 in enumerate(pull_regions):
             ax[ind_1-1, ind_2].axhline(0, color='k', alpha=0.5, linestyle='-')
             ax[ind_1-1, ind_2].axvline(0, color='k', alpha=0.5, linestyle='-')
             if ind_2==0:
-                ax[ind_1-1, ind_2].set_ylabel(eg1)
+                ax[ind_1-1, ind_2].set_ylabel(eg1, fontsize=10)
             if ind_1==3:
-                ax[ind_1-1, ind_2].set_xlabel(eg2)
+                ax[ind_1-1, ind_2].set_xlabel(eg2, fontsize=10)
+fig2_2.subplots_adjust(hspace=0.02, wspace=0.02)
 
 plotting.addScaleBars(ax[0, 0], dT=-30, dF=0.25, T_value=time[-1], F_value=-0.15)
 sns.despine(top=True, right=True, left=True, bottom=True)
@@ -145,7 +146,7 @@ fig2_2.savefig(os.path.join(analysis_dir, 'figpanels', 'fig2_2.svg'), format='sv
 
 # %%
 
-fig2_3, ax = plt.subplots(1, 2, figsize=(10, 5))
+fig2_3, ax = plt.subplots(1, 2, figsize=(9, 4))
 df = AC.getConnectivityMatrix('CellCount', diag=np.nan)
 sns.heatmap(np.log10(AC.getConnectivityMatrix('CellCount', diag=np.nan)).replace([np.inf, -np.inf], 0), ax=ax[0], yticklabels=True, xticklabels=True, cmap="cividis", rasterized=True, cbar=False)
 cb = fig2_3.colorbar(matplotlib.cm.ScalarMappable(norm=matplotlib.colors.SymLogNorm(vmin=1, vmax=np.nanmax(df.to_numpy()), base=10, linthresh=0.1, linscale=1), cmap="cividis"), ax=ax[0], shrink=0.75, label='Connecting cells')
@@ -153,11 +154,11 @@ cb.outline.set_linewidth(0)
 ax[0].set_xlabel('Target');
 ax[0].set_ylabel('Source');
 ax[0].set_aspect('equal')
-ax[0].tick_params(axis='both', which='major', labelsize=8)
+ax[0].tick_params(axis='both', which='major', labelsize=7)
 sns.heatmap(FC.CorrelationMatrix, ax=ax[1], yticklabels=True, xticklabels=True, cbar_kws={'label': 'Functional Correlation (z)','shrink': .75}, cmap="cividis", rasterized=True)
 ax[1].set_aspect('equal')
-ax[1].tick_params(axis='both', which='major', labelsize=8)
-
+ax[1].tick_params(axis='both', which='major', labelsize=7)
+fig2_3.subplots_adjust(wspace=0.25)
 # Make adjacency matrices
 # Log transform anatomical connectivity
 anatomical_adjacency, keep_inds = AC.getAdjacency('CellCount', do_log=True)
@@ -167,7 +168,7 @@ r, p = pearsonr(anatomical_adjacency, functional_adjacency)
 coef = np.polyfit(anatomical_adjacency, functional_adjacency, 1)
 linfit = np.poly1d(coef)
 
-fig2_4, ax = plt.subplots(1,1,figsize=(4, 4))
+fig2_4, ax = plt.subplots(1,1,figsize=(3, 3))
 ax.plot(10**anatomical_adjacency, functional_adjacency, color='k', marker='o', linestyle='none', alpha=0.25)
 xx = np.linspace(anatomical_adjacency.min(), anatomical_adjacency.max(), 100)
 ax.plot(10**xx, linfit(xx), color='k', linewidth=2, marker=None)
@@ -201,9 +202,9 @@ for metric in metrics:
         r_vals.append(r_new)
     R_by_metric.loc[:, metric] = r_vals
 
-figS2_0, ax = plt.subplots(1, 1, figsize=(6, 3.5))
-figS2_0.tight_layout(pad=4)
-ax.set_ylabel('Structure-function corr. (r)')
+fig2_5, ax = plt.subplots(1, 1, figsize=(5, 3))
+fig2_5.tight_layout(pad=4)
+ax.set_ylabel('Structure-function\n corr. (r)')
 ax.set_ylim([-0.2, 1])
 ax.axhline(0, color=[0.8, 0.8, 0.8], linestyle='-', zorder=0)
 sns.violinplot(data=R_by_metric, color=[0.8, 0.8, 0.8], alpha=0.5, zorder=1)
@@ -211,16 +212,16 @@ sns.stripplot(data=R_by_metric, color=plot_colors[0], alpha=1.0, zorder=2)
 
 ax.plot(np.arange(len(pop_r)), pop_r, color='k', marker='s', markersize=6, linestyle='None', alpha=1.0, zorder=3)
 ax.set_xticklabels(['Cell\ncount',
-                    'Weighted\nsynapse\ncount',
-                    'Raw\nsynapse \ncount',
+                    'Weighted\nT-Bar\ncount',
+                    'Raw\nT-Bar \ncount',
                     'Common\n input\nfraction',
                     'Region\nsize',
                     'Region\nnearness'])
-ax.tick_params(axis='x', labelsize=10)
+ax.tick_params(axis='x', labelsize=8)
 
 fig2_3.savefig(os.path.join(analysis_dir, 'figpanels', 'fig2_3.svg'), format='svg', transparent=True, dpi=save_dpi)
 fig2_4.savefig(os.path.join(analysis_dir, 'figpanels', 'fig2_4.svg'), format='svg', transparent=True, dpi=save_dpi)
-figS2_0.savefig(os.path.join(analysis_dir, 'figpanels', 'figS2_0.svg'), format='svg', transparent=True, dpi=save_dpi)
+fig2_5.savefig(os.path.join(analysis_dir, 'figpanels', 'fig2_5.svg'), format='svg', transparent=True, dpi=save_dpi)
 
 # %% Supp: subsampled region cmats and SC-FC corr
 
@@ -281,7 +282,7 @@ completeness = (AC.CompletenessMatrix.to_numpy() + AC.CompletenessMatrix.to_nump
 fc = FC.CorrelationMatrix.to_numpy()[FC.upper_inds]
 compl = completeness[FC.upper_inds]
 
-figS2_2, ax = plt.subplots(1, 2, figsize=(6,3))
+figS2_2, ax = plt.subplots(1, 2, figsize=(6.5, 3))
 ax[0].plot(compl, cell_ct, 'k.', alpha=1.0, rasterized=True)
 r, p = plotting.addLinearFit(ax[0], compl, cell_ct, alpha=1.0)
 ax[0].set_xlabel('Completeness')
@@ -295,5 +296,5 @@ ax[1].set_xlabel('Completeness')
 ax[1].set_ylabel('Functional correlation (z)')
 ax[1].set_xlim([0, 1])
 ax[1].annotate('r={:.2f}'.format(r), (0.05, 1.02))
-
+figS2_2.subplots_adjust(wspace=0.5)
 figS2_2.savefig(os.path.join(analysis_dir, 'figpanels', 'figS2_2.svg'), format='svg', transparent=True, dpi=save_dpi)
