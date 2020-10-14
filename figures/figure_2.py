@@ -107,7 +107,7 @@ for p_ind, pr in enumerate(pull_regions):
     ax[p_ind].plot(timevec, region_dff.loc[pr, x_start:(x_start+dt-1)], color=colors[p_ind])
     ax[p_ind].annotate(pr, (-10, 0) , rotation=90, fontsize=10)
 
-plotting.addScaleBars(ax[0], dT=5, dF=0.10, T_value=-2.5, F_value=-0.10)
+plotting.addScaleBars(ax[0], dT=10, dF=0.10, T_value=-2.5, F_value=-0.10)
 fig2_1.subplots_adjust(hspace=0.02, wspace=0.02)
 
 
@@ -169,7 +169,7 @@ coef = np.polyfit(anatomical_adjacency, functional_adjacency, 1)
 linfit = np.poly1d(coef)
 
 fig2_4, ax = plt.subplots(1,1,figsize=(3, 3))
-ax.plot(10**anatomical_adjacency, functional_adjacency, color='k', marker='o', linestyle='none', alpha=0.25)
+ax.plot(10**anatomical_adjacency, functional_adjacency, color='k', marker='.', linestyle='none', alpha=1.0)
 xx = np.linspace(anatomical_adjacency.min(), anatomical_adjacency.max(), 100)
 ax.plot(10**xx, linfit(xx), color='k', linewidth=2, marker=None)
 ax.set_xscale('log')
@@ -202,8 +202,7 @@ for metric in metrics:
         r_vals.append(r_new)
     R_by_metric.loc[:, metric] = r_vals
 
-fig2_5, ax = plt.subplots(1, 1, figsize=(5, 3))
-fig2_5.tight_layout(pad=4)
+fig2_5, ax = plt.subplots(1, 1, figsize=(4, 3))
 ax.set_ylabel('Structure-function\n corr. (r)')
 ax.set_ylim([-0.2, 1])
 ax.axhline(0, color=[0.8, 0.8, 0.8], linestyle='-', zorder=0)
