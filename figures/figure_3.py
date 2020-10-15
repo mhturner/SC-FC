@@ -2,7 +2,6 @@ import matplotlib.pyplot as plt
 from neuprint import Client
 import numpy as np
 import networkx as nx
-from scipy.stats import powerlaw
 import os
 import socket
 
@@ -272,31 +271,30 @@ for it in range(iterations):
 
 random_degree = np.vstack(random_degree)
 
-# %% Plot degree distribution vs power law distribution
+# %% Plot edge weight distribution
 
 fig3_4 = plt.figure(figsize=(9, 4))
 ax = fig3_4.add_subplot(1, 2, 2)
 anat_connect = AC.getConnectivityMatrix('CellCount', diag=None)
 edge_weights = anat_connect.to_numpy().copy().ravel()
-bins = np.arange(0, edge_weights.max(), 1)
+bins = np.logspace(0, np.log10(edge_weights.max()), 50)
 vals, bins = np.histogram(edge_weights, bins=bins, density=True)
 
-# fit power law
-fit_thresh = np.quantile(edge_weights, 0.1) # exclude weakest 10% of connections in fit
-p_opt = powerlaw.fit(edge_weights[edge_weights>fit_thresh])
-a = p_opt[0]
-xx = np.arange(fit_thresh, 1000)
-yy = a * xx**(a-1)
-ax.plot(xx, yy/yy.sum(), linestyle='-', linewidth=2, alpha=1.0, color=[0,0,0])
-ax.annotate('$p(w)=a*w^{{a-1}}$ \na={:.2f}'.format(a), (200, 2e-2))
+# plot simple power law scaling
+xx = np.arange(1, 1000)
+a = -1.0
+yy =  xx**(a)
+ax.plot(xx, yy/np.sum(yy), linestyle='-', linewidth=2, alpha=1.0, color=[0,0,0])
+ax.plot(bins[:-1], vals, marker='o', color=plot_colors[0], linestyle='None', alpha=1.0, rasterized=True)
+ax.annotate('$p(w)=w^{{-1}}$', (200, 2e-2))
 
-ax.plot(bins[:-1], vals, marker='.', color=plot_colors[0], linestyle='None', alpha=1.0, rasterized=True)
 
 ax.set_xlim([1, edge_weights.max()])
 ax.set_xscale('log')
 ax.set_yscale('log')
 ax.set_xlabel('Edge weight')
 ax.set_ylabel('P(weight)')
+
 
 # plot path length and clustering for random vs. connectome
 ax = fig3_4.add_subplot(2, 4, 1)
@@ -310,16 +308,26 @@ ax.set_title('Random')
 
 ax = fig3_4.add_subplot(2, 4, 2)
 ax.hist(random_path_lens, bins=20, density=False, color='k')
-ax.axvline(nx.average_shortest_path_length(G_data))
+measured_path = nx.average_shortest_path_length(G_data)
+ax.axvline(measured_path)
 ax.set_xlim(1.4, 1.58)
 ax.set_xlabel('Path length')
+sigma_diff_path = (measured_path-np.mean(random_path_lens)) / np.std(random_path_lens)
+factor_diff_path = (measured_path-np.mean(random_path_lens)) / np.mean(random_path_lens)
+print('Measured path length is {:.2f} larger than random ({:.2f} sigma)'.format(factor_diff_path, sigma_diff_path))
+
 
 
 ax = fig3_4.add_subplot(2, 4, 6)
 ax.hist(random_clustering, bins=20, density=False, color='k')
-ax.axvline(nx.average_clustering(G_data))
+measured_cluster = nx.average_clustering(G_data)
+ax.axvline(measured_cluster)
 ax.set_xlim(0.45, 0.85)
 ax.set_xlabel('clustering')
+sigma_diff_cluster = (measured_cluster-np.mean(random_clustering)) / np.std(random_clustering)
+factor_diff_cluster = (measured_cluster-np.mean(random_clustering)) / np.mean(random_clustering)
+print('Measured clustering is {:.2f} larger than random ({:.2f} sigma)'.format(factor_diff_cluster, sigma_diff_cluster))
+
 
 fig3_4.subplots_adjust(wspace=0.5, hspace=0.5)
 fig3_4.savefig(os.path.join(analysis_dir, 'figpanels', 'fig3_4.svg'), format='svg', transparent=True, dpi=save_dpi)

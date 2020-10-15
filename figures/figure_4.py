@@ -56,7 +56,6 @@ diff_m = np.zeros_like(anatomical_mat)
 diff_m[keep_inds_diff] = diff
 DifferenceMatrix = pd.DataFrame(data=diff_m, index=FC.rois, columns=FC.rois)
 
-
 # %% sort difference matrix by most to least different rois
 diff_by_region = DifferenceMatrix.mean()
 sort_inds = np.argsort(diff_by_region)[::-1]
@@ -170,6 +169,7 @@ ax.set_ylim([-1.1, 1.1])
 ax.spines['right'].set_visible(False)
 ax.axhline(0, color=[0.8, 0.8, 0.8], linestyle='-', zorder=0)
 ax.set_ylabel('Region avg. diff.\n(FC - SC)')
+ax.set_xticks([])
 
 sns.palplot(colors)
 np.array(colors)
