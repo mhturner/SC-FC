@@ -150,21 +150,6 @@ for plot_position, r_ind in enumerate(sort_inds):
     ax.plot([plot_position, plot_position], [new_mean-new_err, new_mean+new_err], linestyle='-', linewidth=2, marker='None', color=color)
     ax.annotate(current_roi, (plot_position-0.25, 1.1), rotation=90, fontsize=8, color=color, fontweight='bold')
 
-# colors = sns.color_palette('deep', 8)
-# fig4_3, ax = plt.subplots(1, 1, figsize=(5.5, 3.0))
-# plot_ct = 0
-# for r_ind, reg in enumerate(regions):
-#     in_inds = np.where([r in regions[reg] for r in FC.rois])[0]
-#     # ax.annotate(reg, (plot_ct, 1.5))
-#     for i, included in enumerate(in_inds):
-#         new_mean = np.mean(diff_by_region[included,:])
-#         new_err = np.std(diff_by_region[included,:]) / np.sqrt(diff_by_region.shape[1])
-#         ax.plot(plot_ct, new_mean, linestyle='None', marker='o', color=colors[r_ind])
-#         ax.plot([plot_ct, plot_ct], [new_mean-new_err, new_mean+new_err], linestyle='-', linewidth=2, marker='None', color=colors[r_ind])
-#         ax.annotate(np.array(FC.rois)[included], (plot_ct-0.25, 1.1), rotation=90, fontsize=8)
-#         plot_ct+=1
-#     plot_ct +=1
-
 ax.set_ylim([-1.1, 1.1])
 ax.spines['right'].set_visible(False)
 ax.axhline(0, color=[0.8, 0.8, 0.8], linestyle='-', zorder=0)

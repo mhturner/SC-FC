@@ -151,13 +151,13 @@ df = AC.getConnectivityMatrix('CellCount', diag=np.nan)
 sns.heatmap(np.log10(AC.getConnectivityMatrix('CellCount', diag=np.nan)).replace([np.inf, -np.inf], 0), ax=ax[0], yticklabels=True, xticklabels=True, cmap="cividis", rasterized=True, cbar=False)
 cb = fig2_3.colorbar(matplotlib.cm.ScalarMappable(norm=matplotlib.colors.SymLogNorm(vmin=1, vmax=np.nanmax(df.to_numpy()), base=10, linthresh=0.1, linscale=1), cmap="cividis"), ax=ax[0], shrink=0.75, label='Connecting cells')
 cb.outline.set_linewidth(0)
-ax[0].set_xlabel('Target');
-ax[0].set_ylabel('Source');
+ax[0].set_xlabel('Target', fontsize=10);
+ax[0].set_ylabel('Source', fontsize=10);
 ax[0].set_aspect('equal')
-ax[0].tick_params(axis='both', which='major', labelsize=7)
+ax[0].tick_params(axis='both', which='major', labelsize=6)
 sns.heatmap(FC.CorrelationMatrix, ax=ax[1], yticklabels=True, xticklabels=True, cbar_kws={'label': 'Functional Correlation (z)','shrink': .75}, cmap="cividis", rasterized=True)
 ax[1].set_aspect('equal')
-ax[1].tick_params(axis='both', which='major', labelsize=7)
+ax[1].tick_params(axis='both', which='major', labelsize=6)
 fig2_3.subplots_adjust(wspace=0.25)
 # Make adjacency matrices
 # Log transform anatomical connectivity

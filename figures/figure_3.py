@@ -286,7 +286,7 @@ a = -1.0
 yy =  xx**(a)
 ax.plot(xx, yy/np.sum(yy), linestyle='-', linewidth=2, alpha=1.0, color=[0,0,0])
 ax.plot(bins[:-1], vals, marker='o', color=plot_colors[0], linestyle='None', alpha=1.0, rasterized=True)
-ax.annotate('$p(w)=w^{{-1}}$', (200, 2e-2))
+ax.annotate(r'$p(w) \propto w^{{-1}}$', (200, 2e-2))
 
 
 ax.set_xlim([1, edge_weights.max()])
