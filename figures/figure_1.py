@@ -171,8 +171,8 @@ ax[0, 1].plot([10**-4, 10**4], [10**-4, 10**4], 'k-')
 quants = np.linspace(0, 1, 20)
 for q in quants:
     th_pts = np.quantile(theory_distr, q, axis=1)  # quantile value for each iteration
-    ax[0, 1].plot([10**np.quantile(data, q), 10**np.quantile(data, q)], [10**(np.mean(th_pts) - 2*np.std(th_pts)), 10**(np.mean(th_pts) + 2*np.std(th_pts))], color=plot_colors[0], alpha=1)
-    ax[0, 1].plot(10**np.quantile(data, q), 10**np.mean(th_pts), marker='o', color=plot_colors[0], alpha=1)
+    ax[0, 1].plot([10**np.quantile(data, q), 10**np.quantile(data, q)], [10**(np.mean(th_pts) - 2*np.std(th_pts)), 10**(np.mean(th_pts) + 2*np.std(th_pts))], color=plot_colors[0], alpha=0.5)
+    ax[0, 1].plot(10**np.quantile(data, q), 10**np.mean(th_pts), marker='o', color=plot_colors[0], alpha=0.5)
 ax[0, 1].set_xlabel('Q. Measured')
 ax[0, 1].set_ylabel('Q. Lognorm.')
 ax[0, 1].set_xscale('log')
@@ -219,8 +219,8 @@ ax[1, 1].plot([10**-4, 10**4], [10**-4, 10**4], 'k-')
 quants = np.linspace(0, 1, 20)
 for q in quants:
     th_pts = np.quantile(theory_distr, q, axis=1)  # quantile value for each iteration
-    ax[1, 1].plot([10**np.quantile(data, q), 10**np.quantile(data, q)], [10**(np.mean(th_pts) - 2*np.std(th_pts)), 10**(np.mean(th_pts) + 2*np.std(th_pts))], color=plot_colors[0], alpha=1)
-    ax[1, 1].plot(10**np.quantile(data, q), 10**np.mean(th_pts), marker='o', color=plot_colors[0], alpha=1)
+    ax[1, 1].plot([10**np.quantile(data, q), 10**np.quantile(data, q)], [10**(np.mean(th_pts) - 2*np.std(th_pts)), 10**(np.mean(th_pts) + 2*np.std(th_pts))], color=plot_colors[0], alpha=0.5)
+    ax[1, 1].plot(10**np.quantile(data, q), 10**np.mean(th_pts), marker='o', color=plot_colors[0], alpha=0.5)
 ax[1, 1].set_xlabel('Q. Measured')
 ax[1, 1].set_ylabel('Q. Lognorm.')
 ax[1, 1].set_xscale('log')

@@ -128,8 +128,8 @@ for r_ind, r in enumerate(FC.rois):
     if r in roilabels_to_show:
         ax[0].annotate(r, (deg_anat[r_ind]+0.4, deg_fxn[r_ind]-0.2), fontsize=8, fontweight='bold')
 
-ax[0].set_xlabel('Structural')
-ax[0].set_ylabel('Functional')
+ax[0].set_xlabel('Structural degree')
+ax[0].set_ylabel('Functional degree')
 ax[0].set_ylim([0, 37])
 
 clust_fxn = np.real(np.array(list(nx.clustering(G_fxn, weight='weight').values())))
@@ -139,8 +139,8 @@ ax[1].plot(clust_anat, clust_fxn, alpha=1.0, marker='o', linestyle='none')
 for r_ind, r in enumerate(FC.rois):
     if r in roilabels_to_show:
         ax[1].annotate(r, (clust_anat[r_ind]+0.002, clust_fxn[r_ind]-0.003), fontsize=8, fontweight='bold')
-ax[1].set_xlabel('Structural')
-ax[1].set_ylabel('Functional')
+ax[1].set_xlabel('Structural clustering')
+ax[1].set_ylabel('Functional clustering')
 ax[1].set_ylim([0, 0.445])
 ax[1].set_xlim([0, 0.124])
 
