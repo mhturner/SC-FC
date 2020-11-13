@@ -8,8 +8,10 @@ import pandas as pd
 import seaborn as sns
 import socket
 
+from sklearn.linear_model import LinearRegression
+from sklearn.model_selection import RepeatedKFold, cross_validate
+
 from scfc import bridge, anatomical_connectivity, functional_connectivity
-import matplotlib
 from matplotlib import rcParams
 rcParams.update({'font.size': 12})
 rcParams.update({'figure.autolayout': True})
@@ -69,7 +71,7 @@ for r_ind, r_key in enumerate(sort_keys):
 
 fig4_0, ax = plt.subplots(1, 1, figsize=(1.6, 1.6))
 lim = np.nanmax(np.abs(DifferenceMatrix.to_numpy().ravel()))
-ax.scatter(10**anatomical_adjacency_diff, functional_adjacency_diff, alpha=1, color='k', marker='.', rasterized=True, s=8)
+ax.scatter(10**anatomical_adjacency_diff, functional_adjacency_diff, alpha=1, color='k', marker='.', rasterized=True, s=4)
 ax.set_xscale('log')
 ax.set_xlim([np.min(10**anatomical_adjacency_diff), np.max(10**anatomical_adjacency_diff)])
 ax.set_xlabel('SC (cells)', fontsize=10)
@@ -79,7 +81,7 @@ ax.tick_params(axis='both', which='major', labelsize=8)
 
 fig4_1, ax = plt.subplots(1, 1, figsize=(1.6, 1.6))
 lim = np.nanmax(np.abs(DifferenceMatrix.to_numpy().ravel()))
-ax.scatter(A_zscore, F_zscore, alpha=1, c=diff, cmap="RdBu_r", vmin=-lim, vmax=lim, marker='.', rasterized=True, s=8)
+ax.scatter(A_zscore, F_zscore, alpha=1.0, c=diff, cmap="RdBu_r", vmin=-lim, vmax=lim, marker='.', rasterized=True, s=4)
 ax.plot([-3.5, 3.5], [-3.5, 3.5], 'k-')
 ax.axhline(color='k', zorder=0, alpha=0.5)
 ax.axvline(color='k', zorder=0, alpha=0.5)
@@ -145,8 +147,8 @@ for plot_position, r_ind in enumerate(sort_inds):
     super_region_ind = np.where([current_roi in regions[reg_key] for reg_key in regions.keys()])[0][0]
     color = colors[super_region_ind]
 
-    new_mean = np.mean(diff_by_region[r_ind,:])
-    new_err = np.std(diff_by_region[r_ind,:]) / np.sqrt(diff_by_region.shape[1])
+    new_mean = np.mean(diff_by_region[r_ind, :])
+    new_err = np.std(diff_by_region[r_ind, :]) / np.sqrt(diff_by_region.shape[1])
     ax.plot(plot_position, new_mean, linestyle='None', marker='o', color=color)
     ax.plot([plot_position, plot_position], [new_mean-new_err, new_mean+new_err], linestyle='-', linewidth=2, marker='None', color=color)
     ax.annotate(current_roi, (plot_position-0.25, 1.1), rotation=90, fontsize=8, color=color, fontweight='bold')
@@ -167,10 +169,10 @@ fig4_3.savefig(os.path.join(analysis_dir, 'figpanels', 'fig4_3.svg'), format='sv
 anat_connect = AC.getConnectivityMatrix('CellCount', diag=None)
 shortest_path_dist, shortest_path_steps, shortest_path_weight, hub_count = bridge.getShortestPathStats(anat_connect)
 
-shortest_path_dist = shortest_path_dist.to_numpy()[~np.eye(36,dtype=bool)]
+shortest_path_dist = shortest_path_dist.to_numpy()[~np.eye(36, dtype=bool)]
 
 # Direct distance:
-direct_dist = (1/AC.getConnectivityMatrix('CellCount', diag=0).to_numpy())[~np.eye(36,dtype=bool)]
+direct_dist = (1/AC.getConnectivityMatrix('CellCount', diag=0).to_numpy())[~np.eye(36, dtype=bool)]
 direct_dist[np.isinf(direct_dist)] = np.nan
 
 # FC-SC difference:
@@ -178,7 +180,7 @@ diff = DifferenceMatrix.to_numpy()[~np.eye(36, dtype=bool)]
 
 fig4_4, ax = plt.subplots(1, 2, figsize=(6, 3))
 lim = np.nanmax(np.abs(DifferenceMatrix.to_numpy().ravel()))
-sc = ax[0].scatter(direct_dist, shortest_path_dist, c=diff, alpha=1, cmap='RdBu_r', marker='.', vmin=-lim, vmax=lim, rasterized=True)
+sc = ax[0].scatter(direct_dist, shortest_path_dist, c=diff, s=12, alpha=1.0, cmap='RdBu_r', marker='.', vmin=-lim, vmax=lim, rasterized=True)
 ax[0].set_xscale('log')
 ax[0].set_yscale('log')
 ax[0].set_xlabel('Direct distance')
@@ -195,7 +197,7 @@ keep_inds = np.where(x>1)
 x = x[keep_inds]
 y = y[keep_inds]
 
-ax[1].scatter(x, y, c=diff[keep_inds], marker='.', alpha=1.0, linestyle='None', cmap='RdBu_r', vmin=-lim, vmax=lim, rasterized=True)
+ax[1].scatter(x, y, c=diff[keep_inds], marker='.', s=12, alpha=1.0, linestyle='None', cmap='RdBu_r', vmin=-lim, vmax=lim, rasterized=True)
 ax[1].axhline(color='k', linestyle='--')
 ax[1].set_xscale('log')
 ax[1].set_xlabel(r'Indirect path factor: $\dfrac{D_{direct}}{D_{shortest}}$')
@@ -224,8 +226,6 @@ for b_ind in range(num_bins):
 fig4_4.savefig(os.path.join(analysis_dir, 'figpanels', 'fig4_4.svg'), format='svg', transparent=True, dpi=save_dpi)
 
 # %% supp: multiple regression model on direct + shortest path
-from sklearn.linear_model import LinearRegression
-from sklearn.model_selection import RepeatedKFold, cross_validate
 
 
 def fitLinReg(x, y):
