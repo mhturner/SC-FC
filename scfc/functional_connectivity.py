@@ -1,3 +1,9 @@
+"""
+Turner, Mann, Clandinin: functional connectivity utils and functions.
+
+https://github.com/mhturner/SC-FC
+"""
+
 import numpy as np
 import pandas as pd
 import os
@@ -12,9 +18,11 @@ from scfc import bridge
 
 def filterRegionResponse(region_response, cutoff=None, fs=None):
     """
-    region_response is np array
-    cutoff in Hz
-    fs in Hz
+    Low pass filter region response trace.
+
+    region_response: np array
+    cutoff: Hz
+    fs: Hz
     """
     if fs is not None:
         sos = signal.butter(1, cutoff, 'hp', fs=fs, output='sos')

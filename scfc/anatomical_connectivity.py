@@ -1,16 +1,28 @@
-from neuprint import (Client, fetch_neurons, NeuronCriteria)
-import numpy as np
-import pandas as pd
-import os
-import networkx as nx
-from scipy.stats import norm, uniform
 """
+Turner, Mann, Clandinin: structural connectivity utils and functions.
+
+https://github.com/mhturner/SC-FC
+
 References:
 https://connectome-neuprint.github.io/neuprint-python/docs/index.html
 https://github.com/connectome-neuprint/neuprint-python
 """
 
+from neuprint import (fetch_neurons, NeuronCriteria)
+import numpy as np
+import pandas as pd
+import os
+import networkx as nx
+
+
 def getRoiCompleteness(neuprint_client, mapping):
+    """
+    Return roi completness measures.
+
+    neuprint_client
+    mapping: mapping dict to bridge hemibrain regions to atlas regions
+    returns roi_completeness (dataframe)
+    """
     rois = list(mapping.keys())
     rois.sort()
 
@@ -32,10 +44,9 @@ def getRoiCompleteness(neuprint_client, mapping):
                 comp_pre.append(new_pre)
                 comp_post.append(new_post)
 
-
         if len(comp_pre) > 0:
-            roi_completeness.loc[[r],['frac_pre']] = np.array(comp_pre).mean()
-            roi_completeness.loc[[r],['frac_post']] = np.array(comp_post).mean()
+            roi_completeness.loc[[r], ['frac_pre']] = np.array(comp_pre).mean()
+            roi_completeness.loc[[r], ['frac_post']] = np.array(comp_post).mean()
 
     roi_completeness['completeness'] = roi_completeness['frac_pre'] * roi_completeness['frac_post']
 
@@ -43,6 +54,16 @@ def getRoiCompleteness(neuprint_client, mapping):
 
 
 def getPrecomputedConnectivityMatrix(neuprint_client, mapping, metric='count', diagonal='nan'):
+    """
+    Return neuprint's precomputed connectivity matrix.
+
+    neuprint_client
+    mapping: mapping dict to bridge hemibrain regions to atlas regions
+    metric: connectivity metric, defined by neuprint data. Can be 'count' or 'weight'
+    diagonal: value to fill along diag
+
+    returns ConnectivityMatrix (square dataframe)
+    """
     conn_df = neuprint_client.fetch_roi_connectivity()
     rois = list(mapping.keys())
     rois.sort()
@@ -71,7 +92,13 @@ def getPrecomputedConnectivityMatrix(neuprint_client, mapping, metric='count', d
 
     return ConnectivityMatrix
 
+
 def getPrimaryInput(roiInfo):
+    """
+    Find region that provides the most inputs to region.
+
+    roiInfo: neuprint roi info dataframe, for a single roi
+    """
     inputs = dict.fromkeys(roiInfo.keys(), 0)
     for key in inputs:
         inputs[key] = roiInfo[key].get('post', 0)
@@ -79,9 +106,13 @@ def getPrimaryInput(roiInfo):
     primary_input = max(inputs, key=inputs.get)
     return primary_input
 
+
 def computeConnectivityMatrix(neuprint_client, mapping):
     """
+    Compute region connectivity matrix, for various metrics.
 
+    neuprint_client
+    mapping: mapping dict to bridge hemibrain regions to atlas regions
     """
     rois = list(mapping.keys())
     rois.sort()
@@ -149,7 +180,6 @@ def computeConnectivityMatrix(neuprint_client, mapping):
                     total_cells_to_a += len(a_from_elsewhere.bodyId)
                     shared_cells_to_ab += len(np.intersect1d(a_from_elsewhere.bodyId, b_from_elsewhere.bodyId))
 
-
             WeakConnections.loc[[roi_source], [roi_target]] = weak_neurons
             MediumConnections.loc[[roi_source], [roi_target]] = medium_neurons
             StrongConnections.loc[[roi_source], [roi_target]] = strong_neurons
@@ -160,11 +190,15 @@ def computeConnectivityMatrix(neuprint_client, mapping):
 
             CommonInputFraction.loc[[roi_source], [roi_target]] = shared_cells_to_ab / total_cells_to_a
 
-
     return WeakConnections, MediumConnections, StrongConnections, Connectivity, WeightedSynapseNumber, TBars, CommonInputFraction
 
 
 class AnatomicalConnectivity():
+    """
+    Anatomical Connectivity class.
+
+
+    """
     def __init__(self, data_dir, neuprint_client=None, mapping=None):
         """
         :data_dir:
@@ -216,7 +250,6 @@ class AnatomicalConnectivity():
             """
             conn_mat = pd.read_pickle(os.path.join(self.data_dir, 'connectome_connectivity', 'CommonInputFraction_computed_{}.pkl'.format(computed_date)))
 
-
         tmp_mat = conn_mat.to_numpy().copy()
         # set diagonal value
         if diag is not None:
@@ -264,7 +297,7 @@ class AnatomicalConnectivity():
         ConnectivityMatrix = self.getConnectivityMatrix(type=type, symmetrize=True)
         if thresh is None:
             thresh_value = 0
-        else: #thresh as a quantile of all anatomical connections
+        else: # thresh as a quantile of all anatomical connections
             thresh_value = np.quantile(ConnectivityMatrix.to_numpy()[self.upper_inds], thresh)
 
         if do_log:
