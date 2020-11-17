@@ -70,7 +70,7 @@ for z_ind, z in enumerate(zslices):
 
     overlay = plotting.overlayImage(meanbrain, masks, 0.5, colors=colors, z=z) + 60  # arbitrary brighten here for visualization
 
-    img = ax.imshow(np.swapaxes(overlay, 0, 1), rasterized=False)
+    img = ax.imshow(np.swapaxes(overlay, 0, 1), rasterized=True)
     ax.set_axis_off()
     ax.set_aspect('equal')
 

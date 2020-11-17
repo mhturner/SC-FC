@@ -75,7 +75,7 @@ for r_ind, r_key in enumerate(sort_keys):
 
 fig4_0, ax = plt.subplots(1, 1, figsize=(1.6, 1.6))
 lim = np.nanmax(np.abs(DifferenceMatrix.to_numpy().ravel()))
-ax.scatter(10**anatomical_adjacency_diff, functional_adjacency_diff, alpha=1, color='k', marker='.', rasterized=True, s=4)
+ax.scatter(10**anatomical_adjacency_diff, functional_adjacency_diff, color='k', marker='.', rasterized=True, s=4)
 ax.set_xscale('log')
 ax.set_xlim([np.min(10**anatomical_adjacency_diff), np.max(10**anatomical_adjacency_diff)])
 ax.set_xlabel('SC (cells)', fontsize=10)
@@ -85,7 +85,7 @@ ax.tick_params(axis='both', which='major', labelsize=8)
 
 fig4_1, ax = plt.subplots(1, 1, figsize=(1.6, 1.6))
 lim = np.nanmax(np.abs(DifferenceMatrix.to_numpy().ravel()))
-ax.scatter(A_zscore, F_zscore, alpha=1.0, c=diff, cmap="RdBu_r", vmin=-lim, vmax=lim, marker='.', rasterized=True, s=4)
+ax.scatter(A_zscore, F_zscore, c=diff, cmap="RdBu_r", vmin=-lim, vmax=lim, marker='.', rasterized=True, s=4)
 ax.plot([-3.5, 3.5], [-3.5, 3.5], 'k-')
 ax.axhline(color='k', zorder=0, alpha=0.5)
 ax.axvline(color='k', zorder=0, alpha=0.5)

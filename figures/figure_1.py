@@ -208,7 +208,6 @@ for iter in range(100):
     theory_distr.append(norm_model.rvs(size=len(data)))
 theory_distr = np.vstack(theory_distr)
 
-# fig1_2, ax = plt.subplots(1, 2, figsize=(4.5, 2.25))
 val, bin = np.histogram(data, 20, density=True)
 bin_ctrs = bin[:-1]
 xx = np.linspace(-3.5, 3.5)
@@ -241,7 +240,6 @@ ax[1, 1].axvline(x=1, color='k', zorder=0, alpha=0.5)
 
 
 fig1_1.savefig(os.path.join(analysis_dir, 'figpanels', 'fig1_1.svg'), format='svg', transparent=True, dpi=save_dpi)
-# fig1_2.savefig(os.path.join(analysis_dir, 'figpanels', 'fig1_2.svg'), format='svg', transparent=True, dpi=save_dpi)
 
 # %%
 
