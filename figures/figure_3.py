@@ -1,3 +1,9 @@
+"""
+Turner, Mann, Clandinin: Figure generation script: Fig. 3.
+
+https://github.com/mhturner/SC-FC
+"""
+
 import matplotlib.pyplot as plt
 from neuprint import Client
 import numpy as np
@@ -6,7 +12,6 @@ import os
 import socket
 
 from scfc import bridge, anatomical_connectivity, functional_connectivity, plotting
-import matplotlib
 from matplotlib import rcParams
 rcParams.update({'font.size': 12})
 rcParams.update({'axes.spines.right': False})
@@ -47,7 +52,7 @@ adjacency_fxn = adjacency_fxn / adjacency_fxn.max()
 # %% Plot fxn and anat graphs in 3D brain space
 
 take_top_edges = 100
-roilabels_to_skip = ['ATL(R)', 'IB', 'MPED(R)', 'SIP(R)', 'PLP(R)', 'SPS(R)', 'GOR(R)', 'GOR(L)', 'ICL(R)','BU(L)', 'BU(R)', 'SCL(R)', 'CRE(R)']
+roilabels_to_skip = ['ATL(R)', 'IB', 'MPED(R)', 'SIP(R)', 'PLP(R)', 'SPS(R)', 'GOR(R)', 'GOR(L)', 'ICL(R)', 'BU(L)', 'BU(R)', 'SCL(R)', 'CRE(R)']
 
 cmap = plt.get_cmap('magma')
 
@@ -84,28 +89,28 @@ for key, value in anat_position.items():
     ax_anat.scatter(xi, yi, zi, c='b', s=5+40*G_anat.degree(weight='weight')[key], edgecolors='k', alpha=0.25)
     ax_fxn.scatter(xi, yi, zi, c='b', s=5+20*G_fxn.degree(weight='weight')[key], edgecolors='k', alpha=0.25)
     if FC.rois[key] not in roilabels_to_skip:
-        ax_anat.text(xi, yi, zi+2, FC.rois[key], zdir=(0,0,0), fontsize=7, fontweight='bold')
-        ax_fxn.text(xi, yi, zi+2, FC.rois[key], zdir=(0,0,0), fontsize=7, fontweight='bold')
+        ax_anat.text(xi, yi, zi+2, FC.rois[key], zdir=(0, 0, 0), fontsize=7, fontweight='bold')
+        ax_fxn.text(xi, yi, zi+2, FC.rois[key], zdir=(0, 0, 0), fontsize=7, fontweight='bold')
 
 # plot connections
-for i,j in enumerate(G_anat.edges()):
+for i, j in enumerate(G_anat.edges()):
     x = np.array((anat_position[j[0]][0], anat_position[j[1]][0]))
     y = np.array((anat_position[j[0]][1], anat_position[j[1]][1]))
     z = np.array((anat_position[j[0]][2], anat_position[j[1]][2]))
 
     # Plot the connecting lines
-    line_wt = (G_anat.get_edge_data(j[0], j[1], default={'weight':0})['weight'] + G_anat.get_edge_data(j[1], j[0], default={'weight':0})['weight'])/2
+    line_wt = (G_anat.get_edge_data(j[0], j[1], default={'weight': 0})['weight'] + G_anat.get_edge_data(j[1], j[0], default={'weight': 0})['weight'])/2
     color = cmap(line_wt)
     ax_anat.plot(x, y, z, c=plot_colors[0], alpha=0.25, linewidth=2)
 
 
-for i,j in enumerate(G_fxn.edges()):
+for i, j in enumerate(G_fxn.edges()):
     x = np.array((anat_position[j[0]][0], anat_position[j[1]][0]))
     y = np.array((anat_position[j[0]][1], anat_position[j[1]][1]))
     z = np.array((anat_position[j[0]][2], anat_position[j[1]][2]))
 
     # Plot the connecting lines
-    line_wt = (G_fxn.get_edge_data(j[0], j[1], default={'weight':0})['weight'] + G_fxn.get_edge_data(j[1], j[0], default={'weight':0})['weight'])/2
+    line_wt = (G_fxn.get_edge_data(j[0], j[1], default={'weight': 0})['weight'] + G_fxn.get_edge_data(j[1], j[0], default={'weight': 0})['weight'])/2
     color = cmap(line_wt)
     ax_fxn.plot(x, y, z, c=plot_colors[0], alpha=0.25, linewidth=2)
 
@@ -160,20 +165,20 @@ fig3_2, ax = plt.subplots(1, 3, figsize=(3.5, 1))
 [x.set_ylim([-1, 1]) for x in ax.ravel()]
 # graph 1: low degree
 position = nx.circular_layout(G, scale=0.7)
-edges,weights = zip(*nx.get_edge_attributes(G,'weight').items())
+edges, weights = zip(*nx.get_edge_attributes(G, 'weight').items())
 deg = [val for (node, val) in G.degree(weight='weight')]
 nx.draw(G, ax=ax[0], pos=position, width=np.array(weights)/3, node_color=['r', 'k', 'k'], node_size=75)
-nx.draw_networkx_edge_labels(G, ax=ax[0], pos=position, edge_labels=nx.get_edge_attributes(G,'weight'))
+nx.draw_networkx_edge_labels(G, ax=ax[0], pos=position, edge_labels=nx.get_edge_attributes(G, 'weight'))
 ax[0].annotate(deg[0], position[1] + [-0.0, 0.2], fontsize=12, weight='bold')
 # graph 2: mod degree
 G.add_edge(1, 2, weight=0)
 G.add_edge(1, 3, weight=10)
 G.add_edge(3, 2, weight=10)
 position = nx.circular_layout(G, scale=0.7)
-edges,weights = zip(*nx.get_edge_attributes(G,'weight').items())
+edges, weights = zip(*nx.get_edge_attributes(G, 'weight').items())
 deg = [val for (node, val) in G.degree(weight='weight')]
 nx.draw(G, ax=ax[1], pos=position, width=np.array(weights)/3, node_color=['r', 'k', 'k'], node_size=75)
-nx.draw_networkx_edge_labels(G, ax=ax[1], pos=position, edge_labels=nx.get_edge_attributes(G,'weight'))
+nx.draw_networkx_edge_labels(G, ax=ax[1], pos=position, edge_labels=nx.get_edge_attributes(G, 'weight'))
 ax[1].annotate(deg[0], position[1] + [-0.0, 0.2], fontsize=12, weight='bold')
 
 # graph 3: high degree
@@ -181,11 +186,11 @@ G.add_edge(1, 2, weight=10)
 G.add_edge(1, 3, weight=10)
 G.add_edge(3, 2, weight=1)
 position = nx.circular_layout(G, scale=0.7)
-edges,weights = zip(*nx.get_edge_attributes(G,'weight').items())
+edges, weights = zip(*nx.get_edge_attributes(G, 'weight').items())
 deg = [val for (node, val) in G.degree(weight='weight')]
 nx.draw(G, ax=ax[2], pos=position, width=np.array(weights)/3, node_color=['r', 'k', 'k'], node_size=75)
-nx.draw_networkx_edge_labels(G, ax=ax[2], pos=position, edge_labels=nx.get_edge_attributes(G,'weight'))
-ax[2].annotate(deg[0], position[1] + [-0.0, 0.2], fontsize=12, weight='bold');
+nx.draw_networkx_edge_labels(G, ax=ax[2], pos=position, edge_labels=nx.get_edge_attributes(G, 'weight'))
+ax[2].annotate(deg[0], position[1] + [-0.0, 0.2], fontsize=12, weight='bold')
 
 # Illustration schematic: clustering coefficient
 high = 10
@@ -204,7 +209,7 @@ fig3_3, ax = plt.subplots(1, 3, figsize=(3.5, 1))
 [x.set_ylim([-1, 1]) for x in ax.ravel()]
 # graph 1: low clustering
 position = nx.circular_layout(G, scale=0.7)
-edges,weights = zip(*nx.get_edge_attributes(G,'weight').items())
+edges, weights = zip(*nx.get_edge_attributes(G, 'weight').items())
 clust = list(nx.clustering(G, weight='weight').values())
 nx.draw(G, ax=ax[0], pos=position, width=np.array(weights)/3, node_color=['r', 'k', 'k', 'k'], node_size=75)
 ax[0].annotate('{:.2f}'.format(clust[0]), position[1] + [-0.0, 0.2], fontsize=12, weight='bold')
@@ -218,7 +223,7 @@ G.add_edge(3, 4, weight=low)
 G.add_edge(2, 4, weight=low)
 G.add_edge(1, 4, weight=high)
 position = nx.circular_layout(G, scale=0.7)
-edges,weights = zip(*nx.get_edge_attributes(G,'weight').items())
+edges, weights = zip(*nx.get_edge_attributes(G, 'weight').items())
 clust = list(nx.clustering(G, weight='weight').values())
 nx.draw(G, ax=ax[1], pos=position, width=np.array(weights)/3, node_color=['r', 'k', 'k', 'k'], node_size=75)
 ax[1].annotate('{:.2f}'.format(clust[0]), position[1] + [-0.0, 0.2], fontsize=12, weight='bold')
@@ -232,10 +237,10 @@ G.add_edge(3, 4, weight=high)
 G.add_edge(2, 4, weight=high)
 G.add_edge(1, 4, weight=high)
 position = nx.circular_layout(G, scale=0.7)
-edges,weights = zip(*nx.get_edge_attributes(G,'weight').items())
+edges, weights = zip(*nx.get_edge_attributes(G, 'weight').items())
 clust = list(nx.clustering(G, weight='weight').values())
 nx.draw(G, ax=ax[2], pos=position, width=np.array(weights)/3, node_color=['r', 'k', 'k', 'k'], node_size=75)
-ax[2].annotate('{:.2f}'.format(clust[0]), position[1] + [-0.0, 0.2], fontsize=12, weight='bold');
+ax[2].annotate('{:.2f}'.format(clust[0]), position[1] + [-0.0, 0.2], fontsize=12, weight='bold')
 
 fig3_2.savefig(os.path.join(analysis_dir, 'figpanels', 'fig3_2.svg'), format='svg', transparent=True, dpi=save_dpi)
 fig3_3.savefig(os.path.join(analysis_dir, 'figpanels', 'fig3_3.svg'), format='svg', transparent=True, dpi=save_dpi)
@@ -262,7 +267,7 @@ random_path_lens = []
 random_clustering = []
 random_degree = []
 for it in range(iterations):
-    adj_random = np.random.binomial(1, rand_prob, size=(N,N))
+    adj_random = np.random.binomial(1, rand_prob, size=(N, N))
     np.fill_diagonal(adj_random, 0)
     G_random = nx.from_numpy_matrix(adj_random, create_using=nx.DiGraph)
     random_path_lens.append(nx.average_shortest_path_length(G_random))
@@ -283,8 +288,8 @@ vals, bins = np.histogram(edge_weights, bins=bins, density=True)
 # plot simple power law scaling
 xx = np.arange(1, 1000)
 a = -1.0
-yy =  xx**(a)
-ax.plot(xx, yy/np.sum(yy), linestyle='-', linewidth=2, alpha=1.0, color=[0,0,0])
+yy = xx**(a)
+ax.plot(xx, yy/np.sum(yy), linestyle='-', linewidth=2, alpha=1.0, color=[0, 0, 0])
 ax.plot(bins[:-1], vals, marker='o', color=plot_colors[0], linestyle='None', alpha=1.0, rasterized=True)
 ax.annotate(r'$p(w) \propto w^{{-1}}$', (200, 2e-2))
 
@@ -315,7 +320,6 @@ ax.set_xlabel('Path length')
 sigma_diff_path = (measured_path-np.mean(random_path_lens)) / np.std(random_path_lens)
 factor_diff_path = (measured_path-np.mean(random_path_lens)) / np.mean(random_path_lens)
 print('Measured path length is {:.2f} larger than random ({:.2f} sigma)'.format(factor_diff_path, sigma_diff_path))
-
 
 
 ax = fig3_4.add_subplot(2, 4, 6)

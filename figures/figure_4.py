@@ -1,4 +1,8 @@
+"""
+Turner, Mann, Clandinin: Figure generation script: Fig. 4.
 
+https://github.com/mhturner/SC-FC
+"""
 import matplotlib.pyplot as plt
 from neuprint import Client
 import numpy as np
@@ -63,7 +67,7 @@ diff_by_roi = DifferenceMatrix.mean()
 
 sort_inds = np.argsort(diff_by_roi)[::-1]
 sort_keys = DifferenceMatrix.index[sort_inds]
-sorted_diff = pd.DataFrame(data=np.zeros_like(DifferenceMatrix),columns=sort_keys, index=sort_keys)
+sorted_diff = pd.DataFrame(data=np.zeros_like(DifferenceMatrix), columns=sort_keys, index=sort_keys)
 for r_ind, r_key in enumerate(sort_keys):
     for c_ind, c_key in enumerate(sort_keys):
         sorted_diff.iloc[r_ind, c_ind]=DifferenceMatrix.loc[[r_key], [c_key]].to_numpy()
@@ -95,7 +99,7 @@ ax.tick_params(axis='both', which='major', labelsize=8)
 ax.set_aspect(1)
 
 fig4_2, ax = plt.subplots(1, 1, figsize=(4, 4))
-sns.heatmap(sorted_diff, ax=ax, yticklabels=True, xticklabels=True, cbar_kws={'label': 'Difference (FC - SC)','shrink': .65}, cmap="RdBu_r", rasterized=True, vmin=-lim, vmax=lim)
+sns.heatmap(sorted_diff, ax=ax, yticklabels=True, xticklabels=True, cbar_kws={'label': 'Difference (FC - SC)', 'shrink': .65}, cmap="RdBu_r", rasterized=True, vmin=-lim, vmax=lim)
 ax.set_aspect('equal')
 ax.tick_params(axis='both', which='major', labelsize=6)
 
@@ -111,11 +115,11 @@ regions = {'AL/LH': ['AL(R)', 'LH(R)'],
            'CX': ['EB', 'FB', 'PB', 'NO'],
            'LX': ['BU(L)', 'BU(R)', 'LAL(R)'],
            'INP': ['CRE(L)', 'CRE(R)', 'SCL(R)', 'ICL(R)', 'IB', 'ATL(L)', 'ATL(R)'],
-           'VMNP': ['VES(R)', 'EPA(R)', 'GOR(L)', 'GOR(R)', 'SPS(R)' ],
+           'VMNP': ['VES(R)', 'EPA(R)', 'GOR(L)', 'GOR(R)', 'SPS(R)'],
            'SNP': ['SLP(R)', 'SIP(R)', 'SMP(R)', 'SMP(L)'],
            'VLNP': ['AOTU(R)', 'AVLP(R)', 'PVLP(R)', 'PLP(R)', 'WED(R)'],
            'PENP': ['CAN(R)'],
-         }
+           }
 
 # log transform anatomical connectivity values
 anatomical_mat = AC.getConnectivityMatrix('CellCount', diag=0).to_numpy().copy()
@@ -123,7 +127,7 @@ keep_inds_diff = np.where(anatomical_mat > 0)
 anatomical_adj = np.log10(anatomical_mat[keep_inds_diff])
 
 diff_by_region = []
-for c_ind in range(FC.cmats.shape[2]):  #loop over fly
+for c_ind in range(FC.cmats.shape[2]): # loop over fly
     cmat = FC.cmats[:, :, c_ind]
     functional_adj = cmat[keep_inds_diff]
 
@@ -184,7 +188,7 @@ sc = ax[0].scatter(direct_dist, shortest_path_dist, c=diff, s=12, alpha=1.0, cma
 ax[0].set_xscale('log')
 ax[0].set_yscale('log')
 ax[0].set_xlabel('Direct distance')
-ax[0].set_ylabel('Shortest path distance');
+ax[0].set_ylabel('Shortest path distance')
 ax[0].plot([2e-4, 1], [2e-4, 1], color='k', linewidth=2, alpha=1.0, linestyle='-', zorder=0)
 ax[0].set_ylim([2e-4, 6e-2])
 fig4_4.colorbar(sc, ax=ax[0])
@@ -229,16 +233,23 @@ fig4_4.savefig(os.path.join(analysis_dir, 'figpanels', 'fig4_4.svg'), format='sv
 
 
 def fitLinReg(x, y):
+    """
+    Fit multiple linear regression model.
+
+    x: indep variable / predictors
+    y: dep variable to predict
+    """
     rkf = RepeatedKFold(n_splits=10, n_repeats=100, random_state=0)
     regressor = LinearRegression()
-    regressor.fit(x, y);
+    regressor.fit(x, y)
     pred = regressor.predict(x)
 
-    cv_results = cross_validate(regressor, x, measured_fc, cv=rkf, scoring='r2');
+    cv_results = cross_validate(regressor, x, measured_fc, cv=rkf, scoring='r2')
     avg_r2 = cv_results['test_score'].mean()
     err_r2 = cv_results['test_score'].std()
 
     return pred, avg_r2, err_r2
+
 
 metrics = ['CellCount', 'TBars']
 for ind in range(2):
@@ -254,8 +265,7 @@ for ind in range(2):
 
     measured_fc = FC.CorrelationMatrix.to_numpy()[FC.upper_inds][keep_inds]
 
-
-    figS4_0, ax = plt.subplots(1, 3, figsize=(9,3))
+    figS4_0, ax = plt.subplots(1, 3, figsize=(9, 3))
 
     # # # # Direct only # # #
     x = np.vstack([direct_connect]).T

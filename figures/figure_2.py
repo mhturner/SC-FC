@@ -1,3 +1,9 @@
+"""
+Turner, Mann, Clandinin: Figure generation script: Fig. 2.
+
+https://github.com/mhturner/SC-FC
+"""
+
 import matplotlib.pyplot as plt
 from neuprint import Client
 import numpy as np
@@ -79,8 +85,6 @@ dx_pix = int(dx / voxel_size[0])
 ax.plot([5, dx_pix], [120, 120], 'w-')
 fig2_0.subplots_adjust(hspace=0.02, wspace=0.02)
 
-
-
 fs = 1.2  # Hz
 cutoff = 0.01
 
@@ -105,7 +109,7 @@ ax = ax.ravel()
 [x.set_xlim([-15, timevec[-1]]) for x in ax]
 for p_ind, pr in enumerate(pull_regions):
     ax[p_ind].plot(timevec, region_dff.loc[pr, x_start:(x_start+dt-1)], color=colors[p_ind])
-    ax[p_ind].annotate(pr, (-10, 0) , rotation=90, fontsize=10)
+    ax[p_ind].annotate(pr, (-10, 0), rotation=90, fontsize=10)
 
 plotting.addScaleBars(ax[0], dT=10, dF=0.10, T_value=-2.5, F_value=-0.10)
 fig2_1.subplots_adjust(hspace=0.02, wspace=0.02)
@@ -151,11 +155,11 @@ df = AC.getConnectivityMatrix('CellCount', diag=np.nan)
 sns.heatmap(np.log10(AC.getConnectivityMatrix('CellCount', diag=np.nan)).replace([np.inf, -np.inf], 0), ax=ax[0], yticklabels=True, xticklabels=True, cmap="cividis", rasterized=True, cbar=False)
 cb = fig2_3.colorbar(matplotlib.cm.ScalarMappable(norm=matplotlib.colors.SymLogNorm(vmin=1, vmax=np.nanmax(df.to_numpy()), base=10, linthresh=0.1, linscale=1), cmap="cividis"), ax=ax[0], shrink=0.75, label='Connecting cells')
 cb.outline.set_linewidth(0)
-ax[0].set_xlabel('Target', fontsize=10);
-ax[0].set_ylabel('Source', fontsize=10);
+ax[0].set_xlabel('Target', fontsize=10)
+ax[0].set_ylabel('Source', fontsize=10)
 ax[0].set_aspect('equal')
 ax[0].tick_params(axis='both', which='major', labelsize=6)
-sns.heatmap(FC.CorrelationMatrix, ax=ax[1], yticklabels=True, xticklabels=True, cbar_kws={'label': 'Functional Correlation (z)','shrink': .75}, cmap="cividis", rasterized=True)
+sns.heatmap(FC.CorrelationMatrix, ax=ax[1], yticklabels=True, xticklabels=True, cbar_kws={'label': 'Functional Correlation (z)', 'shrink': .75}, cmap="cividis", rasterized=True)
 ax[1].set_aspect('equal')
 ax[1].tick_params(axis='both', which='major', labelsize=6)
 fig2_3.subplots_adjust(wspace=0.25)
@@ -168,17 +172,17 @@ r, p = pearsonr(anatomical_adjacency, functional_adjacency)
 coef = np.polyfit(anatomical_adjacency, functional_adjacency, 1)
 linfit = np.poly1d(coef)
 
-fig2_4, ax = plt.subplots(1,1,figsize=(3, 3))
+fig2_4, ax = plt.subplots(1, 1, figsize=(3, 3))
 ax.plot(10**anatomical_adjacency, functional_adjacency, color='k', marker='.', linestyle='none', alpha=1.0)
 xx = np.linspace(anatomical_adjacency.min(), anatomical_adjacency.max(), 100)
 ax.plot(10**xx, linfit(xx), color='k', linewidth=2, marker=None)
 ax.set_xscale('log')
 ax.set_xlabel('Cell Count')
 ax.set_ylabel('Functional correlation (z)')
-ax.annotate('r = {:.2f}'.format(r), xy=(0.8, 1.1));
+ax.annotate('r = {:.2f}'.format(r), xy=(0.8, 1.1))
 
 metrics = ['CellCount', 'WeightedSynapseCount', 'TBars', 'CommonInputFraction', 'Size', 'Nearness']
-R_by_metric = pd.DataFrame(data=np.zeros((FC.cmats.shape[2], len(metrics))), columns=metrics )
+R_by_metric = pd.DataFrame(data=np.zeros((FC.cmats.shape[2], len(metrics))), columns=metrics)
 pop_r = []
 for metric in metrics:
     if metric in ['CellCount', 'WeightedSynapseCount', 'TBars', 'CommonInputFraction']:
@@ -259,7 +263,7 @@ for s_ind, sz in enumerate(subsampled_sizes):
 err_y = np.std(scfc_r, axis=0)
 mean_y = np.mean(scfc_r, axis=0)
 
-figS2_1, ax1 = plt.subplots(1, 1, figsize=(4,4))
+figS2_1, ax1 = plt.subplots(1, 1, figsize=(4, 4))
 ax1.plot(subsampled_sizes, mean_y, 'ko')
 ax1.errorbar(subsampled_sizes, mean_y, yerr=err_y, color='k')
 ax1.hlines(mean_y[-1], subsampled_sizes.min(), subsampled_sizes.max(), color='k', linestyle='--')
