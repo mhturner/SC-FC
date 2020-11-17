@@ -151,15 +151,17 @@ fig2_2.savefig(os.path.join(analysis_dir, 'figpanels', 'fig2_2.svg'), format='sv
 # %%
 
 fig2_3, ax = plt.subplots(1, 2, figsize=(9, 4))
-df = AC.getConnectivityMatrix('CellCount', diag=np.nan)
-sns.heatmap(np.log10(AC.getConnectivityMatrix('CellCount', diag=np.nan)).replace([np.inf, -np.inf], 0), ax=ax[0], yticklabels=True, xticklabels=True, cmap="cividis", rasterized=True, cbar=False)
-cb = fig2_3.colorbar(matplotlib.cm.ScalarMappable(norm=matplotlib.colors.SymLogNorm(vmin=1, vmax=np.nanmax(df.to_numpy()), base=10, linthresh=0.1, linscale=1), cmap="cividis"), ax=ax[0], shrink=0.75, label='Connecting cells')
-cb.outline.set_linewidth(0)
-ax[0].set_xlabel('Target', fontsize=10)
-ax[0].set_ylabel('Source', fontsize=10)
+# fxnal heatmap
+sns.heatmap(FC.CorrelationMatrix, ax=ax[0], yticklabels=True, xticklabels=True, cbar_kws={'label': 'Functional Correlation (z)', 'shrink': .75}, cmap="cividis", rasterized=True)
 ax[0].set_aspect('equal')
 ax[0].tick_params(axis='both', which='major', labelsize=6)
-sns.heatmap(FC.CorrelationMatrix, ax=ax[1], yticklabels=True, xticklabels=True, cbar_kws={'label': 'Functional Correlation (z)', 'shrink': .75}, cmap="cividis", rasterized=True)
+# structural heatmap
+df = AC.getConnectivityMatrix('CellCount', diag=np.nan)
+sns.heatmap(np.log10(AC.getConnectivityMatrix('CellCount', diag=np.nan)).replace([np.inf, -np.inf], 0), ax=ax[1], yticklabels=True, xticklabels=True, cmap="cividis", rasterized=True, cbar=False)
+cb = fig2_3.colorbar(matplotlib.cm.ScalarMappable(norm=matplotlib.colors.SymLogNorm(vmin=1, vmax=np.nanmax(df.to_numpy()), base=10, linthresh=0.1, linscale=1), cmap="cividis"), ax=ax[1], shrink=0.75, label='Connecting cells')
+cb.outline.set_linewidth(0)
+# ax[1].set_xlabel('Target', fontsize=10)
+# ax[1].set_ylabel('Source', fontsize=10)
 ax[1].set_aspect('equal')
 ax[1].tick_params(axis='both', which='major', labelsize=6)
 fig2_3.subplots_adjust(wspace=0.25)
@@ -181,11 +183,11 @@ ax.set_xlabel('Cell Count')
 ax.set_ylabel('Functional correlation (z)')
 ax.annotate('r = {:.2f}'.format(r), xy=(0.8, 1.1))
 
-metrics = ['CellCount', 'WeightedSynapseCount', 'TBars', 'CommonInputFraction', 'Size', 'Nearness']
+metrics = ['CellCount', 'WeightedSynapseCount', 'TBars', 'Size', 'Nearness']
 R_by_metric = pd.DataFrame(data=np.zeros((FC.cmats.shape[2], len(metrics))), columns=metrics)
 pop_r = []
 for metric in metrics:
-    if metric in ['CellCount', 'WeightedSynapseCount', 'TBars', 'CommonInputFraction']:
+    if metric in ['CellCount', 'WeightedSynapseCount', 'TBars']:
         anatomical_adjacency, keep_inds = AC.getAdjacency(metric, do_log=True)
     elif metric == 'Size':
         anatomical_adjacency = FC.SizeMatrix.to_numpy()[FC.upper_inds]
@@ -217,7 +219,6 @@ ax.plot(np.arange(len(pop_r)), pop_r, color='k', marker='s', markersize=6, lines
 ax.set_xticklabels(['Cell\ncount',
                     'Weighted\nT-Bar\ncount',
                     'Raw\nT-Bar \ncount',
-                    'Common\n input\nfraction',
                     'Region\nsize',
                     'Region\nnearness'])
 ax.tick_params(axis='x', labelsize=8)
