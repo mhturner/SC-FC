@@ -127,7 +127,8 @@ G_fxn = nx.from_numpy_matrix(adjacency_fxn, create_using=nx.DiGraph)
 fig3_1, ax = plt.subplots(1, 2, figsize=(8.0, 3.5))
 deg_fxn = np.array([val for (node, val) in G_fxn.degree(weight='weight')])
 deg_anat = np.array([val for (node, val) in G_anat.degree(weight='weight')])
-plotting.addLinearFit(ax[0], deg_anat, deg_fxn, alpha=0.5)
+r, p = plotting.addLinearFit(ax[0], deg_anat, deg_fxn, alpha=0.5)
+print('r deg = {:.4f}'.format(r))
 ax[0].plot(deg_anat, deg_fxn, alpha=1.0, marker='o', linestyle='none')
 for r_ind, r in enumerate(FC.rois):
     if r in roilabels_to_show:
@@ -139,7 +140,8 @@ ax[0].set_ylim([0, 37])
 
 clust_fxn = np.real(np.array(list(nx.clustering(G_fxn, weight='weight').values())))
 clust_anat = np.array(list(nx.clustering(G_anat, weight='weight').values()))
-plotting.addLinearFit(ax[1], clust_anat, clust_fxn, alpha=0.5)
+r, p = plotting.addLinearFit(ax[1], clust_anat, clust_fxn, alpha=0.5)
+print('r clust = {:.4f}'.format(r))
 ax[1].plot(clust_anat, clust_fxn, alpha=1.0, marker='o', linestyle='none')
 for r_ind, r in enumerate(FC.rois):
     if r in roilabels_to_show:

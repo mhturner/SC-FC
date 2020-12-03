@@ -1,13 +1,10 @@
 
-from neuprint import (Client, fetch_neurons, NeuronCriteria)
-import numpy as np
-import pandas as pd
+from neuprint import (Client)
 import os
 from scfc import anatomical_connectivity, bridge
 import datetime
 import time
 import socket
-import pickle
 
 t0 = time.time()
 

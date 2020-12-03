@@ -107,6 +107,38 @@ def getPrimaryInput(roiInfo):
     return primary_input
 
 
+def computeSynapseConnectivityDistribution(neuprint_client, mapping):
+    """
+    Get distribution of synapse connectivity for each connection from region A to region B.
+
+    neuprint_client
+    mapping: mapping dict to bridge hemibrain regions to atlas regions
+    """
+    rois = list(mapping.keys())
+    rois.sort()
+
+    SynapseCount = pd.DataFrame(columns=['source', 'target', 'cell', 'num_tbars', 'weighted_tbars'])
+
+    for roi_source in rois:
+        for roi_target in rois:
+            sources = mapping[roi_source]
+            targets = mapping[roi_target]
+
+            for s_ind, sour in enumerate(sources): # this multiple sources/targets is necessary for collapsing rois based on mapping
+                for targ in targets:
+                    Neur, Syn = fetch_neurons(NeuronCriteria(inputRois=sour, outputRois=targ, status='Traced'))
+
+                    # weighted synapses, for each cell going from sour -> targ:
+                    #       := output tbars (presynapses) in targ * (input (post)synapses in sour)/(total (post)synapses onto that cell)
+                    weighted_synapses = [Neur.roiInfo[x][targ]['pre'] * (Neur.roiInfo[x][sour]['post'] / Neur.loc[x, 'post']) for x in range(len(Neur))]
+
+                    tbars = [Neur.roiInfo[x][targ]['pre'] for x in range(len(Neur))]
+                    for cell in range(len(tbars)):
+                        SynapseCount.loc[len(SynapseCount)] = [sour, targ, cell, tbars[cell], weighted_synapses[cell]]
+
+    return SynapseCount
+
+
 def computeConnectivityMatrix(neuprint_client, mapping):
     """
     Compute region connectivity matrix, for various metrics.
