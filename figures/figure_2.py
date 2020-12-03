@@ -302,3 +302,184 @@ ax[1].set_xlim([0, 1])
 ax[1].annotate('r={:.2f}'.format(r), (0.05, 1.02))
 figS2_2.subplots_adjust(wspace=0.5)
 figS2_2.savefig(os.path.join(analysis_dir, 'figpanels', 'figS2_2.svg'), format='svg', transparent=True, dpi=save_dpi)
+
+# %% Supp: Predicting FC with cells per volume, to normalize for region size
+
+ct_per_size = AC.getConnectivityMatrix('CellCount') / FC.SizeMatrix
+ct_per_size = ct_per_size.to_numpy()[FC.upper_inds]
+
+keep_inds = np.where(ct_per_size > 0)
+x = np.log10(ct_per_size[keep_inds])
+y = FC.CorrelationMatrix.to_numpy()[FC.upper_inds][keep_inds]
+
+r, p = pearsonr(x, y)
+coef = np.polyfit(x, y, 1)
+linfit = np.poly1d(coef)
+
+figS2_3, ax = plt.subplots(1, 1, figsize=(3, 3))
+ax.plot(10**x, y, color='k', marker='.', linestyle='none', alpha=1.0)
+xx = np.linspace(x.min(), x.max(), 100)
+ax.plot(10**xx, linfit(xx), color='k', linewidth=2, marker=None)
+ax.set_xscale('log')
+ax.set_xlabel('Cell Count / voxels')
+ax.set_ylabel('Functional correlation (z)')
+ax.annotate('r = {:.2f}'.format(r), xy=(4e-4, 0.95))
+
+figS2_3.savefig(os.path.join(analysis_dir, 'figpanels', 'figS2_3.svg'), format='svg', transparent=True, dpi=save_dpi)
+
+# %%
+
+figS2_4, ax = plt.subplots(1, 4, figsize=(12, 3))
+# fxnal heatmap
+sns.heatmap(FC.CorrelationMatrix, ax=ax[0], yticklabels=False, xticklabels=False, cbar_kws={'shrink': .75}, cmap="cividis", rasterized=True)
+ax[0].set_aspect('equal')
+ax[0].set_title('Functional')
+
+# structural heatmap
+df = AC.getConnectivityMatrix('CellCount', diag=np.nan)
+sns.heatmap(np.log10(AC.getConnectivityMatrix('CellCount', diag=np.nan)).replace([np.inf, -np.inf], 0), ax=ax[1], yticklabels=False, xticklabels=False, cmap="cividis", rasterized=True, cbar=False)
+cb = fig2_3.colorbar(matplotlib.cm.ScalarMappable(norm=matplotlib.colors.SymLogNorm(vmin=1, vmax=np.nanmax(df.to_numpy()), base=10, linthresh=0.1, linscale=1), cmap="cividis"), ax=ax[1], shrink=0.75)
+cb.outline.set_linewidth(0)
+ax[1].set_aspect('equal')
+ax[1].set_title('Cell count')
+
+# size matrix
+np.fill_diagonal(FC.SizeMatrix.to_numpy(), np.nan)
+sns.heatmap(FC.SizeMatrix, ax=ax[2], yticklabels=False, xticklabels=False, cbar_kws={'shrink': .75}, cmap="cividis", rasterized=True, vmin=0)
+ax[2].set_aspect('equal')
+ax[2].set_title('Size')
+
+
+# distance matrix
+np.fill_diagonal(FC.DistanceMatrix.to_numpy(), np.nan)
+sns.heatmap(1/FC.DistanceMatrix, ax=ax[3], yticklabels=False, xticklabels=False, cbar_kws={'shrink': .75}, cmap="cividis", rasterized=True)
+ax[3].set_aspect('equal')
+ax[3].set_title('Nearness')
+
+figS2_4.subplots_adjust(wspace=0.25)
+
+figS2_4.savefig(os.path.join(analysis_dir, 'figpanels', 'figS2_4.svg'), format='svg', transparent=True, dpi=save_dpi)
+
+# %%
+from sklearn.cluster import SpectralClustering
+from sklearn.metrics.cluster import adjusted_rand_score, contingency_matrix
+
+
+
+struct_mat = np.log10(AC.getConnectivityMatrix('CellCount', diag=0).to_numpy().copy())
+struct_mat[np.where(np.isinf(struct_mat))] = 0
+
+fxn_mat = FC.CorrelationMatrix.to_numpy().copy()
+np.fill_diagonal(fxn_mat, 0)
+
+figS2_5, f_ax = plt.subplots(1, 8, figsize=(16, 2))
+for c_ind, num_clusters in enumerate(range(2, 10)):
+    ax = f_ax[c_ind]
+
+    clustering_struct = SpectralClustering(n_clusters=num_clusters, assign_labels="kmeans", random_state=0, affinity='precomputed').fit(struct_mat)
+
+    clustering_fxn = SpectralClustering(n_clusters=num_clusters, assign_labels="kmeans", random_state=0, affinity='precomputed').fit(fxn_mat)
+
+    # Contingency matrix := Cij is the number of samples in i that share the same label in j
+    cont = contingency_matrix(clustering_struct.labels_, clustering_fxn.labels_)
+    cont = cont / cont.sum(axis=1)[:, np.newaxis] # normalize by total number of regions in structural cluster, i.e. rows sum to 1.0
+
+    ARI = adjusted_rand_score(clustering_struct.labels_, clustering_fxn.labels_)
+
+    sns.heatmap(cont, ax=ax, yticklabels=False, xticklabels=False, cmap="cividis", rasterized=True, vmin=0, vmax=1, cbar=False)
+    ax.set_title('ARI = {:.2f}'.format(ARI))
+    ax.set_aspect('equal')
+
+figS2_5.savefig(os.path.join(analysis_dir, 'figpanels', 'figS2_5.svg'), format='svg', transparent=True, dpi=save_dpi)
+
+
+# %%
+from munkres import Munkres
+
+num_clusters = 5 # from peak ARI above
+
+clustering_struct = SpectralClustering(n_clusters=num_clusters, assign_labels="kmeans", random_state=0, affinity='precomputed').fit(struct_mat)
+clustering_fxn = SpectralClustering(n_clusters=num_clusters, assign_labels="kmeans", random_state=0, affinity='precomputed').fit(fxn_mat)
+
+contmat = contingency_matrix(clustering_struct.labels_, clustering_fxn.labels_)
+label_map = Munkres().compute(contmat.max() - contmat)
+
+remapped_struct = np.zeros_like(clustering_struct.labels_)
+remapped_struct[:] = np.nan
+for c in range(num_clusters):
+    remapped_struct[np.where(clustering_struct.labels_==label_map[c][0])] = label_map[c][1]
+
+struct = np.log10(AC.getConnectivityMatrix('CellCount', diag=np.nan)).replace([np.inf, -np.inf], 0)
+
+sort_inds = np.argsort(remapped_struct)
+cluster_boundaries_struct = np.where(np.diff(np.sort(remapped_struct)) == 1)[0] + 1
+sort_keys = struct.index[sort_inds]
+clustered_struct = pd.DataFrame(data=np.zeros_like(struct), columns=sort_keys, index=sort_keys)
+for r_ind, r_key in enumerate(sort_keys):
+    for c_ind, c_key in enumerate(sort_keys):
+        clustered_struct.iloc[r_ind, c_ind]=struct.loc[[r_key], [c_key]].to_numpy()
+
+
+funct = FC.CorrelationMatrix.copy()
+sort_inds = np.argsort(clustering_fxn.labels_)
+cluster_boundaries_fxn = np.where(np.diff(np.sort(clustering_fxn.labels_)) == 1)[0] + 1
+sort_keys = funct.index[sort_inds]
+clustered_fxn = pd.DataFrame(data=np.zeros_like(struct), columns=sort_keys, index=sort_keys)
+for r_ind, r_key in enumerate(sort_keys):
+    for c_ind, c_key in enumerate(sort_keys):
+        clustered_fxn.iloc[r_ind, c_ind]=funct.loc[[r_key], [c_key]].to_numpy()
+
+
+# %%
+figS2_6, ax = plt.subplots(1, 2, figsize=(9, 4))
+# fxnal heatmap
+sns.heatmap(clustered_fxn, ax=ax[0], yticklabels=True, xticklabels=True, cbar_kws={'label': 'Functional Correlation (z)', 'shrink': .75}, cmap="cividis", rasterized=True)
+ax[0].set_aspect('equal')
+ax[0].tick_params(axis='both', which='major', labelsize=6)
+[ax[0].axhline(x, color='w') for x in cluster_boundaries_fxn]
+[ax[0].axvline(x, color='w') for x in cluster_boundaries_fxn]
+
+# structural heatmap
+df = AC.getConnectivityMatrix('CellCount', diag=np.nan)
+sns.heatmap(clustered_struct, ax=ax[1], yticklabels=True, xticklabels=True, cmap="cividis", rasterized=True, cbar=False)
+cb = fig2_3.colorbar(matplotlib.cm.ScalarMappable(norm=matplotlib.colors.SymLogNorm(vmin=1, vmax=np.nanmax(df.to_numpy()), base=10, linthresh=0.1, linscale=1), cmap="cividis"), ax=ax[1], shrink=0.75, label='Connecting cells')
+cb.outline.set_linewidth(0)
+ax[1].set_aspect('equal')
+ax[1].tick_params(axis='both', which='major', labelsize=6)
+[ax[1].axhline(x, color='w') for x in cluster_boundaries_struct]
+[ax[1].axvline(x, color='w') for x in cluster_boundaries_struct]
+
+figS2_6.subplots_adjust(wspace=0.25)
+
+figS2_6.savefig(os.path.join(analysis_dir, 'figpanels', 'figS2_6.svg'), format='svg', transparent=True, dpi=save_dpi)
+# %%
+clust_colors = plt.get_cmap('Accent')(np.arange(num_clusters)/num_clusters)
+
+frac_match = np.sum(remapped_struct == clustering_fxn.labels_) / len(remapped_struct)
+sort_inds = np.argsort(remapped_struct)
+
+print('{:.2f} regions assigned to matching cluster'.format(frac_match))
+
+figS2_7, ax = plt.subplots(2, 1, figsize=(9, 3))
+pal = clust_colors[remapped_struct[sort_inds]]
+ax[0].imshow(np.arange(len(pal)).reshape(1, len(pal)), cmap=matplotlib.colors.ListedColormap(list(pal)), interpolation="nearest", aspect="auto")
+ax[0].set_xticks([])
+ax[0].set_yticks([])
+ax[0].spines['left'].set_visible(False)
+ax[0].spines['bottom'].set_visible(False)
+ax[0].set_ylabel('Structural')
+lab_x = np.hstack(([0], cluster_boundaries_struct, [36]))
+for clust in range(5):
+    y = 0.0
+    x = lab_x[clust] + (lab_x[clust+1] - lab_x[clust])/2 - 1
+    ax[0].annotate(clust+1, (x, y))
+
+pal = clust_colors[clustering_fxn.labels_[sort_inds]]
+ax[1].imshow(np.arange(len(pal)).reshape(1, len(pal)), cmap=matplotlib.colors.ListedColormap(list(pal)), interpolation="nearest", aspect="auto")
+ax[1].set_xticklabels(struct.index[sort_inds], rotation=90)
+ax[1].set_xticks(range(36))
+ax[1].set_yticks([])
+ax[1].spines['left'].set_visible(False)
+ax[1].set_ylabel('Functional')
+
+figS2_7.savefig(os.path.join(analysis_dir, 'figpanels', 'figS2_7.svg'), format='svg', transparent=True, dpi=save_dpi)

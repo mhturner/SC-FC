@@ -247,7 +247,7 @@ ax[2].annotate('{:.2f}'.format(clust[0]), position[1] + [-0.0, 0.2], fontsize=12
 fig3_2.savefig(os.path.join(analysis_dir, 'figpanels', 'fig3_2.svg'), format='svg', transparent=True, dpi=save_dpi)
 fig3_3.savefig(os.path.join(analysis_dir, 'figpanels', 'fig3_3.svg'), format='svg', transparent=True, dpi=save_dpi)
 
-# %% Supp: connectome degree stats: scale free + small world comparisons
+# %% Connectome degree stats: scale free + small world comparisons
 
 # 1) Binarize and compute random adjacency
 anat_connect = AC.getConnectivityMatrix('CellCount', diag=0)
@@ -307,7 +307,7 @@ ax.set_ylabel('P(weight)')
 ax = fig3_4.add_subplot(2, 4, 1)
 ax.set_axis_off()
 ax.imshow(adj_data, cmap='Greys', vmin=-0.5, vmax=1, interpolation='nearest', rasterized=False)
-ax.set_title('Connectome', color=plot_colors[0])
+ax.set_title('Connectome', color=plot_colors[3])
 ax = fig3_4.add_subplot(2, 4, 5)
 ax.set_axis_off()
 ax.imshow(adj_random, cmap='Greys', vmin=-0.5, vmax=1, interpolation='nearest', rasterized=False)
@@ -316,7 +316,7 @@ ax.set_title('Random')
 ax = fig3_4.add_subplot(2, 4, 2)
 ax.hist(random_path_lens, bins=20, density=False, color='k')
 measured_path = nx.average_shortest_path_length(G_data)
-ax.axvline(measured_path)
+ax.axvline(measured_path, color=plot_colors[3], linewidth=2)
 ax.set_xlim(1.4, 1.58)
 ax.set_xlabel('Path length')
 sigma_diff_path = (measured_path-np.mean(random_path_lens)) / np.std(random_path_lens)
@@ -327,7 +327,7 @@ print('Measured path length is {:.2f} larger than random ({:.2f} sigma)'.format(
 ax = fig3_4.add_subplot(2, 4, 6)
 ax.hist(random_clustering, bins=20, density=False, color='k')
 measured_cluster = nx.average_clustering(G_data)
-ax.axvline(measured_cluster)
+ax.axvline(measured_cluster, color=plot_colors[3], linewidth=2)
 ax.set_xlim(0.45, 0.85)
 ax.set_xlabel('clustering')
 sigma_diff_cluster = (measured_cluster-np.mean(random_clustering)) / np.std(random_clustering)

@@ -204,7 +204,7 @@ y = y[keep_inds]
 ax[1].scatter(x, y, c=diff[keep_inds], marker='.', s=12, alpha=1.0, linestyle='None', cmap='RdBu_r', vmin=-lim, vmax=lim, rasterized=True)
 ax[1].axhline(color='k', linestyle='--')
 ax[1].set_xscale('log')
-ax[1].set_xlabel(r'Indirect path factor: $\dfrac{D_{direct}}{D_{shortest}}$')
+ax[1].set_xlabel('Indirect path factor')
 ax[1].set_ylabel('Diff. (FC-SC)')
 r, p = spearmanr(x, y)
 ax[1].annotate(r'$\rho$={:.2f}'.format(r), (90, 2.5))

@@ -37,6 +37,11 @@ AC = anatomical_connectivity.AnatomicalConnectivity(data_dir=data_dir, neuprint_
 
 plot_colors = plt.get_cmap('tab10')(np.arange(8)/8)
 
+
+# %%
+SynapseCount = pd.DataFrame(columns=['source', 'target', 'cell', 'num_tbars', 'weighted_tbars'])
+
+SynapseCount
 # %%
 FC.roi_size
 
@@ -51,19 +56,7 @@ ax[1].set_xlabel('Roi size')
 ax[1].set_ylabel('Region avg. SC')
 
 
-ct_per_size = AC.getConnectivityMatrix('CellCount') / FC.SizeMatrix
-fh, ax = plt.subplots(1, 2, figsize=(8, 4))
-x = ct_per_size.to_numpy()[FC.upper_inds]
 
-keep_inds = np.where(x > 0)
-xx = np.log10(x[keep_inds])
-yy = FC.CorrelationMatrix.to_numpy()[FC.upper_inds][keep_inds]
-
-r, p = pearsonr(xx, yy)
-ax[0].plot(xx, yy, 'ko')
-ax[0].set_xlabel('log10(cells/volume)')
-ax[0].set_ylabel('FC')
-ax[0].set_title('pearson r = {:.2f}'.format(r))
 # %%
 
 ConnectivityCount = AC.getConnectivityMatrix('CellCount')
