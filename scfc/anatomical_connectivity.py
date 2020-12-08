@@ -12,7 +12,6 @@ from neuprint import (fetch_neurons, NeuronCriteria)
 import numpy as np
 import pandas as pd
 import os
-import networkx as nx
 
 
 def getRoiCompleteness(neuprint_client, mapping):
@@ -251,13 +250,16 @@ class AnatomicalConnectivity():
 
     def getConnectivityMatrix(self, type, symmetrize=False, diag=None, computed_date=None):
         """
-        Retrieve pre-computed connectivity matrix.
+        Retrieve computed connectivity matrix.
+
         Computed using compute_connectivity_matrix.py
 
         :type: str, one of ['CellCount', 'ConnectivityWeight', 'WeightedSynapseCount', 'TBars', 'CommonInputFraction']
         :symmetrize: bool, symmetrize connectivity matrix?
         :diag: value to fill diagonal with, if None, then fills with measured value
         :computed_date: str, specifies precomputed connectivity file to pull
+
+        Return square dataframe connectivity matrix
         """
         if computed_date is None:
             computed_date = '20200909'
@@ -300,40 +302,18 @@ class AnatomicalConnectivity():
         else:
             return pd.DataFrame(data=tmp_mat, index=conn_mat.index, columns=conn_mat.index)
 
-    def getTwoStepConnectivity(self, OneStepConnectivity, symmetrize=False):
-        """
-        """
-        A = OneStepConnectivity.to_numpy().copy()
-        two_steps = np.zeros_like(A)
-        for source in range(OneStepConnectivity.shape[0]):
-            for target in range(OneStepConnectivity.shape[1]):
-                if source != target:
-                    conns = [np.sqrt(A[source, x] * A[x, target]) for x in range(OneStepConnectivity.shape[0]) if x not in (source, target)]
-                    two_steps[source, target] = np.nansum(conns)
-
-        if symmetrize:
-            return pd.DataFrame(data=(two_steps + two_steps.T)/2, index=OneStepConnectivity.index, columns=OneStepConnectivity.index)
-        else:
-            return pd.DataFrame(data=two_steps, index=OneStepConnectivity.index, columns=OneStepConnectivity.index)
-
-    def getShortestPathLength(self, type='CellCount'):
-        anat_connect = self.getConnectivityMatrix(type, diag=None).to_numpy()
-        G_anat = nx.from_numpy_matrix(anat_connect)
-
-        for e in G_anat.edges:
-            G_anat.edges[e]['distance'] = 1/G_anat.edges[e]['weight']
-
-        sp_anat = np.zeros_like(anat_connect)
-        for row in range(anat_connect.shape[0]):
-            for col in range(anat_connect.shape[1]):
-                path_len = nx.algorithms.shortest_path_length(G_anat, source=row, target=col, weight='distance')
-                sp_anat[row, col] = path_len
-
-        ShortestPath = pd.DataFrame(data=sp_anat, index=self.rois, columns=self.rois)
-
-        return ShortestPath
-
     def getAdjacency(self, type, do_log=False, thresh=None):
+        """
+        Retrieve adjacency data.
+
+        :type: connectivity metric, as in getConnectivityMatrix()
+        :do_log: bool, do log transform on connectivity data
+        :thresh: as quantile of connection strength, minimum value before log transforming, default (None) is 0
+
+        Returns:
+            adjacency: array
+            keep_inds: subset of upper_inds (i.e. those that are above threshold)
+        """
         ConnectivityMatrix = self.getConnectivityMatrix(type=type, symmetrize=True)
         if thresh is None:
             thresh_value = 0

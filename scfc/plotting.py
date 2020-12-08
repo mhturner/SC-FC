@@ -1,8 +1,14 @@
+"""
+Turner, Mann, Clandinin: Plotting utils.
+
+https://github.com/mhturner/SC-FC
+"""
 import numpy as np
-import matplotlib.pyplot as plt
 from scipy.stats import pearsonr
 
+
 def addLinearFit(ax, x, y, alpha=1):
+    """Add linear fit to xy scatter plot."""
     r, p = pearsonr(x, y)
     coef = np.polyfit(x, y, 1)
     linfit = np.poly1d(coef)
@@ -12,10 +18,13 @@ def addLinearFit(ax, x, y, alpha=1):
 
 
 def addScaleBars(axis, dT, dF, T_value=-0.1, F_value=-0.4):
-        axis.plot(T_value * np.ones((2)), np.array([F_value, F_value + dF]), 'k-', alpha=0.9)
-        axis.plot(np.array([T_value, dT + T_value]), F_value * np.ones((2)), 'k-', alpha=0.9)
+    """Add scale bars to plot or image."""
+    axis.plot(T_value * np.ones((2)), np.array([F_value, F_value + dF]), 'k-', alpha=0.9)
+    axis.plot(np.array([T_value, dT + T_value]), F_value * np.ones((2)), 'k-', alpha=0.9)
+
 
 def overlayImage(im, mask, alpha, colors=None, z=0):
+    """Overlay image and mask."""
     im = im / np.max(im)
     imRGB = np.tile(im[..., np.newaxis], 3)[:, :, z, :]
 

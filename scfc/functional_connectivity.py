@@ -32,20 +32,26 @@ def filterRegionResponse(region_response, cutoff=None, fs=None):
 
     return region_response_filtered
 
+
 def trimRegionResponse(file_id, region_response, start_include=100, end_include=None):
     """
-    file_id is string
-    region_response is np array
+    Trim artifacts from selected brain data.
+
+    Dropouts, weird baseline shifts etc.
+
+    :file_id: string
+    :region_response: np array
         either:
             nrois x frames (region responses)
             1 x frames (binary behavior response)
+    :start_include: beginning timepoint of trace
+    :end_include: end timepoint of trace
     """
-
     # Key: brain file id
     # Val: time inds to include
-    brains_to_trim = {'2018-10-19_1': np.array(list(range(100,900)) + list(range(1100,2000))), # transient dropout spikes
-                      '2017-11-08_1': np.array(list(range(100,1900)) + list(range(2000,4000))), # baseline shift
-                      '2018-10-20_1': np.array(list(range(100,1000)))} # dropout halfway through
+    brains_to_trim = {'2018-10-19_1': np.array(list(range(100, 900)) + list(range(1100, 2000))), # transient dropout spikes
+                      '2017-11-08_1': np.array(list(range(100, 1900)) + list(range(2000, 4000))), # baseline shift
+                      '2018-10-20_1': np.array(list(range(100, 1000)))} # dropout halfway through
 
     if file_id in brains_to_trim.keys():
         include_inds = brains_to_trim[file_id]
@@ -61,7 +67,15 @@ def trimRegionResponse(file_id, region_response, start_include=100, end_include=
 
     return region_response_trimmed
 
+
 def getProcessedRegionResponse(resp_fp, cutoff=None, fs=None):
+    """
+    Filter + trim region response.
+
+    :resp_fp: filepath to response traces
+    :cutoff: highpass cutoff (Hz)
+    :fs: sampling frequency (Hz)
+    """
     file_id = resp_fp.split('/')[-1].replace('.pkl', '')
     region_responses = pd.read_pickle(resp_fp)
 
@@ -71,23 +85,28 @@ def getProcessedRegionResponse(resp_fp, cutoff=None, fs=None):
     region_responses_processed = pd.DataFrame(data=resp, index=region_responses.index)
     return region_responses_processed
 
+
 def getBehavingBinary(motion_filepath):
+    """Load behavior annotation trace."""
     motion_df = pd.read_csv(motion_filepath, sep='\t')
     num_frames = 2000 # imaging frames
-    total_time = motion_df.loc[0, 'Total length'] #total time, synced to imaging start/stop
-    starts = (num_frames*(motion_df.loc[:,'Start (s)'].to_numpy() / total_time)).astype(int) # in imaging frames
-    stops = (num_frames*(motion_df.loc[:,'Stop (s)'].to_numpy() / total_time)).astype(int) # in imaging frames
+    total_time = motion_df.loc[0, 'Total length'] # total time, synced to imaging start/stop
+    starts = (num_frames*(motion_df.loc[:, 'Start (s)'].to_numpy() / total_time)).astype(int) # in imaging frames
+    stops = (num_frames*(motion_df.loc[:, 'Stop (s)'].to_numpy() / total_time)).astype(int) # in imaging frames
 
     is_behaving = np.zeros(num_frames)
     for st_ind, start in enumerate(starts):
-        is_behaving[start : stops[st_ind]] = 1
+        is_behaving[start: stops[st_ind]] = 1
 
     return is_behaving
 
+
 def computeRegionResponses(brain, region_masks):
     """
-    brain is xyzt
-    region_masks is list of xyz masks to use
+    Get region responses from brain and list of region masks.
+
+    :brain: xyzt array
+    :region_masks: list of xyz mask arrays
     """
     region_responses = []
     for r_ind, mask in enumerate(region_masks):
@@ -97,12 +116,12 @@ def computeRegionResponses(brain, region_masks):
 
 
 class FunctionalConnectivity():
-    """
+    """FunctionalConnectivity class."""
 
-
-    """
     def __init__(self, data_dir=None, fs=1.2, cutoff=0.01, mapping=None):
         """
+        Init FunctionalConnectivity object.
+
         :data_dir: 'path/to/functional_and_atlas/data'
         :fs: sampling frequency of functional data (Hz)
         :cutoff: Cutoff value (Hz) for high-pass filter to apply to responses
@@ -134,9 +153,14 @@ class FunctionalConnectivity():
 
     def getFunctionalConnectivity(self, cutoff=None, fs=None):
         """
+        Compute functional connectivity matrix.
+
+        :cutoff: Highpass cutoff (Hz)
+        :fs: sampling frequency (Hz)
+
         Return:
-            :CorrelationMatrix: Avg across animals, fischer z transformed correlation values
-            :cmats:
+            :CorrelationMatrix: DataFrame. Avg across animals, fischer z transformed correlation values
+            :cmats: List of individual animal correlation matrices, each is np array
         """
         cmats_z = []
         for resp_fp in self.response_filepaths:
@@ -160,9 +184,15 @@ class FunctionalConnectivity():
 
     def loadAtlasData(self, atlas_path=None):
         """
+        Get brain atlas data.
+
+        :atlas_path: 'path/to/functional_and_atlas/data.nii'
+
+
         Return
-            :roi_mask:
-            :roi_size:
+            :roi_mask: list of masks (each an np array)
+            :roi_size: list of mask sizes
+            If self.mapping is defined, returns each according to that mapping
         """
         if atlas_path is None:
             atlas_path = self.atlas_path
@@ -171,14 +201,13 @@ class FunctionalConnectivity():
 
         # cut out nan regions (tracts))
         pull_inds = np.where([type(x) is str for x in roi_names])[0]
-        delete_inds = np.where([type(x) is not str for x in roi_names])[0]
 
         # filter region namesfraction
         roi_names = np.array([x for x in roi_names if type(x) is str]) # cut out nan regions from roi names
 
         # convert names to match display format
-        roi_names = [x.replace('_R','(R)') for x in roi_names]
-        roi_names = [x.replace('_L','(L)') for x in roi_names]
+        roi_names = [x.replace('_R', '(R)') for x in roi_names]
+        roi_names = [x.replace('_L', '(L)') for x in roi_names]
         roi_names = [x.replace('_', '') for x in roi_names]
 
         # filter mask brain regions
@@ -187,7 +216,7 @@ class FunctionalConnectivity():
         for r_ind, r in enumerate(roi_names):
             new_roi_mask = np.zeros_like(mask_brain)
             new_roi_mask = mask_brain == (pull_inds[r_ind] + 1) # mask values start at 1, not 0
-            roi_mask.append(new_roi_mask) #bool
+            roi_mask.append(new_roi_mask) # bool
             roi_size.append(np.sum(new_roi_mask>0))
 
         # combine IB(R) and IB(L) in fxnal atlas
@@ -198,11 +227,11 @@ class FunctionalConnectivity():
         roi_size[ibr_ind] = roi_size[ibr_ind] + roi_size[ibl_ind]
         roi_names[ibr_ind] = 'IB'
         # remove IB(L) slot
-        roi_mask.pop(ibl_ind);
-        roi_size.pop(ibl_ind);
-        roi_names.pop(ibl_ind);
+        roi_mask.pop(ibl_ind)
+        roi_size.pop(ibl_ind)
+        roi_names.pop(ibl_ind)
 
-        if self.mapping is not None: #filter atlas data to only include rois in mapping, sort by sorted mapping rois
+        if self.mapping is not None: # filter atlas data to only include rois in mapping, sort by sorted mapping rois
             rois = list(self.mapping.keys())
             rois.sort()
             pull_inds = []
@@ -216,10 +245,12 @@ class FunctionalConnectivity():
 
     def getRegionGeometry(self):
         """
+        Get geometric measures of brain regions in mapping.
+
         Return
-            :coms:
-            :DistanceMatrix: distance between centers of mass for each pair of ROIs
-            :SizeMatrix: geometric mean of the sizes for each pair of ROIs
+            :coms: center of mass for each region, in voxel space
+            :DistanceMatrix: distance between centers of mass for each pair of ROIs, in voxel space
+            :SizeMatrix: geometric mean of the sizes for each pair of ROIs, in voxels
         """
         coms = np.vstack([center_of_mass(x) for x in self.roi_mask])
 
@@ -234,10 +265,10 @@ class FunctionalConnectivity():
         sz_mat = np.sqrt(np.outer(np.array(self.roi_size), np.array(self.roi_size)))
         SizeMatrix = pd.DataFrame(data=sz_mat, index=self.rois, columns=self.rois)
 
-
         return coms, DistanceMatrix, SizeMatrix
 
     def getRegionMap(self, colors):
+        """Util: Get a brain region map according to some color scheme for each region."""
         x, y, z = self.roi_mask[0].shape
         region_map = np.zeros(shape=(x, y, z, 4))
         region_map[:] = 0
@@ -247,5 +278,6 @@ class FunctionalConnectivity():
         return region_map
 
     def getMeanBrain(self, filepath):
+        """Return time-average brain as np array."""
         meanbrain = np.asanyarray(nib.load(filepath).dataobj).astype('uint16')
         return meanbrain

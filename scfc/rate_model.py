@@ -73,8 +73,6 @@ class RateModel:
         return np.hstack([edot, idot])
 
 
-
-
 def threshlinear(input):
     output = np.array(input)
     output[output < 0] = 0
