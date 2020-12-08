@@ -13,6 +13,10 @@ import pandas as pd
 import seaborn as sns
 import socket
 import glob
+from sklearn.cluster import SpectralClustering
+from sklearn.metrics.cluster import adjusted_rand_score, contingency_matrix
+from munkres import Munkres
+
 
 from scfc import bridge, anatomical_connectivity, functional_connectivity, plotting
 import matplotlib
@@ -361,8 +365,7 @@ figS2_4.subplots_adjust(wspace=0.25)
 figS2_4.savefig(os.path.join(analysis_dir, 'figpanels', 'figS2_4.svg'), format='svg', transparent=True, dpi=save_dpi)
 
 # %%
-from sklearn.cluster import SpectralClustering
-from sklearn.metrics.cluster import adjusted_rand_score, contingency_matrix
+
 
 
 
@@ -394,7 +397,6 @@ figS2_5.savefig(os.path.join(analysis_dir, 'figpanels', 'figS2_5.svg'), format='
 
 
 # %%
-from munkres import Munkres
 
 num_clusters = 5 # from peak ARI above
 

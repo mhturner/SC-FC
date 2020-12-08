@@ -226,13 +226,12 @@ def computeConnectivityMatrix(neuprint_client, mapping):
 
 
 class AnatomicalConnectivity():
-    """
-    Anatomical Connectivity class.
+    """Anatomical Connectivity class."""
 
-
-    """
     def __init__(self, data_dir, neuprint_client=None, mapping=None):
         """
+        Initialize AnatomicalConnectivity object.
+
         :data_dir:
         :neuprint_client:
         :mapping:
@@ -251,6 +250,15 @@ class AnatomicalConnectivity():
             self.CompletenessMatrix = pd.DataFrame(data=np.outer(roi_completeness['frac_post'], roi_completeness['frac_pre']), index=roi_completeness.index, columns=roi_completeness.index)
 
     def getConnectivityMatrix(self, type, symmetrize=False, diag=None, computed_date=None):
+        """
+        Retrieve pre-computed connectivity matrix.
+        Computed using compute_connectivity_matrix.py
+
+        :type: str, one of ['CellCount', 'ConnectivityWeight', 'WeightedSynapseCount', 'TBars', 'CommonInputFraction']
+        :symmetrize: bool, symmetrize connectivity matrix?
+        :diag: value to fill diagonal with, if None, then fills with measured value
+        :computed_date: str, specifies precomputed connectivity file to pull
+        """
         if computed_date is None:
             computed_date = '20200909'
 
