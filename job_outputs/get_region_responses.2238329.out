@@ -1,4 +1,0 @@
-Traceback (most recent call last):
-  File "/home/users/mhturner/SC-FC/get_region_responses.py", line 8, in <module>
-    t_total_0 = time.time()
-NameError: name 'time' is not defined

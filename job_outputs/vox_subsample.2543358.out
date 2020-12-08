@@ -1,5 +1,0 @@
-Loaded anatomical connectivity
-Traceback (most recent call last):
-  File "/home/users/mhturner/SC-FC/voxel_subsample_analysis.py", line 70, in <module>
-    correlation_matrix = np.corrcoef(full_region_responses)
-NameError: name 'full_region_responses' is not defined
