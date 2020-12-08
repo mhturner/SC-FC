@@ -1,6 +1,8 @@
 # Config .yaml file
 config.yaml
 
+# Compute cluster job outputs
+job_outputs/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
