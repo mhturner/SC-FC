@@ -11,7 +11,6 @@ import os
 from scipy.stats import pearsonr
 import pandas as pd
 import seaborn as sns
-import socket
 import glob
 from sklearn.cluster import SpectralClustering
 from sklearn.metrics.cluster import adjusted_rand_score, contingency_matrix
@@ -26,15 +25,12 @@ rcParams.update({'axes.spines.right': False})
 rcParams.update({'axes.spines.top': False})
 rcParams['svg.fonttype'] = 'none' # let illustrator handle the font type
 
-if socket.gethostname() == 'MHT-laptop':  # windows
-    data_dir = r'C:\Users\mhturner/Dropbox/ClandininLab/Analysis/SC-FC/data'
-    analysis_dir = r'C:\Users\mhturner/Dropbox/ClandininLab/Analysis/SC-FC'
-elif socket.gethostname() == 'max-laptop':  # linux
-    data_dir = '/home/mhturner/Dropbox/ClandininLab/Analysis/SC-FC/data'
-    analysis_dir = '/home/mhturner/Dropbox/ClandininLab/Analysis/SC-FC'
+data_dir = bridge.getUserConfiguration()['data_dir']
+analysis_dir = bridge.getUserConfiguration()['analysis_dir']
+token = bridge.getUserConfiguration()['token']
 
 # start client
-neuprint_client = Client('neuprint.janelia.org', dataset='hemibrain:v1.1', token=bridge.getNeuprintToken())
+neuprint_client = Client('neuprint.janelia.org', dataset='hemibrain:v1.1', token=token)
 
 # Get FunctionalConnectivity object
 FC = functional_connectivity.FunctionalConnectivity(data_dir=data_dir, fs=1.2, cutoff=0.01, mapping=bridge.getRoiMapping())
@@ -331,7 +327,7 @@ ax.annotate('r = {:.2f}'.format(r), xy=(4e-4, 0.95))
 
 figS2_3.savefig(os.path.join(analysis_dir, 'figpanels', 'figS2_3.svg'), format='svg', transparent=True, dpi=save_dpi)
 
-# %%
+# %% heatmaps for non-connectome, anatomical data.
 
 figS2_4, ax = plt.subplots(1, 4, figsize=(12, 3))
 # fxnal heatmap
@@ -364,10 +360,7 @@ figS2_4.subplots_adjust(wspace=0.25)
 
 figS2_4.savefig(os.path.join(analysis_dir, 'figpanels', 'figS2_4.svg'), format='svg', transparent=True, dpi=save_dpi)
 
-# %%
-
-
-
+# %% Clustering of SC and FC networks, and comparison of clusters across datasets.
 
 struct_mat = np.log10(AC.getConnectivityMatrix('CellCount', diag=0).to_numpy().copy())
 struct_mat[np.where(np.isinf(struct_mat))] = 0

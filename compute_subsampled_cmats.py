@@ -1,6 +1,4 @@
-"""
-calculate functional cmats for subsampled regions
-"""
+"""Calculate functional cmats for subsampled regions."""
 import os
 import nibabel as nib
 import numpy as np
@@ -8,16 +6,17 @@ import time
 import glob
 import datetime
 
-from scfc import anatomical_connectivity, functional_connectivity
+from scfc import functional_connectivity, bridge
 
 # HP filtering responses
-fs = 1.2 #Hz
-cutoff = 0.01 #Hz
+fs = 1.2 # Hz
+cutoff = 0.01 # Hz
 
 t_total_0 = time.time()
 
-analysis_dir = '/oak/stanford/groups/trc/data/Max/flynet/analysis'
-data_dir = '/oak/stanford/groups/trc/data/Max/flynet/data'
+data_dir = bridge.getUserConfiguration()['data_dir']
+analysis_dir = bridge.getUserConfiguration()['analysis_dir']
+
 roinames_path = os.path.join(data_dir, 'atlas_data', 'Original_Index_panda_full.csv')
 mapping = functional_connectivity.getRoiMapping()
 
@@ -76,7 +75,7 @@ for brain_fp in brain_filepaths:
                 mask_size = np.sum(mask)
                 if mask_size >= subsampled_size:
                     pull_inds = np.random.choice(np.arange(mask_size), size=int(subsampled_size), replace=False)
-                    region_responses_subsampled.append(np.mean(functional_brain[mask, :][pull_inds,:], axis=0))
+                    region_responses_subsampled.append(np.mean(functional_brain[mask, :][pull_inds, :], axis=0))
                 else: # not enough voxels in mask, so just take the whole region
                     region_responses_subsampled.append(np.mean(functional_brain[mask, :], axis=0))
 

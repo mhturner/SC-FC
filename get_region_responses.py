@@ -1,3 +1,4 @@
+"""Compute region resposnes from registered brain volume data."""
 import os
 import glob
 import nibabel as nib
@@ -5,15 +6,15 @@ import numpy as np
 import pandas as pd
 import time
 
-from scfc import anatomical_connectivity, functional_connectivity
+from scfc import functional_connectivity, bridge
 t_total_0 = time.time()
 
-data_dir = '/oak/stanford/groups/trc/data/Max/flynet/data'
+data_dir = bridge.getUserConfiguration()['data_dir']
 
 brain_filepaths = glob.glob(os.path.join(data_dir, '5d_atlas', 'func_volreg') + '*')
 roinames_path = os.path.join(data_dir, 'atlas_data', 'Original_Index_panda_full.csv')
 
-mapping = functional_connectivity.getRoiMapping()
+mapping = bridge.getRoiMapping()
 rois = list(mapping.keys())
 rois.sort()
 

@@ -1,0 +1,3 @@
+data_dir: '/path/to/data'
+analysis_dir: '/path/to/save/results'
+token: 'your neuprint token'

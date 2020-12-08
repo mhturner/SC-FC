@@ -9,7 +9,6 @@ from neuprint import Client
 import numpy as np
 import os
 from scipy.stats import norm, zscore, kstest
-import socket
 import six
 import pandas as pd
 
@@ -21,15 +20,12 @@ rcParams.update({'axes.spines.right': False})
 rcParams.update({'axes.spines.top': False})
 rcParams['svg.fonttype'] = 'none' # let illustrator handle the font type
 
-if socket.gethostname() == 'MHT-laptop':  # windows
-    data_dir = r'C:\Users\mhturner/Dropbox/ClandininLab/Analysis/SC-FC/data'
-    analysis_dir = r'C:\Users\mhturner/Dropbox/ClandininLab/Analysis/SC-FC'
-elif socket.gethostname() == 'max-laptop':  # linux
-    data_dir = '/home/mhturner/Dropbox/ClandininLab/Analysis/SC-FC/data'
-    analysis_dir = '/home/mhturner/Dropbox/ClandininLab/Analysis/SC-FC'
+data_dir = bridge.getUserConfiguration()['data_dir']
+analysis_dir = bridge.getUserConfiguration()['analysis_dir']
+token = bridge.getUserConfiguration()['token']
 
 # start client
-neuprint_client = Client('neuprint.janelia.org', dataset='hemibrain:v1.1', token=bridge.getNeuprintToken())
+neuprint_client = Client('neuprint.janelia.org', dataset='hemibrain:v1.1', token=token)
 
 # Get FunctionalConnectivity object
 FC = functional_connectivity.FunctionalConnectivity(data_dir=data_dir, fs=1.2, cutoff=0.01, mapping=bridge.getRoiMapping())

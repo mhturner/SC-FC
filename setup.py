@@ -17,7 +17,8 @@ setup(
                       'seaborn',
                       'scikit-learn',
                       'networkx',
-                      'munkres'
+                      'munkres',
+                      'PyYAML'
                       ],
     include_package_data=True,
     zip_safe=False,

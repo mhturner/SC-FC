@@ -6,12 +6,26 @@ https://github.com/mhturner/SC-FC
 import networkx as nx
 import numpy as np
 import pandas as pd
+import yaml
+import os
+import inspect
+from scfc import bridge
 
 
-def getNeuprintToken():
-    """Return token for neuprint hemibrain access."""
-    token = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6Im1heHdlbGxob2x0ZXR1cm5lckBnbWFpbC5jb20iLCJsZXZlbCI6Im5vYXV0aCIsImltYWdlLXVybCI6Imh0dHBzOi8vbGgzLmdvb2dsZXVzZXJjb250ZW50LmNvbS9hLS9BT2gxNEdpMHJRX0M4akliX0ZrS2h2OU5DSElsWlpnRDY5YUMtVGdNLWVWM3lRP3N6PTUwP3N6PTUwIiwiZXhwIjoxNzY2MTk1MzcwfQ.Q-57D4tX2sXMjWym2LFhHaUGHgHiUsIM_JI9xekxw_0'
-    return token
+def getUserConfiguration():
+    """
+    Get configuration dictionary.
+
+    Put a file called config.yaml in the top level of the repository directory. It should look like this:
+
+        data_dir: '/path/to/data'
+        analysis_dir: '/path/to/save/results'
+        token: 'your neuprint token'
+    """
+    path_to_config_file = os.path.join(inspect.getfile(bridge).split('scfc')[0], 'config.yaml')
+    with open(path_to_config_file, 'r') as ymlfile:
+        cfg = yaml.safe_load(ymlfile)
+    return cfg
 
 
 def getRoiMapping():
