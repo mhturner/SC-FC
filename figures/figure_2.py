@@ -102,7 +102,8 @@ resp = functional_connectivity.filterRegionResponse(dff, cutoff=cutoff, fs=fs)
 resp = functional_connectivity.trimRegionResponse(file_id, resp)
 region_dff = pd.DataFrame(data=resp, index=region_response.index)
 
-fig2_1, ax = plt.subplots(4, 1, figsize=(3.5, 4))
+# fig2_1, ax = plt.subplots(4, 1, figsize=(3.5, 4))
+fig2_1, ax = plt.subplots(4, 1, figsize=(8, 4))
 ax = ax.ravel()
 [x.set_axis_off() for x in ax]
 [x.set_ylim([-0.2, 0.29]) for x in ax]
