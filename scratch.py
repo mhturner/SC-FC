@@ -61,3 +61,51 @@ ax.set_xscale('log')
 ax.set_xlabel('Cell Count')
 ax.set_ylabel('Functional correlation (z)')
 ax.annotate('r = {:.2f}'.format(r), xy=(0.8, 1.1))
+
+
+
+# %% HUB score analysis
+
+# Shortest path distance:
+anat_connect = AC.getConnectivityMatrix('CellCount', diag=None)
+shortest_path_dist, shortest_path_steps, shortest_path_weight, hub_count = bridge.getShortestPathStats(anat_connect)
+
+# %%
+hub_count
+hub_count.sort_values('count', ascending=False)
+
+hub_count
+fh1, ax1 = plt.subplots(1, 1, figsize=(8, 4))
+sns.barplot(x=hub_count.sort_values('count', ascending=False).index, y=np.squeeze(hub_count.sort_values('count', ascending=False).values) / FC.upper_inds[0].shape, ax=ax1)
+for tick in ax1.get_xticklabels():
+    tick.set_rotation(90)
+    tick.set_fontsize(9)
+ax1.set_ylabel('Hub score')
+ax1.set_ylim([0, 1.0])
+# %%
+
+conn = AC.getConnectivityMatrix('CellCount', diag=np.nan)
+fh2, ax2 = plt.subplots(1, 2, figsize=(8, 4))
+
+region_1 = 'PVLP(R)'
+region_2 = 'WED(R)'
+
+ax2[0].plot(conn[region_1], conn[region_2], 'ko')
+ax2[0].set_xlabel('Outgoing from {}'.format(region_1))
+ax2[0].set_ylabel('Outgoing from {}'.format(region_2))
+for r_ind, r in enumerate(FC.rois):
+    ax2[0].annotate(r, (conn[region_1][r_ind]+100, conn[region_2][r_ind]-20), fontsize=8, fontweight='bold')
+
+ax2[0].set_xlim([0, 4000])
+
+region_1 = 'AL(R)'
+region_2 = 'WED(R)'
+ax2[1].plot(conn[region_1], conn[region_2], 'ko')
+ax2[1].set_xlabel('Outgoing from {}'.format(region_1))
+ax2[1].set_ylabel('Outgoing from {}'.format(region_2))
+for r_ind, r in enumerate(FC.rois):
+    ax2[1].annotate(r, (conn[region_1][r_ind]+5, conn[region_2][r_ind]-20), fontsize=8, fontweight='bold')
+
+
+fh1.savefig(os.path.join(analysis_dir, 'figpanels', 'fig_hub_1.svg'), format='svg', transparent=True, dpi=400)
+fh2.savefig(os.path.join(analysis_dir, 'figpanels', 'fig_hub_2.svg'), format='svg', transparent=True, dpi=400)

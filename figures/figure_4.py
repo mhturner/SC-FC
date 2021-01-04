@@ -225,6 +225,10 @@ for b_ind in range(num_bins):
 
 fig4_4.savefig(os.path.join(analysis_dir, 'figpanels', 'fig4_4.svg'), format='svg', transparent=True, dpi=save_dpi)
 
+# %%
+
+hub_count
+
 # %% supp: multiple regression model on direct + shortest path
 
 
