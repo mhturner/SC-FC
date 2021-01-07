@@ -1,5 +1,5 @@
 """
-Turner, Mann, Clandinin: Figure generation script: Fig. 2.
+Turner, Mann, Clandinin: scratch
 
 https://github.com/mhturner/SC-FC
 """
@@ -64,6 +64,7 @@ ax.annotate('r = {:.2f}'.format(r), xy=(0.8, 1.1))
 
 
 
+
 # %% HUB score analysis
 
 # Shortest path distance:
@@ -74,14 +75,16 @@ shortest_path_dist, shortest_path_steps, shortest_path_weight, hub_count = bridg
 hub_count
 hub_count.sort_values('count', ascending=False)
 
+
+
 hub_count
 fh1, ax1 = plt.subplots(1, 1, figsize=(8, 4))
-sns.barplot(x=hub_count.sort_values('count', ascending=False).index, y=np.squeeze(hub_count.sort_values('count', ascending=False).values) / FC.upper_inds[0].shape, ax=ax1)
+sns.barplot(x=hub_count.sort_values('count', ascending=False).index, y=np.squeeze(hub_count.sort_values('count', ascending=False).values) / shortest_path_steps.size, ax=ax1)
 for tick in ax1.get_xticklabels():
     tick.set_rotation(90)
-    tick.set_fontsize(9)
+    tick.set_fontsize(12)
 ax1.set_ylabel('Hub score')
-ax1.set_ylim([0, 1.0])
+ax1.set_ylim([0, 0.5])
 # %%
 
 conn = AC.getConnectivityMatrix('CellCount', diag=np.nan)
@@ -109,3 +112,5 @@ for r_ind, r in enumerate(FC.rois):
 
 fh1.savefig(os.path.join(analysis_dir, 'figpanels', 'fig_hub_1.svg'), format='svg', transparent=True, dpi=400)
 fh2.savefig(os.path.join(analysis_dir, 'figpanels', 'fig_hub_2.svg'), format='svg', transparent=True, dpi=400)
+
+# %%

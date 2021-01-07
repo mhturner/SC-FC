@@ -38,7 +38,8 @@ def getRoiMapping():
     """
     # keys of mapping are roi names to use in analysis, based on functional data atlas
     #   values are lists of corresponding roi names in neuprint data
-    mapping = {'AL(R)': ['AL(R)'], # 83% in EM volume
+    mapping = {
+               'AL(R)': ['AL(R)'], # 83% in EM volume
                'AOTU(R)': ['AOTU(R)'],
                'ATL(R)': ['ATL(R)'],
                'ATL(L)': ['ATL(L)'],
@@ -73,7 +74,8 @@ def getRoiMapping():
                'SMP(L)': ['SMP(L)'],
                'SPS(R)': ['SPS(R)'],
                'VES(R)': ['VES(R)'], # 84% in vol
-               'WED(R)': ['WED(R)']}
+               'WED(R)': ['WED(R)']
+               }
 
     return mapping
 
