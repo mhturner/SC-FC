@@ -17,7 +17,7 @@ neuprint_client = Client('neuprint.janelia.org', dataset='hemibrain:v1.1', token
 # get rois of interest
 mapping = bridge.getRoiMapping()
 
-WeakConnections, MediumConnections, StrongConnections, Connectivity, WeightedSynapseNumber, TBars, CommonInputFraction = anatomical_connectivity.computeConnectivityMatrix(neuprint_client, mapping)
+WeakConnections, MediumConnections, StrongConnections, Connectivity, WeightedSynapseNumber, TBars = anatomical_connectivity.computeConnectivityMatrix(neuprint_client, mapping)
 
 print('Finished computing connectivity matrix (total time = {:.1f} sec)'.format(time.time()-t0))
 
@@ -32,4 +32,3 @@ StrongConnections.to_pickle(os.path.join(data_dir, 'uncropped_StrongConnections_
 Connectivity.to_pickle(os.path.join(data_dir, 'uncropped_Connectivity_computed_{}.pkl'.format(datestring)))
 WeightedSynapseNumber.to_pickle(os.path.join(data_dir, 'uncropped_WeightedSynapseNumber_computed_{}.pkl'.format(datestring)))
 TBars.to_pickle(os.path.join(data_dir, 'uncropped_TBars_computed_{}.pkl'.format(datestring)))
-CommonInputFraction.to_pickle(os.path.join(data_dir, 'uncropped_CommonInputFraction_computed_{}.pkl'.format(datestring)))

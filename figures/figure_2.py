@@ -16,6 +16,9 @@ from sklearn.cluster import SpectralClustering
 from sklearn.metrics.cluster import adjusted_rand_score, contingency_matrix
 from munkres import Munkres
 
+from scipy.spatial.distance import pdist
+from seriate import seriate
+
 
 from scfc import bridge, anatomical_connectivity, functional_connectivity, plotting
 import matplotlib
@@ -150,22 +153,40 @@ fig2_1.savefig(os.path.join(analysis_dir, 'figpanels', 'fig2_1.svg'), format='sv
 fig2_2.savefig(os.path.join(analysis_dir, 'figpanels', 'fig2_2.svg'), format='svg', transparent=True, dpi=save_dpi)
 
 # %%
+# Plot heatmaps, ordered by TSP seriation
+Structural_Matrix = AC.getConnectivityMatrix('CellCount', diag=np.nan)
+Structure_tmp = Structural_Matrix.to_numpy().copy()
+np.fill_diagonal(Structure_tmp, 0)
+
+Fxn_tmp = FC.CorrelationMatrix.to_numpy().copy()
+np.fill_diagonal(Fxn_tmp, 1)
+
+sort_inds = seriate(pdist(Structure_tmp))
+sort_keys = FC.CorrelationMatrix.index[sort_inds]
+
+SC_ordered = pd.DataFrame(data=np.zeros_like(Structural_Matrix), columns=sort_keys, index=sort_keys)
+FC_ordered = pd.DataFrame(data=np.zeros_like(FC.CorrelationMatrix), columns=sort_keys, index=sort_keys)
+for r_ind, r_key in enumerate(sort_keys):
+    for c_ind, c_key in enumerate(sort_keys):
+        SC_ordered.iloc[r_ind, c_ind]=Structural_Matrix.loc[[r_key], [c_key]].to_numpy()
+        FC_ordered.iloc[r_ind, c_ind]=FC.CorrelationMatrix.loc[[r_key], [c_key]].to_numpy()
 
 fig2_3, ax = plt.subplots(1, 2, figsize=(9, 4))
 # fxnal heatmap
-sns.heatmap(FC.CorrelationMatrix, ax=ax[0], yticklabels=True, xticklabels=True, cbar_kws={'label': 'Functional Correlation (z)', 'shrink': .75}, cmap="cividis", rasterized=True)
+sns.heatmap(FC_ordered, ax=ax[0], yticklabels=True, xticklabels=True, cbar_kws={'label': 'Functional Correlation (z)', 'shrink': .75}, cmap="cividis", rasterized=True)
 ax[0].set_aspect('equal')
 ax[0].tick_params(axis='both', which='major', labelsize=6)
 # structural heatmap
-df = AC.getConnectivityMatrix('CellCount', diag=np.nan)
-sns.heatmap(np.log10(AC.getConnectivityMatrix('CellCount', diag=np.nan)).replace([np.inf, -np.inf], 0), ax=ax[1], yticklabels=True, xticklabels=True, cmap="cividis", rasterized=True, cbar=False)
-cb = fig2_3.colorbar(matplotlib.cm.ScalarMappable(norm=matplotlib.colors.SymLogNorm(vmin=1, vmax=np.nanmax(df.to_numpy()), base=10, linthresh=0.1, linscale=1), cmap="cividis"), ax=ax[1], shrink=0.75, label='Connecting cells')
+sns.heatmap(np.log10(SC_ordered).replace([np.inf, -np.inf], 0), ax=ax[1], yticklabels=True, xticklabels=True, cmap="cividis", rasterized=True, cbar=False)
+cb = fig2_3.colorbar(matplotlib.cm.ScalarMappable(norm=matplotlib.colors.SymLogNorm(vmin=1, vmax=np.nanmax(SC_ordered.to_numpy()), base=10, linthresh=0.1, linscale=1), cmap="cividis"), ax=ax[1], shrink=0.75, label='Connecting cells')
 cb.outline.set_linewidth(0)
 # ax[1].set_xlabel('Target', fontsize=10)
 # ax[1].set_ylabel('Source', fontsize=10)
 ax[1].set_aspect('equal')
 ax[1].tick_params(axis='both', which='major', labelsize=6)
 fig2_3.subplots_adjust(wspace=0.25)
+
+# # # SC vs FC scatter plot and linear corr # # #
 # Make adjacency matrices
 # Log transform anatomical connectivity
 anatomical_adjacency, keep_inds = AC.getAdjacency('CellCount', do_log=True)
@@ -175,7 +196,7 @@ r, p = pearsonr(anatomical_adjacency, functional_adjacency)
 coef = np.polyfit(anatomical_adjacency, functional_adjacency, 1)
 linfit = np.poly1d(coef)
 
-fig2_4, ax = plt.subplots(1, 1, figsize=(3, 3))
+fig2_4, ax = plt.subplots(1, 1, figsize=(2.5, 2.5))
 ax.plot(10**anatomical_adjacency, functional_adjacency, color='k', marker='.', linestyle='none', alpha=1.0)
 xx = np.linspace(anatomical_adjacency.min(), anatomical_adjacency.max(), 100)
 ax.plot(10**xx, linfit(xx), color='k', linewidth=2, marker=None)
@@ -209,7 +230,30 @@ for metric in metrics:
         r_vals.append(r_new)
     R_by_metric.loc[:, metric] = r_vals
 
-fig2_5, ax = plt.subplots(1, 1, figsize=(4, 3))
+# # # volume-normalized SC vs FC scatter plot and linear corr # # #
+ct_per_size = AC.getConnectivityMatrix('CellCount') / FC.SizeMatrix
+ct_per_size = ct_per_size.to_numpy()[FC.upper_inds]
+
+keep_inds = np.where(ct_per_size > 0)
+x = np.log10(ct_per_size[keep_inds])
+y = FC.CorrelationMatrix.to_numpy()[FC.upper_inds][keep_inds]
+
+r, p = pearsonr(x, y)
+coef = np.polyfit(x, y, 1)
+linfit = np.poly1d(coef)
+
+fig2_5, ax = plt.subplots(1, 1, figsize=(2.5, 2.5))
+ax.plot(10**x, y, color='k', marker='.', linestyle='none', alpha=1.0)
+xx = np.linspace(x.min(), x.max(), 100)
+ax.plot(10**xx, linfit(xx), color='k', linewidth=2, marker=None)
+ax.set_xscale('log')
+ax.set_xlabel('Norm. Cell Count (cells/vox.)')
+ax.set_ylabel('Functional correlation (z)')
+ax.annotate('r = {:.2f}'.format(r), xy=(4e-4, 0.95))
+
+
+# Individual fly sc/fc corr, for different metrics
+fig2_6, ax = plt.subplots(1, 1, figsize=(3.0, 2.5))
 ax.set_ylabel('Structure-function\n corr. (r)')
 ax.set_ylim([-0.2, 1])
 ax.axhline(0, color=[0.8, 0.8, 0.8], linestyle='-', zorder=0)
@@ -227,6 +271,7 @@ ax.tick_params(axis='x', labelsize=8)
 fig2_3.savefig(os.path.join(analysis_dir, 'figpanels', 'fig2_3.svg'), format='svg', transparent=True, dpi=save_dpi)
 fig2_4.savefig(os.path.join(analysis_dir, 'figpanels', 'fig2_4.svg'), format='svg', transparent=True, dpi=save_dpi)
 fig2_5.savefig(os.path.join(analysis_dir, 'figpanels', 'fig2_5.svg'), format='svg', transparent=True, dpi=save_dpi)
+fig2_6.savefig(os.path.join(analysis_dir, 'figpanels', 'fig2_6.svg'), format='svg', transparent=True, dpi=save_dpi)
 
 # %% Supp: subsampled region cmats and SC-FC corr
 
@@ -305,28 +350,6 @@ figS2_2.subplots_adjust(wspace=0.5)
 figS2_2.savefig(os.path.join(analysis_dir, 'figpanels', 'figS2_2.svg'), format='svg', transparent=True, dpi=save_dpi)
 
 # %% Supp: Predicting FC with cells per volume, to normalize for region size
-
-ct_per_size = AC.getConnectivityMatrix('CellCount') / FC.SizeMatrix
-ct_per_size = ct_per_size.to_numpy()[FC.upper_inds]
-
-keep_inds = np.where(ct_per_size > 0)
-x = np.log10(ct_per_size[keep_inds])
-y = FC.CorrelationMatrix.to_numpy()[FC.upper_inds][keep_inds]
-
-r, p = pearsonr(x, y)
-coef = np.polyfit(x, y, 1)
-linfit = np.poly1d(coef)
-
-figS2_3, ax = plt.subplots(1, 1, figsize=(3, 3))
-ax.plot(10**x, y, color='k', marker='.', linestyle='none', alpha=1.0)
-xx = np.linspace(x.min(), x.max(), 100)
-ax.plot(10**xx, linfit(xx), color='k', linewidth=2, marker=None)
-ax.set_xscale('log')
-ax.set_xlabel('Cell Count / voxels')
-ax.set_ylabel('Functional correlation (z)')
-ax.annotate('r = {:.2f}'.format(r), xy=(4e-4, 0.95))
-
-figS2_3.savefig(os.path.join(analysis_dir, 'figpanels', 'figS2_3.svg'), format='svg', transparent=True, dpi=save_dpi)
 
 # %% heatmaps for non-connectome, anatomical data.
 
