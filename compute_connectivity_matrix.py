@@ -4,6 +4,7 @@ import os
 from scfc import anatomical_connectivity, bridge
 import datetime
 import time
+import numpy as np
 
 t0 = time.time()
 
@@ -17,7 +18,7 @@ neuprint_client = Client('neuprint.janelia.org', dataset='hemibrain:v1.1', token
 # get rois of interest
 mapping = bridge.getRoiMapping()
 
-WeakConnections, MediumConnections, StrongConnections, Connectivity, WeightedSynapseNumber, TBars = anatomical_connectivity.computeConnectivityMatrix(neuprint_client, mapping)
+WeakConnections, MediumConnections, StrongConnections, Connectivity, WeightedSynapseNumber, TBars, body_ids = anatomical_connectivity.computeConnectivityMatrix(neuprint_client, mapping)
 
 print('Finished computing connectivity matrix (total time = {:.1f} sec)'.format(time.time()-t0))
 
@@ -25,10 +26,10 @@ print('Finished computing connectivity matrix (total time = {:.1f} sec)'.format(
 d = datetime.datetime.today()
 datestring ='{:02d}'.format(d.year)+'{:02d}'.format(d.month)+'{:02d}'.format(d.day)
 
-
-WeakConnections.to_pickle(os.path.join(data_dir, 'uncropped_WeakConnections_computed_{}.pkl'.format(datestring)))
-MediumConnections.to_pickle(os.path.join(data_dir, 'uncropped_MediumConnections_computed_{}.pkl'.format(datestring)))
-StrongConnections.to_pickle(os.path.join(data_dir, 'uncropped_StrongConnections_computed_{}.pkl'.format(datestring)))
-Connectivity.to_pickle(os.path.join(data_dir, 'uncropped_Connectivity_computed_{}.pkl'.format(datestring)))
-WeightedSynapseNumber.to_pickle(os.path.join(data_dir, 'uncropped_WeightedSynapseNumber_computed_{}.pkl'.format(datestring)))
-TBars.to_pickle(os.path.join(data_dir, 'uncropped_TBars_computed_{}.pkl'.format(datestring)))
+WeakConnections.to_pickle(os.path.join(data_dir, 'WeakConnections_computed_{}.pkl'.format(datestring)))
+MediumConnections.to_pickle(os.path.join(data_dir, 'MediumConnections_computed_{}.pkl'.format(datestring)))
+StrongConnections.to_pickle(os.path.join(data_dir, 'StrongConnections_computed_{}.pkl'.format(datestring)))
+Connectivity.to_pickle(os.path.join(data_dir, 'Connectivity_computed_{}.pkl'.format(datestring)))
+WeightedSynapseNumber.to_pickle(os.path.join(data_dir, 'WeightedSynapseNumber_computed_{}.pkl'.format(datestring)))
+TBars.to_pickle(os.path.join(data_dir, 'TBars_computed_{}.pkl'.format(datestring)))
+np.save(os.path.join(data_dir, 'body_ids_{}.npy'.format(datestring)), body_ids)

@@ -12,6 +12,9 @@ from scfc import bridge, anatomical_connectivity, functional_connectivity, plott
 from scfc import bridge
 import time
 
+from scipy.stats import pearsonr
+
+
 data_dir = bridge.getUserConfiguration()['data_dir']
 analysis_dir = bridge.getUserConfiguration()['analysis_dir']
 token = bridge.getUserConfiguration()['token']
@@ -37,7 +40,6 @@ include_regions = ['AL_R', 'OTU_R', 'ATL_R', 'ATL_L', 'AVLP_R', 'LB_R', 'LB_L', 
 include_inds = []
 name_list = []
 
-np.repeat('a', 2)
 for ind in decoder_ring.index:
     row = decoder_ring.loc[ind].values[0]
 
@@ -46,13 +48,20 @@ for ind in decoder_ring.index:
     start = row.split(' ')[1]
     end = row.split(' ')[3]
 
-
     if region in include_regions:
         include_inds.append(np.arange(int(start), int(end)+1))
+        if 'LB' in region:
+            region = region.replace('LB', 'BU') # to match name convention of ito atlas
+        if 'OTU' in region:
+            region = region.replace('OTU', 'AOTU')
         name_list.append(np.repeat(region, int(end)-int(start)+1))
 
 include_inds = np.hstack(include_inds)
 name_list = np.hstack(name_list)
+
+sort_inds = np.argsort(name_list)
+name_list = name_list[sort_inds]
+include_inds = include_inds[sort_inds]
 
 # %%
 
@@ -68,7 +77,6 @@ for resp_fp in response_filepaths:
     # fischer z transform (arctanh) and append
     new_cmat_z = np.arctanh(correlation_matrix)
     cmats_z.append(new_cmat_z)
-# cmats = np.stack(cmats_z, axis=2) # population cmats, z transformed
 
 # Make mean pd Dataframe
 mean_cmat = np.mean(np.stack(cmats_z, axis=2), axis=2)
@@ -77,32 +85,44 @@ CorrelationMatrix = pd.DataFrame(data=mean_cmat, index=name_list, columns=name_l
 
 # %%
 
-fh, ax = plt.subplots(4, 5, figsize=(15, 12))
+fh0, ax = plt.subplots(4, 5, figsize=(15, 12))
 ax = ax.ravel()
 for c_ind, cm in enumerate(cmats_z):
-    sns.heatmap(cm, ax=ax[c_ind], vmin=-0.5, vmax=1.5)
+    sns.heatmap(cm, ax=ax[c_ind], cmap='cividis')
     ax[c_ind].set_axis_off()
 
-
+fh0.savefig(os.path.join(analysis_dir, 'figpanels', 'branson_single_FCmats.png'), format='png', transparent=True, dpi=400)
 # %%
-from scipy.stats import pearsonr
+fh1, ax = plt.subplots(1, 1, figsize=(6, 6))
+sns.heatmap(CorrelationMatrix, ax=ax, cmap='cividis')
 
-fh, ax = plt.subplots(1, 1, figsize=(8, 8))
-
-sns.heatmap(CorrelationMatrix, ax=ax)
-
+fh1.savefig(os.path.join(analysis_dir, 'figpanels', 'branson_mean_FCmat.png'), format='png', transparent=True, dpi=400)
 
 meanvals = CorrelationMatrix.to_numpy()[np.triu_indices(290, k=1)]
 t_inds = np.where(~np.isnan(meanvals))[0]
-
-
 r_val = []
 for cm in cmats_z:
     r, p = pearsonr(meanvals[t_inds], cm[np.triu_indices(290, k=1)][t_inds])
     r_val.append(r)
 
-r_val
+print('r = {:.2f} +/- {:.2f}'.format(np.mean(r_val), np.std(r_val)))
 
+# %%
+FC.cmats
+
+for cm in cmats_z:
+
+    r_val.append(r)
+
+meanvals = FC.CorrelationMatrix.to_numpy()[np.triu_indices(36, k=1)]
+t_inds = np.where(~np.isnan(meanvals))[0]
+r_vals = []
+for c_ind in range(FC.cmats.shape[2]):
+    cmat = FC.cmats[:, :, c_ind]
+    r, p = pearsonr(meanvals[t_inds], cmat[np.triu_indices(36, k=1)][t_inds])
+    r_vals.append(r)
+
+print('r = {:.2f} +/- {:.2f}'.format(np.mean(r_vals), np.std(r_vals)))
 # %%
 
 # sour = 'AL(R)'

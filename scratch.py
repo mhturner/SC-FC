@@ -5,7 +5,7 @@ https://github.com/mhturner/SC-FC
 """
 
 import matplotlib.pyplot as plt
-from neuprint import Client
+from neuprint import Client, fetch_neurons, NeuronCriteria
 import numpy as np
 import os
 from scipy.stats import pearsonr
@@ -40,6 +40,11 @@ FC = functional_connectivity.FunctionalConnectivity(data_dir=data_dir, fs=1.2, c
 
 # Get AnatomicalConnectivity object
 AC = anatomical_connectivity.AnatomicalConnectivity(data_dir=data_dir, neuprint_client=neuprint_client, mapping=bridge.getRoiMapping())
+# %%
+Neur, Syn = fetch_neurons(NeuronCriteria(inputRois='AL(R)', outputRois='LH(R)', status='Traced'))
+np.unique(Neur.bodyId).shape
+
+
 
 # %%
 import os

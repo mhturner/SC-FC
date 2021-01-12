@@ -155,6 +155,8 @@ def computeConnectivityMatrix(neuprint_client, mapping):
     WeightedSynapseNumber = pd.DataFrame(data=np.zeros((len(rois), len(rois))), index=rois, columns=rois)
     TBars = pd.DataFrame(data=np.zeros((len(rois), len(rois))), index=rois, columns=rois)
 
+    body_ids = [] # keep list of all cells connecting among regions
+
     for roi_source in rois:
         for roi_target in rois:
             sources = mapping[roi_source]
@@ -168,7 +170,7 @@ def computeConnectivityMatrix(neuprint_client, mapping):
             tbars = 0
             for s_ind, sour in enumerate(sources): # this multiple sources/targets is necessary for collapsing rois based on mapping
                 for targ in targets:
-                    Neur, Syn = fetch_neurons(NeuronCriteria(inputRois=sour, outputRois=targ, status='Traced', cropped=False))
+                    Neur, Syn = fetch_neurons(NeuronCriteria(inputRois=sour, outputRois=targ, status='Traced'))
 
                     outputs_in_targ = np.array([x[targ]['pre'] for x in Neur.roiInfo]) # neurons with Tbar output in target
                     inputs_in_sour = np.array([x[sour]['post'] for x in Neur.roiInfo]) # neuron with PSD input in source
@@ -186,6 +188,9 @@ def computeConnectivityMatrix(neuprint_client, mapping):
 
                     new_tbars = [Neur.roiInfo[x][targ]['pre'] for x in range(len(Neur))]
 
+                    # body_ids
+                    body_ids.append(Neur.bodyId.values)
+
                     if Neur.roiInfo.shape[0] > 0:
                         summed_connectivity += np.sum(conn_strengths)
                         weighted_synapse_number += np.sum(weighted_synapses)
@@ -202,7 +207,9 @@ def computeConnectivityMatrix(neuprint_client, mapping):
             WeightedSynapseNumber.loc[[roi_source], [roi_target]] = weighted_synapse_number
             TBars.loc[[roi_source], [roi_target]] = tbars
 
-    return WeakConnections, MediumConnections, StrongConnections, Connectivity, WeightedSynapseNumber, TBars
+            body_ids = np.unique(body_ids) # don't double count cells that contribute to multiple connections
+
+    return WeakConnections, MediumConnections, StrongConnections, Connectivity, WeightedSynapseNumber, TBars, body_ids
 
 
 class AnatomicalConnectivity():
