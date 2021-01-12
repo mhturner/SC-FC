@@ -1,19 +1,16 @@
 """."""
 
 import matplotlib.pyplot as plt
-from neuprint import Client, fetch_neurons, fetch_synapses, fetch_custom, NeuronCriteria, SynapseCriteria
+from neuprint import Client, fetch_neurons, fetch_custom, NeuronCriteria
 import numpy as np
 import os
 import pandas as pd
 import seaborn as sns
 import glob
 import nibabel as nib
-from scfc import bridge, anatomical_connectivity, functional_connectivity, plotting
-from scfc import bridge
+from scfc import bridge, functional_connectivity
 import time
-
 from scipy.stats import pearsonr
-
 
 data_dir = bridge.getUserConfiguration()['data_dir']
 analysis_dir = bridge.getUserConfiguration()['analysis_dir']
@@ -25,29 +22,24 @@ neuprint_client = Client('neuprint.janelia.org', dataset='hemibrain:v1.1', token
 FC = functional_connectivity.FunctionalConnectivity(data_dir=data_dir, fs=1.2, cutoff=0.01, mapping=bridge.getRoiMapping())
 
 
-# %% load branson atlas responses, check out FC matrices
+# %% load branson atlas responses, compute FC matrix
 response_filepaths = glob.glob(os.path.join(data_dir, 'branson_responses') + '/' + '*.pkl')
 
+# (1) Select branson regions to include. Do some matching to Ito atlas naming. Sort alphabetically.
 decoder_ring = pd.read_csv(os.path.join(data_dir, 'branson_999_atlas') + '/atlas_roi_values', header=None)
-
 include_regions = ['AL_R', 'OTU_R', 'ATL_R', 'ATL_L', 'AVLP_R', 'LB_R', 'LB_L', 'CAN_R', 'CRE_R', 'CRE_L', 'EB', 'EPA_R', 'FB', 'GOR_R', 'GOR_L'
                    'IB_R', 'IB_L', 'ICL_R', 'LAL_R', 'LH_R', 'MB_R', 'MB_L', 'NO', 'PB', 'PLP_R', 'PVLP_R', 'SCL_R', 'SIP_R', 'SLP_R', 'SMP_R',
                    'SMP_L', 'SPS_R', 'VES_R', 'WED_R'] # LB = bulb
 
-# ???? CAN
+# ???? CAN # TODO: figure out where CAN went in Branson
 
-# %%
 include_inds = []
 name_list = []
-
 for ind in decoder_ring.index:
     row = decoder_ring.loc[ind].values[0]
-
     region = row.split(':')[0]
-
     start = row.split(' ')[1]
     end = row.split(' ')[3]
-
     if region in include_regions:
         include_inds.append(np.arange(int(start), int(end)+1))
         if 'LB' in region:
@@ -55,16 +47,13 @@ for ind in decoder_ring.index:
         if 'OTU' in region:
             region = region.replace('OTU', 'AOTU')
         name_list.append(np.repeat(region, int(end)-int(start)+1))
-
 include_inds = np.hstack(include_inds)
 name_list = np.hstack(name_list)
-
 sort_inds = np.argsort(name_list)
 name_list = name_list[sort_inds]
 include_inds = include_inds[sort_inds]
 
-# %%
-
+# (2) Compute cmat for each individual fly and compute across-average mean cmat
 cmats_z = []
 for resp_fp in response_filepaths:
     tmp = functional_connectivity.getProcessedRegionResponse(resp_fp, cutoff=0.01, fs=1.2)
@@ -83,19 +72,9 @@ mean_cmat = np.mean(np.stack(cmats_z, axis=2), axis=2)
 np.fill_diagonal(mean_cmat, np.nan)
 CorrelationMatrix = pd.DataFrame(data=mean_cmat, index=name_list, columns=name_list)
 
-# %%
-
-fh0, ax = plt.subplots(4, 5, figsize=(15, 12))
-ax = ax.ravel()
-for c_ind, cm in enumerate(cmats_z):
-    sns.heatmap(cm, ax=ax[c_ind], cmap='cividis')
-    ax[c_ind].set_axis_off()
-
-fh0.savefig(os.path.join(analysis_dir, 'figpanels', 'branson_single_FCmats.png'), format='png', transparent=True, dpi=400)
-# %%
+# %% Plot across-animal average cmat heatmap. Compute corr between mean and individual fly cmats
 fh1, ax = plt.subplots(1, 1, figsize=(6, 6))
 sns.heatmap(CorrelationMatrix, ax=ax, cmap='cividis')
-
 fh1.savefig(os.path.join(analysis_dir, 'figpanels', 'branson_mean_FCmat.png'), format='png', transparent=True, dpi=400)
 
 meanvals = CorrelationMatrix.to_numpy()[np.triu_indices(290, k=1)]
@@ -107,12 +86,7 @@ for cm in cmats_z:
 
 print('r = {:.2f} +/- {:.2f}'.format(np.mean(r_val), np.std(r_val)))
 
-# %%
-FC.cmats
-
-for cm in cmats_z:
-
-    r_val.append(r)
+# %% For comparison: compute corr between mean and individual fly cmats for Ito atlas data
 
 meanvals = FC.CorrelationMatrix.to_numpy()[np.triu_indices(36, k=1)]
 t_inds = np.where(~np.isnan(meanvals))[0]
@@ -123,7 +97,7 @@ for c_ind in range(FC.cmats.shape[2]):
     r_vals.append(r)
 
 print('r = {:.2f} +/- {:.2f}'.format(np.mean(r_vals), np.std(r_vals)))
-# %%
+# %% Load body_ids that make connections in the Ito, 36 region atlas data
 
 # sour = 'AL(R)'
 # targ = 'LH(R)'
