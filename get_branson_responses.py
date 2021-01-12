@@ -9,7 +9,8 @@ import time
 from scfc import functional_connectivity, bridge
 t_total_0 = time.time()
 
-data_dir = bridge.getUserConfiguration()['data_dir']
+# data_dir = bridge.getUserConfiguration()['data_dir']
+data_dir = '/oak/stanford/groups/trc/data/Max/flynet/data'
 
 brain_filepaths = glob.glob(os.path.join(data_dir, '5d_atlas', 'func_volreg') + '*')
 roinames_path = os.path.join(data_dir, 'atlas_data', 'Original_Index_panda_full.csv')
