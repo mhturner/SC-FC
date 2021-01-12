@@ -18,9 +18,90 @@ token = bridge.getUserConfiguration()['token']
 
 # start client
 neuprint_client = Client('neuprint.janelia.org', dataset='hemibrain:v1.1', token=token)
-
 # Get FunctionalConnectivity object
 FC = functional_connectivity.FunctionalConnectivity(data_dir=data_dir, fs=1.2, cutoff=0.01, mapping=bridge.getRoiMapping())
+
+
+# %% load branson atlas responses, check out FC matrices
+response_filepaths = glob.glob(os.path.join(data_dir, 'branson_responses') + '/' + '*.pkl')
+
+decoder_ring = pd.read_csv(os.path.join(data_dir, 'branson_999_atlas') + '/atlas_roi_values', header=None)
+
+include_regions = ['AL_R', 'OTU_R', 'ATL_R', 'ATL_L', 'AVLP_R', 'LB_R', 'LB_L', 'CAN_R', 'CRE_R', 'CRE_L', 'EB', 'EPA_R', 'FB', 'GOR_R', 'GOR_L'
+                   'IB_R', 'IB_L', 'ICL_R', 'LAL_R', 'LH_R', 'MB_R', 'MB_L', 'NO', 'PB', 'PLP_R', 'PVLP_R', 'SCL_R', 'SIP_R', 'SLP_R', 'SMP_R',
+                   'SMP_L', 'SPS_R', 'VES_R', 'WED_R'] # LB = bulb
+
+# ???? CAN
+
+# %%
+include_inds = []
+name_list = []
+
+np.repeat('a', 2)
+for ind in decoder_ring.index:
+    row = decoder_ring.loc[ind].values[0]
+
+    region = row.split(':')[0]
+
+    start = row.split(' ')[1]
+    end = row.split(' ')[3]
+
+
+    if region in include_regions:
+        include_inds.append(np.arange(int(start), int(end)+1))
+        name_list.append(np.repeat(region, int(end)-int(start)+1))
+
+include_inds = np.hstack(include_inds)
+name_list = np.hstack(name_list)
+
+# %%
+
+cmats_z = []
+for resp_fp in response_filepaths:
+    tmp = functional_connectivity.getProcessedRegionResponse(resp_fp, cutoff=0.01, fs=1.2)
+    resp_included = tmp.loc[include_inds]
+    # resp_included = tmp
+
+    correlation_matrix = np.corrcoef(resp_included)
+    # set diag to 0
+    np.fill_diagonal(correlation_matrix, 0)
+    # fischer z transform (arctanh) and append
+    new_cmat_z = np.arctanh(correlation_matrix)
+    cmats_z.append(new_cmat_z)
+# cmats = np.stack(cmats_z, axis=2) # population cmats, z transformed
+
+# Make mean pd Dataframe
+mean_cmat = np.mean(np.stack(cmats_z, axis=2), axis=2)
+np.fill_diagonal(mean_cmat, np.nan)
+CorrelationMatrix = pd.DataFrame(data=mean_cmat, index=name_list, columns=name_list)
+
+# %%
+
+fh, ax = plt.subplots(4, 5, figsize=(15, 12))
+ax = ax.ravel()
+for c_ind, cm in enumerate(cmats_z):
+    sns.heatmap(cm, ax=ax[c_ind], vmin=-0.5, vmax=1.5)
+    ax[c_ind].set_axis_off()
+
+
+# %%
+from scipy.stats import pearsonr
+
+fh, ax = plt.subplots(1, 1, figsize=(8, 8))
+
+sns.heatmap(CorrelationMatrix, ax=ax)
+
+
+meanvals = CorrelationMatrix.to_numpy()[np.triu_indices(290, k=1)]
+t_inds = np.where(~np.isnan(meanvals))[0]
+
+
+r_val = []
+for cm in cmats_z:
+    r, p = pearsonr(meanvals[t_inds], cm[np.triu_indices(290, k=1)][t_inds])
+    r_val.append(r)
+
+r_val
 
 # %%
 

@@ -6,14 +6,13 @@ import numpy as np
 import pandas as pd
 import time
 
-from scfc import functional_connectivity, bridge
+from scfc import functional_connectivity
 t_total_0 = time.time()
 
 # data_dir = bridge.getUserConfiguration()['data_dir']
 data_dir = '/oak/stanford/groups/trc/data/Max/flynet/data'
 
 brain_filepaths = glob.glob(os.path.join(data_dir, '5d_atlas', 'func_volreg') + '*')
-roinames_path = os.path.join(data_dir, 'atlas_data', 'Original_Index_panda_full.csv')
 
 rois = np.arange(1, 1000) # branson rois on [1, 999]
 
