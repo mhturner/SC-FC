@@ -44,8 +44,7 @@ ConnectivityTBars = AC.getConnectivityMatrix('TBars')
 
 pull_region = 'AL(R)'
 
-# fig1_0, ax = plt.subplots(2, 1, figsize=(4.5, 3.5))
-fig1_0, ax = plt.subplots(2, 1, figsize=(6, 7.0))
+fig1_0, ax = plt.subplots(2, 1, figsize=(4.5, 3.5))
 ax = ax.ravel()
 fig1_0.tight_layout(w_pad=2, h_pad=8)
 

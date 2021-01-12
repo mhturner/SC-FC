@@ -268,11 +268,6 @@ class AnatomicalConnectivity():
             """
             conn_mat = pd.read_pickle(os.path.join(self.data_dir, 'connectome_connectivity', 'TBars_computed_{}.pkl'.format(computed_date)))
 
-        elif type == 'CommonInputFraction':
-            """
-            """
-            conn_mat = pd.read_pickle(os.path.join(self.data_dir, 'connectome_connectivity', 'CommonInputFraction_computed_{}.pkl'.format(computed_date)))
-
         tmp_mat = conn_mat.to_numpy().copy()
         # set diagonal value
         if diag is not None:

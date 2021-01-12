@@ -41,7 +41,37 @@ FC = functional_connectivity.FunctionalConnectivity(data_dir=data_dir, fs=1.2, c
 # Get AnatomicalConnectivity object
 AC = anatomical_connectivity.AnatomicalConnectivity(data_dir=data_dir, neuprint_client=neuprint_client, mapping=bridge.getRoiMapping())
 
+# %%
+import os
+import pandas as pd
+computed_date = '20210108'
+WeakConnections = pd.read_pickle(os.path.join(AC.data_dir, 'connectome_connectivity', 'uncropped_WeakConnections_computed_{}.pkl'.format(computed_date)))
+MediumConnections = pd.read_pickle(os.path.join(AC.data_dir, 'connectome_connectivity', 'uncropped_MediumConnections_computed_{}.pkl'.format(computed_date)))
+StrongConnections = pd.read_pickle(os.path.join(AC.data_dir, 'connectome_connectivity', 'uncropped_StrongConnections_computed_{}.pkl'.format(computed_date)))
 
+conn_mat_u = WeakConnections + MediumConnections + StrongConnections
+
+# %%
+computed_date = '20200909'
+WeakConnections = pd.read_pickle(os.path.join(AC.data_dir, 'connectome_connectivity', 'WeakConnections_computed_{}.pkl'.format(computed_date)))
+MediumConnections = pd.read_pickle(os.path.join(AC.data_dir, 'connectome_connectivity', 'MediumConnections_computed_{}.pkl'.format(computed_date)))
+StrongConnections = pd.read_pickle(os.path.join(AC.data_dir, 'connectome_connectivity', 'StrongConnections_computed_{}.pkl'.format(computed_date)))
+
+conn_mat = WeakConnections + MediumConnections + StrongConnections
+
+# %%
+
+fh, ax = plt.subplots(1, 1, figsize=(4,4))
+ax.plot(conn_mat, conn_mat_u, 'ko');
+ax.plot([0, 8000], [0, 8000])
+ax.set_xscale('log')
+ax.set_yscale('log')
+ax.set_xlabel('Connecting cells')
+ax.set_ylabel('Connecting cells (uncropped only)')
+
+r, p = pearsonr(conn_mat.to_numpy().ravel(), conn_mat_u.to_numpy().ravel())
+r
+ax.annotate('r={:.2f}'.format(r), (1,6e3));
 
 # %%
 # Make adjacency matrices
@@ -61,8 +91,8 @@ ax.set_xscale('log')
 ax.set_xlabel('Cell Count')
 ax.set_ylabel('Functional correlation (z)')
 ax.annotate('r = {:.2f}'.format(r), xy=(0.8, 1.1))
-
-
+r
+anatomical_adjacency.shape
 
 
 # %% HUB score analysis

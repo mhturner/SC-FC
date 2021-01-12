@@ -203,7 +203,7 @@ ax.plot(10**xx, linfit(xx), color='k', linewidth=2, marker=None)
 ax.set_xscale('log')
 ax.set_xlabel('Cell Count')
 ax.set_ylabel('Functional correlation (z)')
-ax.annotate('r = {:.2f}'.format(r), xy=(0.8, 1.1))
+ax.annotate('r = {:.2f}'.format(r), xy=(0.8, 0.95))
 
 metrics = ['CellCount', 'WeightedSynapseCount', 'TBars', 'Size', 'Nearness']
 R_by_metric = pd.DataFrame(data=np.zeros((FC.cmats.shape[2], len(metrics))), columns=metrics)
@@ -349,8 +349,6 @@ ax[1].annotate('r={:.2f}'.format(r), (0.05, 1.02))
 figS2_2.subplots_adjust(wspace=0.5)
 figS2_2.savefig(os.path.join(analysis_dir, 'figpanels', 'figS2_2.svg'), format='svg', transparent=True, dpi=save_dpi)
 
-# %% Supp: Predicting FC with cells per volume, to normalize for region size
-
 # %% heatmaps for non-connectome, anatomical data.
 
 figS2_4, ax = plt.subplots(1, 4, figsize=(12, 3))
@@ -362,7 +360,7 @@ ax[0].set_title('Functional')
 # structural heatmap
 df = AC.getConnectivityMatrix('CellCount', diag=np.nan)
 sns.heatmap(np.log10(AC.getConnectivityMatrix('CellCount', diag=np.nan)).replace([np.inf, -np.inf], 0), ax=ax[1], yticklabels=False, xticklabels=False, cmap="cividis", rasterized=True, cbar=False)
-cb = fig2_3.colorbar(matplotlib.cm.ScalarMappable(norm=matplotlib.colors.SymLogNorm(vmin=1, vmax=np.nanmax(df.to_numpy()), base=10, linthresh=0.1, linscale=1), cmap="cividis"), ax=ax[1], shrink=0.75)
+cb = figS2_4.colorbar(matplotlib.cm.ScalarMappable(norm=matplotlib.colors.SymLogNorm(vmin=1, vmax=np.nanmax(df.to_numpy()), base=10, linthresh=0.1, linscale=1), cmap="cividis"), ax=ax[1], shrink=0.75)
 cb.outline.set_linewidth(0)
 ax[1].set_aspect('equal')
 ax[1].set_title('Cell count')

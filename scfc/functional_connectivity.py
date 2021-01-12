@@ -202,7 +202,7 @@ class FunctionalConnectivity():
         # cut out nan regions (tracts))
         pull_inds = np.where([type(x) is str for x in roi_names])[0]
 
-        # filter region namesfraction
+        # filter region names
         roi_names = np.array([x for x in roi_names if type(x) is str]) # cut out nan regions from roi names
 
         # convert names to match display format
