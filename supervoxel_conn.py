@@ -104,11 +104,12 @@ print('r = {:.2f} +/- {:.2f}'.format(np.mean(r_vals), np.std(r_vals)))
 sour = 'CA(R)'
 
 Neur, Syn = fetch_neurons(NeuronCriteria(inputRois=None, outputRois=None, status='Traced'))
-# Neur, Syn = fetch_neurons(NeuronCriteria(inputRois=sour, outputRois=targ, status='Traced'))
-print(Neur.bodyId.shape)
+
 body_ids = np.random.choice(Neur.bodyId, 400)
 
-# %% cell by cell
+body_ids = np.load(os.path.join(data_dir, 'connectome_connectivity') + 'body_ids_20210112.npy')
+
+# %% Go through body_ids cell by cell, figure out which branson atlas voxel contains each pre + post-synapse
 t0 = time.time()
 
 mask_brain = np.asarray(np.squeeze(nib.load(FC.atlas_path).get_fdata()), 'uint8')
@@ -117,7 +118,6 @@ res = 5 # um/voxel of atlas
 regions = np.unique(mask_brain)[1:] # cut out first region (0), which is empty
 
 count_matrix = pd.DataFrame(data=np.zeros((len(regions), len(regions))), index=regions, columns=regions)
-
 
 syn_mask = np.zeros_like(mask_brain)
 for body in body_ids:

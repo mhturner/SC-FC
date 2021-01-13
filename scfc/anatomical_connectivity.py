@@ -207,7 +207,7 @@ def computeConnectivityMatrix(neuprint_client, mapping):
             WeightedSynapseNumber.loc[[roi_source], [roi_target]] = weighted_synapse_number
             TBars.loc[[roi_source], [roi_target]] = tbars
 
-    body_ids = np.unique(body_ids) # don't double count cells that contribute to multiple connections
+    body_ids = np.unique(np.hstack(body_ids)) # don't double count cells that contribute to multiple connections
 
     return WeakConnections, MediumConnections, StrongConnections, Connectivity, WeightedSynapseNumber, TBars, body_ids
 
