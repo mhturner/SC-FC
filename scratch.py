@@ -41,10 +41,6 @@ FC = functional_connectivity.FunctionalConnectivity(data_dir=data_dir, fs=1.2, c
 # Get AnatomicalConnectivity object
 AC = anatomical_connectivity.AnatomicalConnectivity(data_dir=data_dir, neuprint_client=neuprint_client, mapping=bridge.getRoiMapping())
 # %%
-Neur, Syn = fetch_neurons(NeuronCriteria(inputRois='AL(R)', outputRois='LH(R)', status='Traced'))
-np.unique(Neur.bodyId).shape
-
-
 
 # %%
 import os
@@ -57,7 +53,7 @@ StrongConnections = pd.read_pickle(os.path.join(AC.data_dir, 'connectome_connect
 conn_mat_u = WeakConnections + MediumConnections + StrongConnections
 
 # %%
-computed_date = '20200909'
+computed_date = '20210112'
 WeakConnections = pd.read_pickle(os.path.join(AC.data_dir, 'connectome_connectivity', 'WeakConnections_computed_{}.pkl'.format(computed_date)))
 MediumConnections = pd.read_pickle(os.path.join(AC.data_dir, 'connectome_connectivity', 'MediumConnections_computed_{}.pkl'.format(computed_date)))
 StrongConnections = pd.read_pickle(os.path.join(AC.data_dir, 'connectome_connectivity', 'StrongConnections_computed_{}.pkl'.format(computed_date)))

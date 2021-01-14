@@ -225,11 +225,6 @@ for b_ind in range(num_bins):
 
 fig4_4.savefig(os.path.join(analysis_dir, 'figpanels', 'fig4_4.svg'), format='svg', transparent=True, dpi=save_dpi)
 
-# %%
-shortest_path_dist, shortest_path_steps, shortest_path_weight, hub_count = bridge.getShortestPathStats(anat_connect)
-shortest_path_dist.shape
-shortest_path_dist
-
 # %% supp: multiple regression model on direct + shortest path
 
 

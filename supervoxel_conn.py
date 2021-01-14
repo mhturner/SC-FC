@@ -76,6 +76,7 @@ CorrelationMatrix = pd.DataFrame(data=mean_cmat, index=name_list, columns=name_l
 fh1, ax = plt.subplots(1, 1, figsize=(6, 6))
 sns.heatmap(CorrelationMatrix, ax=ax, cmap='cividis')
 fh1.savefig(os.path.join(analysis_dir, 'figpanels', 'branson_mean_FCmat.png'), format='png', transparent=True, dpi=400)
+ax.set_aspect('equal')
 
 meanvals = CorrelationMatrix.to_numpy()[np.triu_indices(290, k=1)]
 t_inds = np.where(~np.isnan(meanvals))[0]
@@ -98,16 +99,9 @@ for c_ind in range(FC.cmats.shape[2]):
 
 print('r = {:.2f} +/- {:.2f}'.format(np.mean(r_vals), np.std(r_vals)))
 # %% Load body_ids that make connections in the Ito, 36 region atlas data
+body_ids = np.load(os.path.join(data_dir, 'connectome_connectivity', 'body_ids_20210112.npy'), allow_pickle=True)
 
-# sour = 'AL(R)'
-# targ = 'LH(R)'
-sour = 'CA(R)'
-
-Neur, Syn = fetch_neurons(NeuronCriteria(inputRois=None, outputRois=None, status='Traced'))
-
-body_ids = np.random.choice(Neur.bodyId, 400)
-
-body_ids = np.load(os.path.join(data_dir, 'connectome_connectivity') + 'body_ids_20210112.npy')
+body_ids = np.random.choice(body_ids, 100, replace=False)
 
 # %% Go through body_ids cell by cell, figure out which branson atlas voxel contains each pre + post-synapse
 t0 = time.time()
@@ -142,11 +136,13 @@ for body in body_ids:
 print('Done ({:.2f} sec)'.format(time.time() - t0))
 
 
+# %% TODO: filter count_matrix by include_inds
+
 # %%
 
 fh0, ax0 = plt.subplots(1, 1, figsize=(4, 4))
 ax0.imshow(count_matrix)
-
+count_matrix
 
 fh1, ax1 = plt.subplots(2, 3, figsize=(18, 6))
 ax1[0, 0].imshow(mask_brain.sum(axis=2))
@@ -157,83 +153,3 @@ ax1[1, 1].imshow(syn_mask.sum(axis=1))
 
 ax1[0, 2].imshow(mask_brain.sum(axis=0))
 ax1[1, 2].imshow(syn_mask.sum(axis=0))
-
-# %%
-
-x = list(range(7000, 8000))
-y = list(range(22000, 23000))
-z = list(range(23000, 24000))
-
-
-
-xyz.shape
-xyz
-# x_min = 7000
-# x_max = 7200
-#
-# y_min = 22000
-# y_max = 22200
-#
-# z_min = 23000
-# z_max = 23200
-
-xyz
-q_target
-
-q_target = """\
-    WITH [[7000, 22000, 23000], [7000, 22000, 23001]] AS LOCATIONS
-    MATCH (n:Neuron)-[:Contains]->(:SynapseSet)-[:Contains]->(s:Synapse)
-    WHERE n.status = "Traced"
-    AND n.bodyId = {}
-    AND s.type = "pre"
-    AND [s.location.x, s.location.y, s.location.z] IN LOCATIONS
-
-    RETURN DISTINCT n.type, n.bodyId, s.location.x, s.location.y, s.location.z, s.type
-
-    """.format(body)
-df_target = fetch_custom(q_target, format='pandas', client=neuprint_client)
-df_target
-
-# %%
-q_target
-q_target = """\
-    WITH {} AS LOCATIONS
-    MATCH (n:Neuron)-[:Contains]->(:SynapseSet)-[:Contains]->(s:Synapse)
-    WHERE n.status = "Traced"
-    AND n.bodyId = {}
-    AND s.type = "pre"
-    AND [s.location.x, s.location.y, s.location.z] IN LOCATIONS
-
-    RETURN DISTINCT n.type, n.bodyId, s.location.x, s.location.y, s.location.z, s.type
-
-    """.format(np.array2string(xyz, separator=',').replace('\n', ''), body)
-df_target = fetch_custom(q_target, format='pandas', client=neuprint_client)
-df_target
-# %%
-
-x_min = 7000
-x_max = 7200
-
-y_min = 22000
-y_max = 22200
-
-z_min = 23000
-z_max = 23200
-
-q_source = """\
-    MATCH (n:Neuron)-[:Contains]->(:SynapseSet)-[:Contains]->(s:Synapse)
-    WHERE n.type = "LC11"
-    AND n.status = "Traced"
-    AND s.type = "post"
-    AND s.location.x >= {}
-    AND s.location.x < {}
-    AND s.location.y >= {}
-    AND s.location.y < {}
-    AND s.location.z >= {}
-    AND s.location.z < {}
-    RETURN DISTINCT n.type, n.bodyId, n.status, s.location.x, s.location.y, s.location.z, s.type
-
-    """.format(x_min, x_max, y_min, y_max, z_min, z_max)
-
-df_source = fetch_custom(q_source, format='pandas', client=neuprint_client)
-df_source

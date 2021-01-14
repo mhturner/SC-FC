@@ -170,7 +170,7 @@ def computeConnectivityMatrix(neuprint_client, mapping):
             tbars = 0
             for s_ind, sour in enumerate(sources): # this multiple sources/targets is necessary for collapsing rois based on mapping
                 for targ in targets:
-                    Neur, Syn = fetch_neurons(NeuronCriteria(inputRois=sour, outputRois=targ, status='Traced'))
+                    Neur, Syn = fetch_neurons(NeuronCriteria(inputRois=sour, outputRois=targ, status='Traced', cropped=False)) # only take uncropped neurons
 
                     outputs_in_targ = np.array([x[targ]['pre'] for x in Neur.roiInfo]) # neurons with Tbar output in target
                     inputs_in_sour = np.array([x[sour]['post'] for x in Neur.roiInfo]) # neuron with PSD input in source
@@ -250,30 +250,31 @@ class AnatomicalConnectivity():
         Return square dataframe connectivity matrix
         """
         if computed_date is None:
-            computed_date = '20200909'
+            computed_date = '20210108'
+            # computed_date = '20210112'
 
         if type == 'CellCount':
             """
             """
-            WeakConnections = pd.read_pickle(os.path.join(self.data_dir, 'connectome_connectivity', 'WeakConnections_computed_{}.pkl'.format(computed_date)))
-            MediumConnections = pd.read_pickle(os.path.join(self.data_dir, 'connectome_connectivity', 'MediumConnections_computed_{}.pkl'.format(computed_date)))
-            StrongConnections = pd.read_pickle(os.path.join(self.data_dir, 'connectome_connectivity', 'StrongConnections_computed_{}.pkl'.format(computed_date)))
+            WeakConnections = pd.read_pickle(os.path.join(self.data_dir, 'connectome_connectivity', 'uncropped_WeakConnections_computed_{}.pkl'.format(computed_date)))
+            MediumConnections = pd.read_pickle(os.path.join(self.data_dir, 'connectome_connectivity', 'uncropped_MediumConnections_computed_{}.pkl'.format(computed_date)))
+            StrongConnections = pd.read_pickle(os.path.join(self.data_dir, 'connectome_connectivity', 'uncropped_StrongConnections_computed_{}.pkl'.format(computed_date)))
             conn_mat = WeakConnections + MediumConnections + StrongConnections
 
         elif type == 'ConnectivityWeight':
             """
             """
-            conn_mat = pd.read_pickle(os.path.join(self.data_dir, 'connectome_connectivity', 'Connectivity_computed_{}.pkl'.format(computed_date)))
+            conn_mat = pd.read_pickle(os.path.join(self.data_dir, 'connectome_connectivity', 'uncropped_Connectivity_computed_{}.pkl'.format(computed_date)))
 
         elif type == 'WeightedSynapseCount':
             """
             """
-            conn_mat = pd.read_pickle(os.path.join(self.data_dir, 'connectome_connectivity', 'WeightedSynapseNumber_computed_{}.pkl'.format(computed_date)))
+            conn_mat = pd.read_pickle(os.path.join(self.data_dir, 'connectome_connectivity', 'uncropped_WeightedSynapseNumber_computed_{}.pkl'.format(computed_date)))
 
         elif type == 'TBars':
             """
             """
-            conn_mat = pd.read_pickle(os.path.join(self.data_dir, 'connectome_connectivity', 'TBars_computed_{}.pkl'.format(computed_date)))
+            conn_mat = pd.read_pickle(os.path.join(self.data_dir, 'connectome_connectivity', 'uncropped_TBars_computed_{}.pkl'.format(computed_date)))
 
         tmp_mat = conn_mat.to_numpy().copy()
         # set diagonal value
