@@ -99,7 +99,7 @@ for c_ind in range(FC.cmats.shape[2]):
 
 print('r = {:.2f} +/- {:.2f}'.format(np.mean(r_vals), np.std(r_vals)))
 # %% Load body_ids that make connections in the Ito, 36 region atlas data
-body_ids = np.load(os.path.join(data_dir, 'connectome_connectivity', 'body_ids_20210112.npy'), allow_pickle=True)
+body_ids = np.load(os.path.join(data_dir, 'connectome_connectivity', 'body_ids_20210114.npy'), allow_pickle=True)
 
 body_ids = np.random.choice(body_ids, 100, replace=False)
 

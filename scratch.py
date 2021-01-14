@@ -72,7 +72,9 @@ ax.set_ylabel('Connecting cells (uncropped only)')
 
 r, p = pearsonr(conn_mat.to_numpy().ravel(), conn_mat_u.to_numpy().ravel())
 r
-ax.annotate('r={:.2f}'.format(r), (1,6e3));
+ax.annotate('r={:.2f}'.format(r), (1, 6e3))
+
+fh.savefig(os.path.join(analysis_dir, 'figpanels', 'uncropped_v_cropped.png'), format='png', transparent=True, dpi=400)
 
 # %%
 # Make adjacency matrices

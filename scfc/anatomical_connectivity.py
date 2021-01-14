@@ -250,31 +250,30 @@ class AnatomicalConnectivity():
         Return square dataframe connectivity matrix
         """
         if computed_date is None:
-            computed_date = '20210108'
-            # computed_date = '20210112'
+            computed_date = '20210114'
 
         if type == 'CellCount':
             """
             """
-            WeakConnections = pd.read_pickle(os.path.join(self.data_dir, 'connectome_connectivity', 'uncropped_WeakConnections_computed_{}.pkl'.format(computed_date)))
-            MediumConnections = pd.read_pickle(os.path.join(self.data_dir, 'connectome_connectivity', 'uncropped_MediumConnections_computed_{}.pkl'.format(computed_date)))
-            StrongConnections = pd.read_pickle(os.path.join(self.data_dir, 'connectome_connectivity', 'uncropped_StrongConnections_computed_{}.pkl'.format(computed_date)))
+            WeakConnections = pd.read_pickle(os.path.join(self.data_dir, 'connectome_connectivity', 'WeakConnections_computed_{}.pkl'.format(computed_date)))
+            MediumConnections = pd.read_pickle(os.path.join(self.data_dir, 'connectome_connectivity', 'MediumConnections_computed_{}.pkl'.format(computed_date)))
+            StrongConnections = pd.read_pickle(os.path.join(self.data_dir, 'connectome_connectivity', 'StrongConnections_computed_{}.pkl'.format(computed_date)))
             conn_mat = WeakConnections + MediumConnections + StrongConnections
 
         elif type == 'ConnectivityWeight':
             """
             """
-            conn_mat = pd.read_pickle(os.path.join(self.data_dir, 'connectome_connectivity', 'uncropped_Connectivity_computed_{}.pkl'.format(computed_date)))
+            conn_mat = pd.read_pickle(os.path.join(self.data_dir, 'connectome_connectivity', 'Connectivity_computed_{}.pkl'.format(computed_date)))
 
         elif type == 'WeightedSynapseCount':
             """
             """
-            conn_mat = pd.read_pickle(os.path.join(self.data_dir, 'connectome_connectivity', 'uncropped_WeightedSynapseNumber_computed_{}.pkl'.format(computed_date)))
+            conn_mat = pd.read_pickle(os.path.join(self.data_dir, 'connectome_connectivity', 'WeightedSynapseNumber_computed_{}.pkl'.format(computed_date)))
 
         elif type == 'TBars':
             """
             """
-            conn_mat = pd.read_pickle(os.path.join(self.data_dir, 'connectome_connectivity', 'uncropped_TBars_computed_{}.pkl'.format(computed_date)))
+            conn_mat = pd.read_pickle(os.path.join(self.data_dir, 'connectome_connectivity', 'TBars_computed_{}.pkl'.format(computed_date)))
 
         tmp_mat = conn_mat.to_numpy().copy()
         # set diagonal value
