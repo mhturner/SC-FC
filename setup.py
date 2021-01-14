@@ -18,8 +18,8 @@ setup(
                       'scikit-learn',
                       'networkx',
                       'munkres',
-                      'PyYAML'
-                      ],
+                      'PyYAML',
+                      'seriate'],
     include_package_data=True,
     zip_safe=False,
 )
