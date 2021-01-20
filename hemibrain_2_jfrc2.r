@@ -6,8 +6,8 @@ library(neuprintr)
 library(dplyr)
 library(bioimagetools)
 
-data_dir = '/home/mhturner/Dropbox/ClandininLab/Analysis/SC-FC/data'
-# data_dir = '/oak/stanford/groups/trc/data/Max/flynet/data'
+# data_dir = '/home/mhturner/Dropbox/ClandininLab/Analysis/SC-FC/data'
+data_dir = '/oak/stanford/groups/trc/data/Max/flynet/data'
 
 t0 = Sys.time()
 
