@@ -8,6 +8,8 @@
 #SBATCH --output=/home/users/mhturner/SC-FC/job_outputs/%x.%j.out
 #SBATCH --open-mode=append
 
-ml R
+module use /home/groups/trc/modules
+ml R/3.6.1
+module load cmtk
 
 Rscript /home/users/mhturner/SC-FC/hemibrain_2_jfrc2.r

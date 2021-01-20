@@ -1,4 +1,3 @@
-library(natverse)
 library(nat.flybrains)
 library(nat.jrcbrains)
 library(nat.h5reg)
