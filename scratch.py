@@ -46,17 +46,17 @@ AC = anatomical_connectivity.AnatomicalConnectivity(data_dir=data_dir, neuprint_
 import os
 import pandas as pd
 computed_date = '20210108'
-WeakConnections = pd.read_pickle(os.path.join(AC.data_dir, 'connectome_connectivity', 'uncropped_WeakConnections_computed_{}.pkl'.format(computed_date)))
-MediumConnections = pd.read_pickle(os.path.join(AC.data_dir, 'connectome_connectivity', 'uncropped_MediumConnections_computed_{}.pkl'.format(computed_date)))
-StrongConnections = pd.read_pickle(os.path.join(AC.data_dir, 'connectome_connectivity', 'uncropped_StrongConnections_computed_{}.pkl'.format(computed_date)))
+WeakConnections = pd.read_pickle(os.path.join(AC.data_dir, 'connectome_connectivity', 'old', 'uncropped_WeakConnections_computed_{}.pkl'.format(computed_date)))
+MediumConnections = pd.read_pickle(os.path.join(AC.data_dir, 'connectome_connectivity', 'old', 'uncropped_MediumConnections_computed_{}.pkl'.format(computed_date)))
+StrongConnections = pd.read_pickle(os.path.join(AC.data_dir, 'connectome_connectivity', 'old', 'uncropped_StrongConnections_computed_{}.pkl'.format(computed_date)))
 
 conn_mat_u = WeakConnections + MediumConnections + StrongConnections
 
 # %%
 computed_date = '20210112'
-WeakConnections = pd.read_pickle(os.path.join(AC.data_dir, 'connectome_connectivity', 'WeakConnections_computed_{}.pkl'.format(computed_date)))
-MediumConnections = pd.read_pickle(os.path.join(AC.data_dir, 'connectome_connectivity', 'MediumConnections_computed_{}.pkl'.format(computed_date)))
-StrongConnections = pd.read_pickle(os.path.join(AC.data_dir, 'connectome_connectivity', 'StrongConnections_computed_{}.pkl'.format(computed_date)))
+WeakConnections = pd.read_pickle(os.path.join(AC.data_dir, 'connectome_connectivity', 'old', 'WeakConnections_computed_{}.pkl'.format(computed_date)))
+MediumConnections = pd.read_pickle(os.path.join(AC.data_dir, 'connectome_connectivity', 'old', 'MediumConnections_computed_{}.pkl'.format(computed_date)))
+StrongConnections = pd.read_pickle(os.path.join(AC.data_dir, 'connectome_connectivity', 'old', 'StrongConnections_computed_{}.pkl'.format(computed_date)))
 
 conn_mat = WeakConnections + MediumConnections + StrongConnections
 
@@ -74,7 +74,7 @@ r, p = pearsonr(conn_mat.to_numpy().ravel(), conn_mat_u.to_numpy().ravel())
 r
 ax.annotate('r={:.2f}'.format(r), (1, 6e3))
 
-fh.savefig(os.path.join(analysis_dir, 'figpanels', 'uncropped_v_cropped.png'), format='png', transparent=True, dpi=400)
+fh.savefig(os.path.join(analysis_dir, 'figpanels', 'uncropped_v_cropped.png'), format='png', bbox_inches="tight", transparent=True, dpi=400)
 
 # %%
 # Make adjacency matrices

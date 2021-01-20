@@ -27,7 +27,7 @@ analysis_dir = bridge.getUserConfiguration()['analysis_dir']
 token = bridge.getUserConfiguration()['token']
 
 # start client
-neuprint_client = Client('neuprint.janelia.org', dataset='hemibrain:v1.1', token=token)
+neuprint_client = Client('neuprint.janelia.org', dataset='hemibrain:v1.2', token=token)
 
 # Get FunctionalConnectivity object
 FC = functional_connectivity.FunctionalConnectivity(data_dir=data_dir, fs=1.2, cutoff=0.01, mapping=bridge.getRoiMapping())
