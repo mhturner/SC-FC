@@ -12,7 +12,7 @@ import nrrd
 from skimage import io
 from scfc import bridge, functional_connectivity
 import time
-from scipy.stats import pearsonr
+from scipy.stats import pearsonr, spearmanr
 
 data_dir = bridge.getUserConfiguration()['data_dir']
 analysis_dir = bridge.getUserConfiguration()['analysis_dir']
@@ -70,21 +70,40 @@ for resp_fp in response_filepaths:
     cmats_z.append(new_cmat_z)
 
 # Make mean pd Dataframe
-mean_cmat = np.mean(np.stack(cmats_z, axis=2), axis=2)
+mean_cmat = np.nanmean(np.stack(cmats_z, axis=2), axis=2)
 np.fill_diagonal(mean_cmat, np.nan)
 CorrelationMatrix = pd.DataFrame(data=mean_cmat, index=name_list, columns=name_list)
+# %%
+tt = response_filepaths[0]
 
+tmp = pd.read_pickle(tt)
+tmp.shape
+np.unique(np.where(np.isnan(tmp.to_numpy()))[0])
+tmp.shape
+
+# tmp = functional_connectivity.getProcessedRegionResponse(tt, cutoff=0.01, fs=1.2)
+
+np.any(np.isnan(tmp))
+fh, ax = plt.subplots(1, 1, figsize=(8,4))
+ax.plot(tmp);
+# %%
+np.any(np.isnan(cm))
+
+np.where(np.isnan(cm))
+plt.imshow(cm)
+
+len(r_val)
 # %% Plot across-animal average cmat heatmap. Compute corr between mean and individual fly cmats
 fh1, ax = plt.subplots(1, 1, figsize=(6, 6))
 sns.heatmap(CorrelationMatrix, ax=ax, cmap='cividis')
 fh1.savefig(os.path.join(analysis_dir, 'figpanels', 'branson_mean_FCmat.png'), format='png', transparent=True, dpi=400)
 ax.set_aspect('equal')
 
-meanvals = CorrelationMatrix.to_numpy()[np.triu_indices(290, k=1)]
+meanvals = CorrelationMatrix.to_numpy()[np.triu_indices(len(name_list), k=1)]
 t_inds = np.where(~np.isnan(meanvals))[0]
 r_val = []
 for cm in cmats_z:
-    r, p = pearsonr(meanvals[t_inds], cm[np.triu_indices(290, k=1)][t_inds])
+    r, p = pearsonr(meanvals[t_inds], cm[np.triu_indices(len(name_list), k=1)][t_inds])
     r_val.append(r)
 
 print('r = {:.2f} +/- {:.2f}'.format(np.mean(r_val), np.std(r_val)))
@@ -118,7 +137,9 @@ for s_ind, src in enumerate(include_inds):
         Connectivity_JRC2018.iloc[s_ind, t_ind] = count_matrix_jrc2018.loc[src, trg]
 # %%
 
-Connectivity_JRC2018
+
+
+
 # %%
 fh0, ax0 = plt.subplots(1, 3, figsize=(18, 6))
 sns.heatmap(CorrelationMatrix, ax=ax0[0], cmap='cividis')
@@ -136,6 +157,32 @@ synmask_jfrc2 = io.imread(os.path.join(data_dir, 'JFRC2_branson_synmask.tif'))
 
 branson_jrc2018 = io.imread(os.path.join(data_dir, '2018_999_atlas.tif'))
 synmask_jrc2018 = io.imread(os.path.join(data_dir, 'JRC2018F_branson_synmask.tif'))
+
+# %%
+
+x = Connectivity_JRC2018.to_numpy()[np.triu_indices(len(name_list), k=1)]
+keep_inds = np.where(x > 0)
+x = np.log10(x[keep_inds])
+
+y = CorrelationMatrix.to_numpy()[np.triu_indices(len(name_list), k=1)][keep_inds]
+
+r, p = pearsonr(x, y)
+coef = np.polyfit(x, y, 1)
+linfit = np.poly1d(coef)
+
+
+fh0, ax0 = plt.subplots(1, 1, figsize=(4, 4))
+ax0.plot(10**x, y, color=[0.5, 0.5, 0.5], marker='.', linestyle='none', alpha=1.0)
+xx = np.linspace(x.min(), x.max(), 100)
+ax0.plot(10**xx, linfit(xx), color='k', linewidth=2, marker=None)
+ax0.set_xscale('log')
+ax0.set_xlabel('Cell Count')
+ax0.set_ylabel('Functional corr. (z)')
+ax0.annotate('r = {:.2f}'.format(r), xy=(1, 1.05))
+ax0.tick_params(axis='x', labelsize=10)
+ax0.tick_params(axis='y', labelsize=10)
+
+
 
 # %%
 

@@ -14,9 +14,6 @@ data_dir = '/oak/stanford/groups/trc/data/Max/flynet/data'
 
 brain_filepaths = glob.glob(os.path.join(data_dir, '5d_atlas', 'func_volreg') + '*')
 
-rois = np.arange(1, 1000) # branson rois on [1, 999]
-
-
 for brain_fp in brain_filepaths:
     t0 = time.time()
     suffix = brain_fp.split('func_volreg_')[-1]
@@ -24,6 +21,8 @@ for brain_fp in brain_filepaths:
 
     mask_brain = np.asarray(np.squeeze(nib.load(atlas_fp).get_fdata()), 'uint16')
     functional_brain = np.asanyarray(nib.load(brain_fp).dataobj).astype('uint16')
+
+    rois = np.unique(mask_brain) # branson rois
 
     roi_mask = []
     for r_ind, r in enumerate(rois):
