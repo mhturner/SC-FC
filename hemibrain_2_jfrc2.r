@@ -26,8 +26,8 @@ branson_atlas <- bioimagetools::readTIF(file.path(data_dir, 'AnatomySubCompartme
 count_matrix <- matrix(0, max(branson_atlas), max(branson_atlas))
 syn_mask <- array(0, dim=dim(branson_atlas))
 
-for (body_id in body_ids)
-{
+for (ind in 1:dim(body_ids)[1]){
+  body_id = body_ids[ind,1]
   syn_data = neuprint_get_synapses(body_id, replace=FALSE)
   
   input_hemi = as.data.frame(syn_data[syn_data$prepost==1, c("x", "y", "z")]) * 8/1000 # vox -> um

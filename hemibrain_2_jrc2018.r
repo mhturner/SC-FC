@@ -24,9 +24,8 @@ suppressWarnings({
 })
 count_matrix <- matrix(0, max(branson_atlas), max(branson_atlas))
 syn_mask <- array(0, dim=dim(branson_atlas))
-
-for (body_id in body_ids)
-{
+for (ind in 1:dim(body_ids)[1]){
+  body_id = body_ids[ind,1]
   syn_data = neuprint_get_synapses(body_id, replace=FALSE)
   
   input_hemi = as.data.frame(syn_data[syn_data$prepost==1, c("x", "y", "z")]) * 8/1000 # vox -> um
@@ -50,7 +49,6 @@ for (body_id in body_ids)
   
   syn_mask[input_jrc2018f] = syn_mask[output_jrc2018f] + 1 # number of outputting cells in each voxel of atlas space (doesn't count multiple t-bars in a voxel for one cell)
   count_matrix[input_regions, output_regions] = count_matrix[input_regions, output_regions] + 1
-  
 }
 
 write.csv(count_matrix, file.path(data_dir, 'JRC2018F_branson_cellcount_matrix.csv'))

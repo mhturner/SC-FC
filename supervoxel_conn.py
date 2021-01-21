@@ -116,7 +116,9 @@ for s_ind, src in enumerate(include_inds):
     for t_ind, trg in enumerate(include_inds):
         Connectivity_JFRC2.iloc[s_ind, t_ind] = count_matrix_jfrc2.loc[src, trg]
         Connectivity_JRC2018.iloc[s_ind, t_ind] = count_matrix_jrc2018.loc[src, trg]
+# %%
 
+Connectivity_JRC2018
 # %%
 fh0, ax0 = plt.subplots(1, 3, figsize=(18, 6))
 sns.heatmap(CorrelationMatrix, ax=ax0[0], cmap='cividis')
