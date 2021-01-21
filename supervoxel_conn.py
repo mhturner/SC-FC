@@ -101,16 +101,18 @@ for c_ind in range(FC.cmats.shape[2]):
 print('r = {:.2f} +/- {:.2f}'.format(np.mean(r_vals), np.std(r_vals)))
 
 # %% Load branson_cellcount_matrix and branson_synmask from R / natverse script
-branson_atlas_path = '/home/mhturner/Downloads/transforms/AnatomySubCompartments20150108_ms999centers.nrrd'
-branson_brain, branson_header = nrrd.read(branson_atlas_path)
-regions = np.unique(branson_brain)[1:] # cut out first region (0), which is empty
 
-
-count_matrix = pd.read_csv('/home/mhturner/Dropbox/ClandininLab/Analysis/SC-FC/data/branson_cellcount_matrix.csv', header=0).to_numpy()[:, 1:]
-count_matrix = pd.DataFrame(data=count_matrix, index=regions, columns=regions)
-
+count_matrix = pd.read_csv(os.path.join(data_dir, 'JFRC2_branson_cellcount_matrix.csv'), header=0).to_numpy()[:, 1:]
+count_matrix = pd.DataFrame(data=count_matrix, index=np.arange(1, 1000), columns=np.arange(1, 1000))
 
 sns.heatmap(count_matrix)
+
+# %%
+count_matrix_2018 = pd.read_csv(os.path.join(data_dir, 'JRC2018F_branson_cellcount_matrix.csv'), header=0).to_numpy()[:, 1:]
+count_matrix_2018 = pd.DataFrame(data=count_matrix_2018, index=np.arange(1, 1000), columns=np.arange(1, 1000))
+
+sns.heatmap(count_matrix_2018)
+
 
 # %% Load body_ids that make connections in the Ito, 36 region atlas data
 body_ids = np.load(os.path.join(data_dir, 'connectome_connectivity', 'body_ids_20210114.npy'), allow_pickle=True)

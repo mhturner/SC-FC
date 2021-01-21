@@ -15,7 +15,7 @@ t0 = Sys.time()
 
 # Load neuron / body IDs
 body_ids =  read.csv(file.path(data_dir, 'connectome_connectivity', 'body_ids.csv'), header = FALSE)
-body_ids = sample_n(body_ids, 100)
+# body_ids = sample_n(body_ids, 100)
 
 # Load atlas(es)
 res = 0.68 # um/voxel of atlas
