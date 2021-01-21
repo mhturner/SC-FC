@@ -48,7 +48,7 @@ for (body_id in body_ids)
   output_regions = unique(branson_atlas[output_jrc2018f]) # subset atlas matrix with integer array
   output_regions = output_regions[output_regions!=0]
   
-  # syn_mask[input_jrc2018f] = syn_mask[output_jrc2018f] + 1 # number of outputting cells in each voxel of atlas space (doesn't count multiple t-bars in a voxel for one cell)
+  syn_mask[input_jrc2018f] = syn_mask[output_jrc2018f] + 1 # number of outputting cells in each voxel of atlas space (doesn't count multiple t-bars in a voxel for one cell)
   count_matrix[input_regions, output_regions] = count_matrix[input_regions, output_regions] + 1
   
 }

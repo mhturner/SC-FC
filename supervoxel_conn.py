@@ -9,6 +9,7 @@ import seaborn as sns
 import glob
 import nibabel as nib
 import nrrd
+from skimage import io
 from scfc import bridge, functional_connectivity
 import time
 from scipy.stats import pearsonr
@@ -102,16 +103,60 @@ print('r = {:.2f} +/- {:.2f}'.format(np.mean(r_vals), np.std(r_vals)))
 
 # %% Load branson_cellcount_matrix and branson_synmask from R / natverse script
 
-count_matrix = pd.read_csv(os.path.join(data_dir, 'JFRC2_branson_cellcount_matrix.csv'), header=0).to_numpy()[:, 1:]
-count_matrix = pd.DataFrame(data=count_matrix, index=np.arange(1, 1000), columns=np.arange(1, 1000))
+count_matrix_jfrc2 = pd.read_csv(os.path.join(data_dir, 'JFRC2_branson_cellcount_matrix.csv'), header=0).to_numpy()[:, 1:]
+count_matrix_jfrc2 = pd.DataFrame(data=count_matrix_jfrc2, index=np.arange(1, 1000), columns=np.arange(1, 1000))
 
-sns.heatmap(count_matrix)
+sns.heatmap(count_matrix_jfrc2)
 
 # %%
-count_matrix_2018 = pd.read_csv(os.path.join(data_dir, 'JRC2018F_branson_cellcount_matrix.csv'), header=0).to_numpy()[:, 1:]
-count_matrix_2018 = pd.DataFrame(data=count_matrix_2018, index=np.arange(1, 1000), columns=np.arange(1, 1000))
+count_matrix_jrc2018 = pd.read_csv(os.path.join(data_dir, 'JRC2018F_branson_cellcount_matrix.csv'), header=0).to_numpy()[:, 1:]
+count_matrix_jrc2018 = pd.DataFrame(data=count_matrix_jrc2018, index=np.arange(1, 1000), columns=np.arange(1, 1000))
 
-sns.heatmap(count_matrix_2018)
+sns.heatmap(count_matrix_jrc2018)
+
+# %%filter and sort count_matrix by include_inds
+
+Connectivity_JFRC2 = pd.DataFrame(data=np.zeros_like(mean_cmat), index=name_list, columns=name_list)
+Connectivity_JRC2018 = pd.DataFrame(data=np.zeros_like(mean_cmat), index=name_list, columns=name_list)
+
+for s_ind, src in enumerate(include_inds):
+    for t_ind, trg in enumerate(include_inds):
+        Connectivity_JFRC2.iloc[s_ind, t_ind] = count_matrix_jfrc2.loc[src, trg]
+        Connectivity_JRC2018.iloc[s_ind, t_ind] = count_matrix_jrc2018.loc[src, trg]
+
+# %%
+fh1, ax1 = plt.subplots(1, 2, figsize=(8, 4))
+sns.heatmap(Connectivity_JFRC2, ax=ax1[0])
+ax1[0].set_title('JFRC2 atlas')
+
+sns.heatmap(Connectivity_JRC2018, ax=ax1[1])
+ax1[1].set_title('JRC2018 atlas')
+
+# %% load synmask tifs
+branson_jfrc2 = io.imread(os.path.join(data_dir, 'AnatomySubCompartments20150108_ms999centers.tif'))
+synmask_jfrc2 = io.imread(os.path.join(data_dir, 'JFRC2_branson_synmask.tif'))
+
+branson_jrc2018 = io.imread(os.path.join(data_dir, '2018_999_atlas.tif'))
+synmask_jrc2018 = io.imread(os.path.join(data_dir, 'JRC2018F_branson_synmask.tif'))
+
+# %%
+
+fh1, ax1 = plt.subplots(3, 3, figsize=(18, 9))
+ax1[0, 0].imshow(branson_brain.sum(axis=2))
+ax1[1, 0].imshow(synmask_jfrc2.sum(axis=2))
+ax1[2, 0].imshow(synmask_jrc2018.sum(axis=2))
+
+ax1[0, 1].imshow(branson_brain.sum(axis=1))
+ax1[1, 1].imshow(synmask_jfrc2.sum(axis=1))
+ax1[2, 1].imshow(synmask_jrc2018.sum(axis=1))
+
+ax1[0, 2].imshow(branson_brain.sum(axis=0))
+ax1[1, 2].imshow(synmask_jfrc2.sum(axis=0))
+ax1[2, 2].imshow(synmask_jrc2018.sum(axis=0))
+
+
+# %% OLD SHIT
+
 
 
 # %% Load body_ids that make connections in the Ito, 36 region atlas data
@@ -154,25 +199,3 @@ for body in body_ids:
         syn_mask[inds[:, 1], inds[:, 0], inds[:, 2]] += 1
 
 print('Done ({:.2f} sec)'.format(time.time() - t0))
-
-
-# %% TODO: filter count_matrix by include_inds
-
-branson_brain.shape
-
-branson_brain.shape
-# %%
-
-fh0, ax0 = plt.subplots(1, 1, figsize=(4, 4))
-ax0.imshow(count_matrix)
-count_matrix
-
-fh1, ax1 = plt.subplots(2, 3, figsize=(18, 6))
-ax1[0, 0].imshow(branson_brain.sum(axis=2))
-ax1[1, 0].imshow(syn_mask.sum(axis=2))
-
-ax1[0, 1].imshow(branson_brain.sum(axis=1))
-ax1[1, 1].imshow(syn_mask.sum(axis=1))
-
-ax1[0, 2].imshow(branson_brain.sum(axis=0))
-ax1[1, 2].imshow(syn_mask.sum(axis=0))
