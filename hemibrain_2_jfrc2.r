@@ -54,7 +54,7 @@ for (body_id in body_ids)
 
 }
 
-write.csv(count_matrix, file.path(data_dir, 'branson_cellcount_matrix.csv'))
-writeTIF(syn_mask, file.path(data_dir, 'branson_synmask.tif'))
+write.csv(count_matrix, file.path(data_dir, 'JFRC2_branson_cellcount_matrix.csv'))
+writeTIF(syn_mask, file.path(data_dir, 'JFRC2_branson_synmask.tif'))
 
 Sys.time() - t0
