@@ -9,7 +9,7 @@ import pandas as pd
 import seaborn as sns
 import glob
 from skimage import io
-from scfc import bridge, functional_connectivity
+from scfc import bridge, functional_connectivity, plotting
 from scipy.stats import pearsonr
 
 data_dir = bridge.getUserConfiguration()['data_dir']
@@ -178,8 +178,38 @@ ax1.tick_params(axis='y', labelsize=10)
 ax1.set_xticks([0, 1, 2, 3])
 ax1.set_xticklabels(['$10^0$', '$10^1$', '$10^2$', '$10^3$'])
 cb = fh1.colorbar(hb, ax=ax1)
-
 # %%
+
+unique_regions = np.unique(name_list)
+
+fh, ax = plt.subplots(4, 5, figsize=(10, 8))
+ax = ax.ravel()
+[x.set_xticks([]) for x in ax]
+[x.set_yticks([]) for x in ax]
+ct = 0
+for ind, ur in enumerate(unique_regions):
+    pull_inds = np.where(ur == name_list)[0]
+    if len(pull_inds) > 3:
+
+        intra_sc = Connectivity_JRC2018.loc[ur, ur]
+        intra_fc = CorrelationMatrix.loc[ur, ur]
+        n_roi = intra_sc.shape[0]
+        x = intra_sc.to_numpy()[np.triu_indices(n_roi, k=1)]
+        y = intra_fc.to_numpy()[np.triu_indices(n_roi, k=1)]
+        ax[ct].plot(x, y, 'k.')
+        r, p = pearsonr(np.log10(x[x>0]), y[x>0])
+        ax[ct].set_title(ur)
+        ax[ct].annotate('r={:.2f}'.format(r), xy=(1.2, 0.9))
+        ax[ct].set_ylim([0, 1])
+        ax[ct].set_xlim([1, 2000])
+        ax[ct].set_xscale('log')
+        ax[ct].set_xticks([])
+
+        ct += 1
+
+
+
+# %% Atlas vs. synapse density
 
 fh2, ax2 = plt.subplots(2, 3, figsize=(12, 4))
 [x.set_xticks([]) for x in ax2.ravel()]
@@ -193,20 +223,30 @@ ax2[1, 1].imshow(synmask_jrc2018.sum(axis=1))
 ax2[0, 2].imshow(branson_jrc2018.sum(axis=0))
 ax2[1, 2].imshow(synmask_jrc2018.sum(axis=0))
 
-fh3, ax3 = plt.subplots(2, 3, figsize=(12, 4))
-[x.set_xticks([]) for x in ax3.ravel()]
-[x.set_yticks([]) for x in ax3.ravel()]
-ax3[0, 0].set_ylabel('JFRC2 Atlas')
-ax3[1, 0].set_ylabel('Hemibrain TBar density')
-ax3[0, 0].imshow(branson_jfrc2.sum(axis=2))
-ax3[1, 0].imshow(synmask_jfrc2.sum(axis=2))
-ax3[0, 1].imshow(branson_jfrc2.sum(axis=1))
-ax3[1, 1].imshow(synmask_jfrc2.sum(axis=1))
-ax3[0, 2].imshow(branson_jfrc2.sum(axis=0))
-ax3[1, 2].imshow(synmask_jfrc2.sum(axis=0))
+# %% atlas alignment images
+np.random.seed(1)
+tmp = np.random.rand(1000, 3)
+tmp[0, :] = [1, 1, 1]
+cmap = matplotlib.colors.ListedColormap(tmp)
 
+fh4, ax4 = plt.subplots(1, 3, figsize=(12, 6))
+
+ax4[0].imshow(branson_jfrc2[108, :, :], cmap=cmap, interpolation='None')
+ax4[0].set_title('JFRC2')
+ax4[0].set_axis_off()
+
+ax4[1].imshow(branson_jrc2018[250, :, :], cmap=cmap, interpolation='None')
+ax4[1].set_title('JRC2018')
+ax4[1].set_axis_off()
+
+im = ax4[2].imshow(synmask_jrc2018[:, :, :].mean(axis=0), interpolation='None')
+ax4[2].set_title('JRC2018 - hemi')
+ax4[2].set_axis_off()
+cb = fh4.colorbar(im, ax=ax4, shrink=0.25)
+
+# %%
 save_dpi = 400
 fh0.savefig(os.path.join(analysis_dir, 'figpanels', 'branson_fh0.svg'), format='svg', transparent=True, dpi=save_dpi)
 fh1.savefig(os.path.join(analysis_dir, 'figpanels', 'branson_fh1.svg'), format='svg', transparent=True, dpi=save_dpi)
 fh2.savefig(os.path.join(analysis_dir, 'figpanels', 'branson_fh2.svg'), format='svg', transparent=True, dpi=save_dpi)
-fh3.savefig(os.path.join(analysis_dir, 'figpanels', 'branson_fh3.svg'), format='svg', transparent=True, dpi=save_dpi)
+fh4.savefig(os.path.join(analysis_dir, 'figpanels', 'branson_fh4.svg'), format='svg', transparent=True, dpi=save_dpi)
