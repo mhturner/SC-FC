@@ -11,5 +11,8 @@
 module use /home/groups/trc/modules
 ml R/3.6.1
 module load cmtk
+module load hdf5/1.10.6
+module load fftw/3.3.8
+
 
 Rscript /home/users/mhturner/SC-FC/hemibrain_2_jfrc2.r
