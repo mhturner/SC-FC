@@ -121,6 +121,8 @@ synmask_jfrc2 = io.imread(os.path.join(data_dir, 'JFRC2_branson_synmask.tif'))
 branson_jrc2018 = io.imread(os.path.join(data_dir, '2018_999_atlas.tif'))
 synmask_jrc2018 = io.imread(os.path.join(data_dir, 'JRC2018F_branson_synmask.tif'))
 
+ito_jfrc2 = io.imread(os.path.join(data_dir, 'JFRCtempate2010.mask130819_Original.tif'))
+
 # %% SC-FC correlation
 fh0, ax0 = plt.subplots(1, 3, figsize=(14, 4))
 sns.heatmap(FC.CorrelationMatrix, ax=ax0[0], cmap='cividis', yticklabels=True, xticklabels=True, cbar_kws={'label': 'Functional Correlation (z)', 'shrink': .75})
@@ -229,20 +231,31 @@ tmp = np.random.rand(1000, 3)
 tmp[0, :] = [1, 1, 1]
 cmap = matplotlib.colors.ListedColormap(tmp)
 
-fh4, ax4 = plt.subplots(1, 3, figsize=(12, 6))
+fh4, ax4 = plt.subplots(3, 2, figsize=(12, 8))
+[x.set_xticks([]) for x in ax4.ravel()]
+[x.set_yticks([]) for x in ax4.ravel()]
+ax4[0, 0].set_title('JFRC2')
+ax4[0, 1].set_title('JRC2018')
 
-ax4[0].imshow(branson_jfrc2[108, :, :], cmap=cmap, interpolation='None')
-ax4[0].set_title('JFRC2')
-ax4[0].set_axis_off()
+ax4[0, 0].set_ylabel('Branson')
+ax4[1, 0].set_ylabel('Ito')
+ax4[2, 0].set_ylabel('Synapses')
 
-ax4[1].imshow(branson_jrc2018[250, :, :], cmap=cmap, interpolation='None')
-ax4[1].set_title('JRC2018')
-ax4[1].set_axis_off()
+ax4[0, 0].imshow(branson_jfrc2[108, :, :], cmap=cmap, interpolation='None')
+ax4[0, 1].imshow(branson_jrc2018[250, :, :], cmap=cmap, interpolation='None')
 
-im = ax4[2].imshow(synmask_jrc2018[:, :, :].mean(axis=0), interpolation='None')
-ax4[2].set_title('JRC2018 - hemi')
-ax4[2].set_axis_off()
-cb = fh4.colorbar(im, ax=ax4, shrink=0.25)
+im = ax4[2, 1].imshow(synmask_jrc2018[:, :, :].mean(axis=0), interpolation='None')
+cb = fh4.colorbar(im, ax=ax4, shrink=0.3)
+
+# Ito atlas
+np.random.seed(1)
+tmp = np.random.rand(68, 3)
+tmp[0, :] = [1, 1, 1]
+cmap = matplotlib.colors.ListedColormap(tmp)
+
+ax4[1, 0].imshow(ito_jfrc2[108, :, :], cmap=cmap, interpolation='None')
+
+
 
 # %%
 save_dpi = 400
@@ -250,3 +263,33 @@ fh0.savefig(os.path.join(analysis_dir, 'figpanels', 'branson_fh0.svg'), format='
 fh1.savefig(os.path.join(analysis_dir, 'figpanels', 'branson_fh1.svg'), format='svg', transparent=True, dpi=save_dpi)
 fh2.savefig(os.path.join(analysis_dir, 'figpanels', 'branson_fh2.svg'), format='svg', transparent=True, dpi=save_dpi)
 fh4.savefig(os.path.join(analysis_dir, 'figpanels', 'branson_fh4.svg'), format='svg', transparent=True, dpi=save_dpi)
+
+# %%
+from scipy.stats import zscore
+
+# # compute difference matrix using original, asymmetric anatomical connectivity matrix
+anatomical_mat = Connectivity_JRC2018.to_numpy().copy()
+functional_mat = CorrelationMatrix.to_numpy().copy()
+np.fill_diagonal(functional_mat, 0)
+np.fill_diagonal(anatomical_mat, 0)
+
+# log transform anatomical connectivity values
+keep_inds_diff = np.where(anatomical_mat > 0)
+functional_adjacency_diff = functional_mat[keep_inds_diff]
+anatomical_adjacency_diff = np.log10(anatomical_mat[keep_inds_diff])
+
+F_zscore = zscore(functional_adjacency_diff)
+A_zscore = zscore(anatomical_adjacency_diff)
+diff = F_zscore - A_zscore
+
+diff_m = np.zeros_like(anatomical_mat)
+diff_m[keep_inds_diff] = diff
+DifferenceMatrix = pd.DataFrame(data=diff_m, index=name_list, columns=name_list)
+
+sns.heatmap(DifferenceMatrix)
+# %%
+
+
+fh, ax = plt.subplots(1, 1, figsize=(12, 4))
+ax.plot(DifferenceMatrix.mean(axis=1).sort_values(ascending=False), 'ko')
+ax.tick_params(axis='both', which='major', labelsize=10, rotation=90)

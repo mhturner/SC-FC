@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --mail-type=END,FAIL
-#SBATCH --job-name=r_hemi_jfrc2
+#SBATCH --job-name=hemi_jfrc2
 #SBATCH --partition=trc
 #SBATCH --time=36:00:00
 #SBATCH --ntasks=1
@@ -14,4 +14,4 @@ module load cmtk
 module load hdf5/1.10.6
 module load fftw/3.3.8
 
-Rscript /home/users/mhturner/SC-FC/hemibrain_2_jfrc2.r
+Rscript /home/users/mhturner/SC-FC/hemibrain_2_atlas.r JFRC2
