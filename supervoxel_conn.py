@@ -29,9 +29,9 @@ response_filepaths.pop(6) # NOTE: this brain had one Branson atlas region missin
 
 # (1) Select branson regions to include. Do some matching to Ito atlas naming. Sort alphabetically.
 decoder_ring = pd.read_csv(os.path.join(data_dir, 'branson_999_atlas') + '/atlas_roi_values', header=None)
-include_regions = ['AL_R', 'OTU_R', 'ATL_R', 'ATL_L', 'AVLP_R', 'LB_R', 'LB_L', 'CRE_R', 'CRE_L', 'EB', 'EPA_R', 'FB', 'GOR_R', 'GOR_L'
-                   'IB_R', 'IB_L', 'ICL_R', 'IVLP_R', 'LAL_R', 'LH_R', 'MB_R', 'MB_L', 'NO', 'PB', 'PLP_R', 'PVLP_R', 'SCL_R', 'SIP_R', 'SLP_R', 'SMP_R',
-                   'SMP_L', 'SPS_R', 'VES_R', 'WED_R'] # LB = bulb
+include_regions_branson = ['AL_R', 'OTU_R', 'ATL_R', 'ATL_L', 'AVLP_R', 'LB_R', 'LB_L', 'CRE_R', 'CRE_L', 'EB', 'EPA_R', 'FB', 'GOR_R', 'GOR_L'
+                           'IB_R', 'IB_L', 'ICL_R', 'IVLP_R', 'LAL_R', 'LH_R', 'MB_R', 'MB_L', 'NO', 'PB', 'PLP_R', 'PVLP_R', 'SCL_R', 'SIP_R', 'SLP_R', 'SMP_R',
+                           'SMP_L', 'SPS_R', 'VES_R', 'WED_R'] # LB = bulb
 
 include_inds = []
 name_list = []
@@ -40,7 +40,7 @@ for ind in decoder_ring.index:
     region = row.split(':')[0]
     start = row.split(' ')[1]
     end = row.split(' ')[3]
-    if region in include_regions:
+    if region in include_regions_branson:
         include_inds.append(np.arange(int(start), int(end)+1))
         if 'LB' in region:
             region = region.replace('LB', 'BU') # to match name convention of ito atlas
@@ -71,20 +71,51 @@ for resp_fp in response_filepaths:
 # Make mean pd Dataframe
 mean_cmat = np.mean(np.stack(cmats_z, axis=2), axis=2)
 np.fill_diagonal(mean_cmat, np.nan)
-CorrelationMatrix = pd.DataFrame(data=mean_cmat, index=name_list, columns=name_list)
+CorrelationMatrix_branson = pd.DataFrame(data=mean_cmat, index=name_list, columns=name_list)
+
 
 # %% Plot across-animal average cmat heatmap. Compute corr between mean and individual fly cmats
 fh1, ax = plt.subplots(1, 1, figsize=(6, 6))
-sns.heatmap(CorrelationMatrix, ax=ax, cmap='cividis')
+sns.heatmap(CorrelationMatrix_branson, ax=ax, cmap='cividis')
 ax.set_aspect('equal')
 
-meanvals = CorrelationMatrix.to_numpy()[np.triu_indices(len(name_list), k=1)]
+meanvals = CorrelationMatrix_branson.to_numpy()[np.triu_indices(len(name_list), k=1)]
 r_val = []
 for cm in cmats_z:
     r, p = pearsonr(meanvals, cm[np.triu_indices(len(name_list), k=1)])
     r_val.append(r)
 
 print('r = {:.2f} +/- {:.2f}'.format(np.mean(r_val), np.std(r_val)))
+
+# %% Ito correlation matrix
+response_filepaths = glob.glob(os.path.join(data_dir, 'region_responses') + '/' + '*.pkl')
+
+include_regions_ito = ['AL_R', 'AOTU_R', 'ATL_R', 'ATL_L', 'AVLP_R', 'BU_R', 'BU_L', 'CAN_R', 'CRE_R', 'CRE_L', 'EB', 'EPA_R', 'FB', 'GOR_R', 'GOR_L',
+                       'IB_R', 'IB_L', 'ICL_R', 'LAL_R', 'LH_R', 'MB_CA_R', 'MB_ML_R', 'MB_ML_L', 'MB_PED_R', 'MB_VL_R', 'NO', 'PB', 'PLP_R', 'PVLP_R', 'SCL_R', 'SIP_R', 'SLP_R', 'SMP_R',
+                       'SMP_L', 'SPS_R', 'VES_R', 'WED_R']
+
+decoder_ring = pd.read_csv(os.path.join(data_dir, 'atlas_data') + '/Original_Index_panda_full.csv', header=0)
+
+include_inds = [np.where(x == decoder_ring.to_numpy()[:, 0])[0][0] for x in include_regions_ito]
+
+cmats_z = []
+for resp_fp in response_filepaths:
+    tmp = functional_connectivity.getProcessedRegionResponse(resp_fp, cutoff=0.01, fs=1.2)
+    resp_included = tmp.loc[include_inds].to_numpy()
+
+    correlation_matrix = np.corrcoef(resp_included)
+    correlation_matrix[np.where(np.isnan(correlation_matrix))] = 0
+    # set diag to 0
+    np.fill_diagonal(correlation_matrix, 0)
+    # fischer z transform (arctanh) and append
+    new_cmat_z = np.arctanh(correlation_matrix)
+    cmats_z.append(new_cmat_z)
+
+# Make mean pd Dataframe
+mean_cmat = np.mean(np.stack(cmats_z, axis=2), axis=2)
+np.fill_diagonal(mean_cmat, np.nan)
+CorrelationMatrix_ito = pd.DataFrame(data=mean_cmat, index=name_list, columns=name_list)
+
 
 # %% For comparison: compute corr between mean and individual fly cmats for Ito atlas data
 
@@ -98,30 +129,39 @@ for c_ind in range(FC.cmats.shape[2]):
 
 print('r = {:.2f} +/- {:.2f}'.format(np.mean(r_vals), np.std(r_vals)))
 
-# %% Load branson_cellcount_matrix and branson_synmask from R / natverse script
-count_matrix_jfrc2 = pd.read_csv(os.path.join(data_dir, 'JFRC2_branson_cellcount_matrix.csv'), header=0).to_numpy()[:, 1:]
-count_matrix_jfrc2 = pd.DataFrame(data=count_matrix_jfrc2, index=np.arange(1, 1000), columns=np.arange(1, 1000))
-
-count_matrix_jrc2018 = pd.read_csv(os.path.join(data_dir, 'JRC2018F_branson_cellcount_matrix.csv'), header=0).to_numpy()[:, 1:]
-count_matrix_jrc2018 = pd.DataFrame(data=count_matrix_jrc2018, index=np.arange(1, 1000), columns=np.arange(1, 1000))
+# %% Load cellcount_matrix from R / natverse script
+#   Branson atlas
+JRC2018_branson_cellcount_matrix = pd.read_csv(os.path.join(data_dir, 'JRC2018_branson_cellcount_matrix.csv'), header=0).to_numpy()[:, 1:]
+JRC2018_branson_cellcount_matrix = pd.DataFrame(data=JRC2018_branson_cellcount_matrix, index=np.arange(1, 1000), columns=np.arange(1, 1000))
 
 # filter and sort count_matrix by include_inds
-Connectivity_JFRC2 = pd.DataFrame(data=np.zeros_like(mean_cmat), index=name_list, columns=name_list)
-Connectivity_JRC2018 = pd.DataFrame(data=np.zeros_like(mean_cmat), index=name_list, columns=name_list)
+Branson_JRC2018 = pd.DataFrame(data=np.zeros_like(CorrelationMatrix_branson), index=name_list, columns=name_list)
 
 for s_ind, src in enumerate(include_inds):
     for t_ind, trg in enumerate(include_inds):
-        Connectivity_JFRC2.iloc[s_ind, t_ind] = count_matrix_jfrc2.loc[src, trg]
-        Connectivity_JRC2018.iloc[s_ind, t_ind] = count_matrix_jrc2018.loc[src, trg]
+        Branson_JRC2018.iloc[s_ind, t_ind] = JRC2018_branson_cellcount_matrix.loc[src, trg]
 
-# load synmask tifs
+#   Ito atlas
+JRC2018_ito_cellcount_matrix = pd.read_csv(os.path.join(data_dir, 'JRC2018_ito_cellcount_matrix.csv'), header=0).to_numpy()[:, 1:]
+JRC2018_ito_cellcount_matrix = pd.DataFrame(data=JRC2018_ito_cellcount_matrix, index=np.arange(1, 1000), columns=np.arange(1, 1000))
+
+# filter and sort count_matrix by include_inds
+Ito_JRC2018 = pd.DataFrame(data=np.zeros_like(mean_cmat), index=name_list, columns=name_list)
+
+for s_ind, src in enumerate(include_inds):
+    for t_ind, trg in enumerate(include_inds):
+        Ito_JRC2018.iloc[s_ind, t_ind] = JRC2018_ito_cellcount_matrix.loc[src, trg]
+
+# %%
+# load synmask tifs and atlases
+synmask_jrc2018 = io.imread(os.path.join(data_dir, 'JRC2018_synmask.tif'))
+synmask_jfrc2 = io.imread(os.path.join(data_dir, 'JFRC2_synmask.tif'))
+
 branson_jfrc2 = io.imread(os.path.join(data_dir, 'AnatomySubCompartments20150108_ms999centers.tif'))
-synmask_jfrc2 = io.imread(os.path.join(data_dir, 'JFRC2_branson_synmask.tif'))
-
 branson_jrc2018 = io.imread(os.path.join(data_dir, '2018_999_atlas.tif'))
-synmask_jrc2018 = io.imread(os.path.join(data_dir, 'JRC2018F_branson_synmask.tif'))
 
 ito_jfrc2 = io.imread(os.path.join(data_dir, 'JFRCtempate2010.mask130819_Original.tif'))
+ito_jrc2018 = io.imread(os.path.join(data_dir, 'ito_2018.tif'))
 
 # %% SC-FC correlation
 fh0, ax0 = plt.subplots(1, 3, figsize=(14, 4))
@@ -225,6 +265,7 @@ ax2[1, 1].imshow(synmask_jrc2018.sum(axis=1))
 ax2[0, 2].imshow(branson_jrc2018.sum(axis=0))
 ax2[1, 2].imshow(synmask_jrc2018.sum(axis=0))
 
+
 # %% atlas alignment images
 np.random.seed(1)
 tmp = np.random.rand(1000, 3)
@@ -244,7 +285,10 @@ ax4[2, 0].set_ylabel('Synapses')
 ax4[0, 0].imshow(branson_jfrc2[108, :, :], cmap=cmap, interpolation='None')
 ax4[0, 1].imshow(branson_jrc2018[250, :, :], cmap=cmap, interpolation='None')
 
-im = ax4[2, 1].imshow(synmask_jrc2018[:, :, :].mean(axis=0), interpolation='None')
+im = ax4[2, 0].imshow(synmask_jfrc2[90:130, :, :].mean(axis=0), interpolation='None')
+cb = fh4.colorbar(im, ax=ax4, shrink=0.3)
+
+im = ax4[2, 1].imshow(synmask_jrc2018[250:300, :, :].mean(axis=0), interpolation='None')
 cb = fh4.colorbar(im, ax=ax4, shrink=0.3)
 
 # Ito atlas
@@ -255,7 +299,17 @@ cmap = matplotlib.colors.ListedColormap(tmp)
 
 ax4[1, 0].imshow(ito_jfrc2[108, :, :], cmap=cmap, interpolation='None')
 
+ax4[1, 1].imshow(ito_jrc2018[250, :, :], cmap=cmap, interpolation='None')
 
+# %%
+
+np.max(synmask_jrc2018)
+
+2**16
+
+2 * 2**12
+
+np.unique(synmask_jrc2018)
 
 # %%
 save_dpi = 400
