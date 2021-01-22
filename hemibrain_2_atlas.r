@@ -14,7 +14,7 @@ t0 = Sys.time()
 
 # Load neuron / body IDs
 body_ids =  read.csv(file.path(data_dir, 'connectome_connectivity', 'body_ids.csv'), header = FALSE)
-body_ids = sample_n(body_ids, 10) # testing
+# body_ids = sample_n(body_ids, 10) # testing
 
 # Load atlas(es)
 if (comparison_space == 'JFRC2'){
