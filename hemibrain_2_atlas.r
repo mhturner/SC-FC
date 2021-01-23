@@ -14,21 +14,21 @@ t0 = Sys.time()
 
 # Load neuron / body IDs
 body_ids =  read.csv(file.path(data_dir, 'connectome_connectivity', 'body_ids.csv'), header = FALSE)
-# body_ids = sample_n(body_ids, 10) # testing
+# body_ids = sample_n(body_ids, 100) # testing
 
 # Load atlas(es)
 if (comparison_space == 'JFRC2'){
   res = 0.68 # um/voxel of atlas
   suppressWarnings({
-    ito_atlas <- bioimagetools::readTIF(file.path(data_dir, 'JFRCtempate2010.mask130819_Original.tif'), as.is=TRUE)
-    branson_atlas <- bioimagetools::readTIF(file.path(data_dir, 'AnatomySubCompartments20150108_ms999centers.tif'), as.is=TRUE)
+    ito_atlas <- bioimagetools::readTIF(file.path(data_dir, 'template_brains', 'JFRCtempate2010.mask130819_Original.tif'), as.is=TRUE)
+    branson_atlas <- bioimagetools::readTIF(file.path(data_dir, 'template_brains', 'AnatomySubCompartments20150108_ms999centers.tif'), as.is=TRUE)
   })
   
 } else if (comparison_space == 'JRC2018'){
   res = 0.38 # um/voxel of atlas
   suppressWarnings({
-    ito_atlas <- bioimagetools::readTIF(file.path(data_dir, 'ito_2018.tif'), as.is=TRUE)
-    branson_atlas <- bioimagetools::readTIF(file.path(data_dir, '2018_999_atlas.tif'), as.is=TRUE)
+    ito_atlas <- bioimagetools::readTIF(file.path(data_dir, 'template_brains', 'ito_2018.tif'), as.is=TRUE)
+    branson_atlas <- bioimagetools::readTIF(file.path(data_dir, 'template_brains', '2018_999_atlas.tif'), as.is=TRUE)
   })
   
 } else {
@@ -89,8 +89,8 @@ for (body_id in body_ids[,1]){
   
 }
 
-write.csv(branson_count_matrix, file.path(data_dir, paste(comparison_space, 'branson_cellcount_matrix.csv', sep='_')))
-write.csv(ito_count_matrix, file.path(data_dir, paste(comparison_space, 'ito_cellcount_matrix.csv', sep='_')))
-writeTIF(syn_mask, file.path(data_dir, paste(comparison_space, 'synmask.tif', sep='_')))
+write.csv(branson_count_matrix, file.path(data_dir, 'hemi_2_atlas', paste(comparison_space, 'branson_cellcount_matrix.csv', sep='_')))
+write.csv(ito_count_matrix, file.path(data_dir, 'hemi_2_atlas', paste(comparison_space, 'ito_cellcount_matrix.csv', sep='_')))
+writeTIF(syn_mask, file.path(data_dir, 'hemi_2_atlas', paste(comparison_space, 'synmask.tif', sep='_')))
 
 Sys.time() - t0

@@ -136,7 +136,7 @@ class FunctionalConnectivity():
         self.cutoff = cutoff
         self.mapping = mapping
 
-        self.roinames_path = os.path.join(data_dir, 'atlas_data', 'Original_Index_panda_full.csv')
+        self.roinames_path = os.path.join(data_dir, 'ito_68_atlas', 'Original_Index_panda_full.csv')
         self.atlas_path = os.path.join(data_dir, 'atlas_data', 'vfb_68_Original.nii.gz')
         self.response_filepaths = glob.glob(os.path.join(data_dir, 'region_responses') + '/' + '*.pkl')
 
