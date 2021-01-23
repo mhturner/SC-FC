@@ -177,16 +177,6 @@ sns.heatmap(Ito_JRC2018, cmap='cividis', ax=ax[1, 1])
 
 sns.heatmap(FC.CorrelationMatrix, cmap='cividis', ax=ax[0, 2])
 
-# %%
-
-
-
-plt.plot(x, y, 'ko')
-
-r, p = pearsonr(x, y)
-r
-
-
 
 # %%
 # load synmask tifs and atlases
@@ -232,7 +222,7 @@ cb.outline.set_linewidth(0)
 ax0[1, 1].set_aspect('equal')
 ax0[1, 1].tick_params(axis='both', which='major', labelsize=8)
 
-fh0.savefig(os.path.join(analysis_dir, 'figpanels', 'branson_fh0.png'), format='png', transparent=True, dpi=400)
+# fh0.savefig(os.path.join(analysis_dir, 'figpanels', 'branson_fh0.png'), format='png', transparent=True, dpi=400)
 
 # %%
 
@@ -294,7 +284,7 @@ ax1[1].set_xticks([0, 1, 2, 3])
 ax1[1].set_xticklabels(['$10^0$', '$10^1$', '$10^2$', '$10^3$'])
 # cb = fh1.colorbar(hb, ax=ax1)
 
-fh1.savefig(os.path.join(analysis_dir, 'figpanels', 'branson_fh1.png'), format='png', transparent=True, dpi=400)
+# fh1.savefig(os.path.join(analysis_dir, 'figpanels', 'branson_fh1.png'), format='png', transparent=True, dpi=400)
 # %%
 
 unique_regions = np.unique(name_list)
@@ -374,6 +364,7 @@ ax4[1, 0].imshow(ito_jfrc2[108, :, :], cmap=cmap, interpolation='None')
 
 ax4[1, 1].imshow(ito_jrc2018[250, :, :], cmap=cmap, interpolation='None')
 
+np.max(synmask_jrc2018)
 
 
 # %%
