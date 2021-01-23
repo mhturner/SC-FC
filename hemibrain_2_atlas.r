@@ -128,7 +128,7 @@ for (body_id in body_ids[,1]){
   
   # Append output synapse counts to synapse mask
   ct_by_vox = aggregate(data.frame(output_yxz)$x, by=data.frame(output_yxz), length)
-  syn_mask[ct_by_vox[,1:3]] = syn_mask[ct_by_vox[,1:3]] + ct_by_vox[,4]
+  syn_mask[data.matrix(ct_by_vox)[,1:3]] = syn_mask[data.matrix(ct_by_vox)[,1:3]] + data.matrix(ct_by_vox)[,4]
   
 }
 
