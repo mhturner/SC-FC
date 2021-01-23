@@ -115,6 +115,28 @@ def computeRegionResponses(brain, region_masks):
     return np.vstack(region_responses)
 
 
+def getCmat(response_filepaths, include_inds, name_list):
+    """."""
+    cmats_z = []
+    for resp_fp in response_filepaths:
+        tmp = getProcessedRegionResponse(resp_fp, cutoff=0.01, fs=1.2)
+        resp_included = tmp.reindex(include_inds).to_numpy()
+
+        correlation_matrix = np.corrcoef(resp_included)
+
+        np.fill_diagonal(correlation_matrix, np.nan)
+        # fischer z transform (arctanh) and append
+        new_cmat_z = np.arctanh(correlation_matrix)
+        cmats_z.append(new_cmat_z)
+
+    # Make mean pd Dataframe
+    mean_cmat = np.nanmean(np.stack(cmats_z, axis=2), axis=2)
+    np.fill_diagonal(mean_cmat, np.nan)
+    CorrelationMatrix = pd.DataFrame(data=mean_cmat, index=name_list, columns=name_list)
+
+    return CorrelationMatrix, cmats_z
+
+
 class FunctionalConnectivity():
     """FunctionalConnectivity class."""
 

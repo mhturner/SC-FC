@@ -25,80 +25,13 @@ FC = functional_connectivity.FunctionalConnectivity(data_dir=data_dir, fs=1.2, c
 # %%
 
 
-def getBransonNames():
-    """."""
-    decoder_ring = pd.read_csv(os.path.join(data_dir, 'branson_999_atlas') + '/atlas_roi_values', header=None)
-    # Branson regions to include. Do some matching to Ito atlas naming. Sort alphabetically.
-    include_regions_branson = ['AL_R', 'OTU_R', 'ATL_R', 'ATL_L', 'AVLP_R', 'LB_R', 'LB_L', 'CRE_R', 'CRE_L', 'EB', 'EPA_R', 'FB', 'GOR_R', 'GOR_L'
-                               'IB_R', 'IB_L', 'ICL_R', 'IVLP_R', 'LAL_R', 'LH_R', 'MB_R', 'MB_L', 'NO', 'PB', 'PLP_R', 'PVLP_R', 'SCL_R', 'SIP_R', 'SLP_R', 'SMP_R',
-                               'SMP_L', 'SPS_R', 'VES_R', 'WED_R'] # LB = bulb
-
-    include_inds = []
-    name_list = []
-    for ind in decoder_ring.index:
-        row = decoder_ring.loc[ind].values[0]
-        region = row.split(':')[0]
-        start = row.split(' ')[1]
-        end = row.split(' ')[3]
-        if region in include_regions_branson:
-            include_inds.append(np.arange(int(start), int(end)+1))
-            if 'LB' in region:
-                region = region.replace('LB', 'BU') # to match name convention of ito atlas
-            if 'OTU' in region:
-                region = region.replace('OTU', 'AOTU')
-
-            name_list.append(np.repeat(region, int(end)-int(start)+1))
-    include_inds = np.hstack(include_inds)
-    name_list = np.hstack(name_list)
-    sort_inds = np.argsort(name_list)
-    name_list = name_list[sort_inds]
-    include_inds = include_inds[sort_inds]
-
-    return include_inds, name_list
-
-
-def getItoNames():
-    """."""
-    include_regions_ito = ['AL_R', 'AOTU_R', 'ATL_R', 'ATL_L', 'AVLP_R', 'BU_R', 'BU_L', 'CAN_R', 'CRE_R', 'CRE_L', 'EB', 'EPA_R', 'FB', 'GOR_R', 'GOR_L',
-                           'IB_R', 'IB_L', 'ICL_R', 'LAL_R', 'LH_R', 'MB_CA_R', 'MB_ML_R', 'MB_ML_L', 'MB_PED_R', 'MB_VL_R', 'NO', 'PB', 'PLP_R', 'PVLP_R', 'SCL_R', 'SIP_R', 'SLP_R', 'SMP_R',
-                           'SMP_L', 'SPS_R', 'VES_R', 'WED_R']
-
-    decoder_ring = pd.read_csv(os.path.join(data_dir, 'ito_68_atlas') + '/Original_Index_panda_full.csv', header=0)
-
-    include_inds = np.array(decoder_ring.loc[[np.where(x == decoder_ring.to_numpy()[:, 0])[0][0] for x in include_regions_ito], 'num'])
-
-    return include_inds, include_regions_ito
-
-
-def getCmat(response_filepaths, include_inds, name_list):
-    """."""
-    cmats_z = []
-    for resp_fp in response_filepaths:
-        tmp = functional_connectivity.getProcessedRegionResponse(resp_fp, cutoff=0.01, fs=1.2)
-        resp_included = tmp.reindex(include_inds).to_numpy()
-
-        correlation_matrix = np.corrcoef(resp_included)
-
-        np.fill_diagonal(correlation_matrix, np.nan)
-        # fischer z transform (arctanh) and append
-        new_cmat_z = np.arctanh(correlation_matrix)
-        cmats_z.append(new_cmat_z)
-
-    # Make mean pd Dataframe
-    mean_cmat = np.nanmean(np.stack(cmats_z, axis=2), axis=2)
-    np.fill_diagonal(mean_cmat, np.nan)
-    CorrelationMatrix = pd.DataFrame(data=mean_cmat, index=name_list, columns=name_list)
-
-    return CorrelationMatrix, cmats_z
-
-
 # %%  # # # BRANSON ATLAS # # #
 
 response_filepaths = glob.glob(os.path.join(data_dir, 'branson_responses') + '/' + '*.pkl')
 
-include_inds_branson, name_list_branson = getBransonNames()
+include_inds_branson, name_list_branson = bridge.getBransonNames()
 
-CorrelationMatrix_branson, cmats_branson = getCmat(response_filepaths, include_inds_branson, name_list_branson)
+CorrelationMatrix_branson, cmats_branson = functional_connectivity.getCmat(response_filepaths, include_inds_branson, name_list_branson)
 
 # # Compute corr between mean and individual fly cmats
 meanvals = CorrelationMatrix_branson.to_numpy()[np.triu_indices(len(name_list_branson), k=1)]
@@ -114,9 +47,9 @@ print('Individual to mean r = {:.2f} +/- {:.2f}'.format(np.mean(r_val), np.std(r
 
 # %% Ito correlation matrix
 response_filepaths = glob.glob(os.path.join(data_dir, 'ito_responses') + '/' + '*.pkl')
-include_inds_ito, name_list_ito = getItoNames()
+include_inds_ito, name_list_ito = bridge.getItoNames()
 
-CorrelationMatrix_ito, cmats_ito = getCmat(response_filepaths, include_inds_ito, name_list_ito)
+CorrelationMatrix_ito, cmats_ito = functional_connectivity.getCmat(response_filepaths, include_inds_ito, name_list_ito)
 
 # # Compute corr between mean and individual fly cmats
 meanvals = CorrelationMatrix_ito.to_numpy()[np.triu_indices(len(name_list_ito), k=1)]
@@ -181,7 +114,6 @@ sns.heatmap(FC.CorrelationMatrix, cmap='cividis', ax=ax[0, 2])
 # %%
 # load synmask tifs and atlases
 synmask_jrc2018 = io.imread(os.path.join(data_dir, 'hemi_2_atlas', 'JRC2018_synmask.tif'))
-synmask_jfrc2 = io.imread(os.path.join(data_dir, 'hemi_2_atlas', 'JFRC2_synmask.tif'))
 
 branson_jfrc2 = io.imread(os.path.join(data_dir, 'template_brains', 'AnatomySubCompartments20150108_ms999centers.tif'))
 branson_jrc2018 = io.imread(os.path.join(data_dir, 'template_brains', '2018_999_atlas.tif'))
@@ -365,7 +297,7 @@ ax4[1, 0].imshow(ito_jfrc2[108, :, :], cmap=cmap, interpolation='None')
 ax4[1, 1].imshow(ito_jrc2018[250, :, :], cmap=cmap, interpolation='None')
 
 np.max(synmask_jrc2018)
-
+np.unique(synmask_jrc2018)
 
 # %%
 # save_dpi = 400
