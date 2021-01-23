@@ -14,7 +14,7 @@ t0 = Sys.time()
 
 # Load neuron / body IDs
 body_ids =  read.csv(file.path(data_dir, 'connectome_connectivity', 'body_ids.csv'), header = FALSE)
-# body_ids = sample_n(body_ids, 100) # testing
+body_ids = sample_n(body_ids, 100) # testing
 
 # Load atlas(es)
 if (comparison_space == 'JFRC2'){
@@ -36,7 +36,13 @@ if (comparison_space == 'JFRC2'){
 }
 
 branson_count_matrix <- matrix(0, max(branson_atlas), max(branson_atlas))
+branson_tbar_matrix <- matrix(0, max(branson_atlas), max(branson_atlas))
+branson_weighted_tbar_matrix <- matrix(0, max(branson_atlas), max(branson_atlas))
+
 ito_count_matrix <- matrix(0, max(ito_atlas), max(ito_atlas))
+ito_tbar_matrix <- matrix(0, max(ito_atlas), max(ito_atlas))
+ito_weighted_tbar_matrix <- matrix(0, max(branson_atlas), max(branson_atlas))
+
 syn_mask <- array(0, dim=dim(ito_atlas))
 
 # get synapses associated with bodies
@@ -65,32 +71,77 @@ for (body_id in body_ids[,1]){
   mode(input_yxz) = 'integer' # floor to int to index
   mode(output_yxz) = 'integer' # floor to int to index
   
-  # Find atlas regions that are input, output for this cell
-  #   First - Branson atlas
-  input_regions = unique(branson_atlas[input_yxz]) # subset atlas matrix with integer array
+  # # # # # # BRANSON ATLAS # # # # # # # # # # # #
+  input_regions = branson_atlas[input_yxz] # subset atlas matrix with integer array
   input_regions = input_regions[input_regions!=0] # remove 0 regions (non-brain)
+  input_tab = table(input_regions)
+  input_regions = as.numeric(names(input_tab)) # now unique regions
+  input_counts = as.vector(input_tab)
   
-  output_regions = unique(branson_atlas[output_yxz]) # subset atlas matrix with integer array
+  output_regions = branson_atlas[output_yxz]
   output_regions = output_regions[output_regions!=0]
+  output_tab = table(output_regions) 
+  output_regions = as.numeric(names(output_tab))  # now unique regions
+  output_counts = as.vector(output_tab)
+
+  # Cell count 
+  branson_count_matrix[input_regions, output_regions] = 
+    branson_count_matrix[input_regions, output_regions] + 1
   
-  branson_count_matrix[input_regions, output_regions] = branson_count_matrix[input_regions, output_regions] + 1
+  # Total T-bar count 
+  branson_tbar_matrix[input_regions, output_regions] = 
+    branson_tbar_matrix[input_regions, output_regions] + 
+    t(replicate(length(input_regions), output_counts))
   
-  #   Second - Ito atlas
-  input_regions = unique(ito_atlas[input_yxz]) # subset atlas matrix with integer array
+  # Weighted T-bar count: output tbars mult. by fraction of total input synapses in source region 
+  branson_weighted_tbar_matrix[input_regions, output_regions] = 
+    branson_weighted_tbar_matrix[input_regions, output_regions] + 
+    as.matrix(input_counts / sum(input_counts)) %*% t(as.matrix(output_counts))
+    
+  # # # # # # ITO ATLAS # # # # # # # # # # # #
+  input_regions = ito_atlas[input_yxz] # subset atlas matrix with integer array
   input_regions = input_regions[input_regions!=0] # remove 0 regions (non-brain)
+  input_tab = table(input_regions)
+  input_regions = as.numeric(names(input_tab)) # now unique regions
+  input_counts = as.vector(input_tab)
   
-  output_regions = unique(ito_atlas[output_yxz]) # subset atlas matrix with integer array
+  output_regions = ito_atlas[output_yxz]
   output_regions = output_regions[output_regions!=0]
+  output_tab = table(output_regions) 
+  output_regions = as.numeric(names(output_tab))  # now unique regions
+  output_counts = as.vector(output_tab)
   
-  ito_count_matrix[input_regions, output_regions] = ito_count_matrix[input_regions, output_regions] + 1
+  # Cell count 
+  ito_count_matrix[input_regions, output_regions] = 
+    ito_count_matrix[input_regions, output_regions] + 1
+  
+  # Total T-bar count 
+  ito_tbar_matrix[input_regions, output_regions] = 
+    ito_tbar_matrix[input_regions, output_regions] + 
+    t(replicate(length(input_regions), output_counts))
+  
+  # Weighted T-bar count: output tbars mult. by fraction of total input synapses in source region 
+  ito_weighted_tbar_matrix[input_regions, output_regions] = 
+    ito_weighted_tbar_matrix[input_regions, output_regions] + 
+    as.matrix(input_counts / sum(input_counts)) %*% t(as.matrix(output_counts))
+
   
   # Append output synapse counts to synapse mask
-  syn_mask[output_yxz] = syn_mask[output_yxz] + 1 # number of outputting cells in each voxel of atlas space (doesn't count multiple t-bars in a voxel for one cell)
+  ct_by_vox = aggregate(data.frame(output_yxz)$x, by=data.frame(output_yxz), length)
+  syn_mask[ct_by_vox[,1:3]] = syn_mask[ct_by_vox[,1:3]] + ct_by_vox[,4]
   
 }
 
+# Save conn matrices and syn mask
 write.csv(branson_count_matrix, file.path(data_dir, 'hemi_2_atlas', paste(comparison_space, 'branson_cellcount_matrix.csv', sep='_')))
+write.csv(branson_tbar_matrix, file.path(data_dir, 'hemi_2_atlas', paste(comparison_space, 'branson_tbar_matrix', sep='_')))
+write.csv(branson_weighted_tbar_matrix, file.path(data_dir, 'hemi_2_atlas', paste(comparison_space, 'branson_weighted_tbar_matrix', sep='_')))
+
 write.csv(ito_count_matrix, file.path(data_dir, 'hemi_2_atlas', paste(comparison_space, 'ito_cellcount_matrix.csv', sep='_')))
-writeTIF(syn_mask, file.path(data_dir, 'hemi_2_atlas', paste(comparison_space, 'synmask.tif', sep='_')))
+write.csv(ito_tbar_matrix, file.path(data_dir, 'hemi_2_atlas', paste(comparison_space, 'ito_tbar_matrix', sep='_')))
+write.csv(ito_weighted_tbar_matrix, file.path(data_dir, 'hemi_2_atlas', paste(comparison_space, 'ito_weighted_tbar_matrix', sep='_')))
+
+print(max(syn_mask))
+writeTIF((2 ** 16) * syn_mask / max(syn_mask), file.path(data_dir, 'hemi_2_atlas', paste(comparison_space, 'synmask.tif', sep='_')))
 
 Sys.time() - t0
