@@ -9,7 +9,7 @@ import pandas as pd
 import seaborn as sns
 import glob
 from skimage import io
-from scfc import bridge, functional_connectivity
+from scfc import bridge, functional_connectivity, anatomical_connectivity
 from scipy.stats import pearsonr
 import nibabel as nib
 
@@ -20,7 +20,7 @@ token = bridge.getUserConfiguration()['token']
 # start client
 neuprint_client = Client('neuprint.janelia.org', dataset='hemibrain:v1.2', token=token)
 # Get FunctionalConnectivity object
-FC = functional_connectivity.FunctionalConnectivity(data_dir=data_dir, fs=1.2, cutoff=0.01, mapping=bridge.getRoiMapping())
+# FC = functional_connectivity.FunctionalConnectivity(data_dir=data_dir, fs=1.2, cutoff=0.01, mapping=bridge.getRoiMapping())
 
 # %%
 
@@ -32,6 +32,7 @@ response_filepaths = glob.glob(os.path.join(data_dir, 'branson_responses') + '/'
 include_inds_branson, name_list_branson = bridge.getBransonNames()
 
 CorrelationMatrix_branson, cmats_branson = functional_connectivity.getCmat(response_filepaths, include_inds_branson, name_list_branson)
+Branson_JRC2018 = anatomical_connectivity.getAtlasConnectivity(include_inds_branson, name_list_branson, 'branson')
 
 # # Compute corr between mean and individual fly cmats
 meanvals = CorrelationMatrix_branson.to_numpy()[np.triu_indices(len(name_list_branson), k=1)]
@@ -50,6 +51,8 @@ response_filepaths = glob.glob(os.path.join(data_dir, 'ito_responses') + '/' + '
 include_inds_ito, name_list_ito = bridge.getItoNames()
 
 CorrelationMatrix_ito, cmats_ito = functional_connectivity.getCmat(response_filepaths, include_inds_ito, name_list_ito)
+Ito_JRC2018 = anatomical_connectivity.getAtlasConnectivity(include_inds_ito, name_list_ito, 'ito')
+
 
 # # Compute corr between mean and individual fly cmats
 meanvals = CorrelationMatrix_ito.to_numpy()[np.triu_indices(len(name_list_ito), k=1)]
@@ -74,41 +77,6 @@ for c_ind in range(FC.cmats.shape[2]):
 
 print('r = {:.2f} +/- {:.2f}'.format(np.mean(r_vals), np.std(r_vals)))
 
-# %% Load cellcount_matrix from R / natverse script
-#   Branson atlas
-JRC2018_branson_cellcount_matrix = pd.read_csv(os.path.join(data_dir, 'hemi_2_atlas', 'JRC2018_branson_cellcount_matrix.csv'), header=0).to_numpy()[:, 1:]
-JRC2018_branson_cellcount_matrix = pd.DataFrame(data=JRC2018_branson_cellcount_matrix, index=np.arange(1, 1000), columns=np.arange(1, 1000))
-
-# filter and sort count_matrix by include_inds
-Branson_JRC2018 = pd.DataFrame(data=np.zeros_like(CorrelationMatrix_branson), index=name_list_branson, columns=name_list_branson)
-
-for s_ind, src in enumerate(include_inds_branson):
-    for t_ind, trg in enumerate(include_inds_branson):
-        Branson_JRC2018.iloc[s_ind, t_ind] = JRC2018_branson_cellcount_matrix.loc[src, trg]
-
-#   Ito atlas
-JRC2018_ito_cellcount_matrix = pd.read_csv(os.path.join(data_dir, 'hemi_2_atlas', 'JRC2018_ito_cellcount_matrix.csv'), header=0).to_numpy()[:, 1:]
-JRC2018_ito_cellcount_matrix = pd.DataFrame(data=JRC2018_ito_cellcount_matrix, index=np.arange(1, 87), columns=np.arange(1, 87))
-
-# filter and sort count_matrix by include_inds
-Ito_JRC2018 = pd.DataFrame(data=np.zeros_like(CorrelationMatrix_ito), index=name_list_ito, columns=name_list_ito)
-
-for s_ind, src in enumerate(include_inds_ito):
-    for t_ind, trg in enumerate(include_inds_ito):
-        Ito_JRC2018.iloc[s_ind, t_ind] = JRC2018_ito_cellcount_matrix.loc[src, trg]
-
-
-# %%
-
-fh, ax = plt.subplots(2, 3, figsize=(14, 8))
-sns.heatmap(CorrelationMatrix_branson, cmap='cividis', ax=ax[0, 0])
-sns.heatmap(Branson_JRC2018, cmap='cividis', ax=ax[1, 0])
-
-sns.heatmap(CorrelationMatrix_ito, cmap='cividis', ax=ax[0, 1])
-sns.heatmap(Ito_JRC2018, cmap='cividis', ax=ax[1, 1])
-
-
-sns.heatmap(FC.CorrelationMatrix, cmap='cividis', ax=ax[0, 2])
 
 
 # %%

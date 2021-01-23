@@ -13,6 +13,28 @@ import numpy as np
 import pandas as pd
 import os
 
+from . import bridge
+
+
+def getAtlasConnectivity(include_inds, name_list, atlas_id):
+    """."""
+    data_dir = bridge.getUserConfiguration()['data_dir']
+    if atlas_id == 'branson':
+        cellcount_full = pd.read_csv(os.path.join(data_dir, 'hemi_2_atlas', 'JRC2018_branson_cellcount_matrix.csv'), header=0).to_numpy()[:, 1:]
+        cellcount_full = pd.DataFrame(data=cellcount_full, index=np.arange(1, 1000), columns=np.arange(1, 1000))
+    elif atlas_id == 'ito':
+        cellcount_full = pd.read_csv(os.path.join(data_dir, 'hemi_2_atlas', 'JRC2018_ito_cellcount_matrix.csv'), header=0).to_numpy()[:, 1:]
+        cellcount_full = pd.DataFrame(data=cellcount_full, index=np.arange(1, 87), columns=np.arange(1, 87))
+
+    # filter and sort cellcount_full by include_inds
+    cellcount_filtered = pd.DataFrame(data=np.zeros((len(include_inds), len(include_inds))), index=name_list, columns=name_list)
+
+    for s_ind, src in enumerate(include_inds):
+        for t_ind, trg in enumerate(include_inds):
+            cellcount_filtered.iloc[s_ind, t_ind] = cellcount_full.loc[src, trg]
+
+    return cellcount_filtered
+
 
 def getRoiCompleteness(neuprint_client, mapping):
     """

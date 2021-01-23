@@ -137,6 +137,48 @@ def getCmat(response_filepaths, include_inds, name_list):
     return CorrelationMatrix, cmats_z
 
 
+def getMeanBrain(filepath):
+    """Return time-average brain as np array."""
+    meanbrain = np.asanyarray(nib.load(filepath).dataobj).astype('uint16')
+    return meanbrain
+
+
+def loadAtlasData(atlas_path, include_inds, name_list):
+    """."""
+    mask_brain = np.asarray(np.squeeze(nib.load(atlas_path).get_fdata()), 'uint16')
+
+    roi_mask = []
+    for r_ind, r_name in enumerate(name_list):
+        new_roi_mask = np.zeros_like(mask_brain)
+        new_roi_mask = mask_brain == include_inds[r_ind] # bool
+        roi_mask.append(new_roi_mask)
+
+    return roi_mask
+
+
+def getRegionGeometry(atlas_path, include_inds, name_list):
+    """."""
+    roi_mask = loadAtlasData(atlas_path, include_inds, name_list)
+
+    roi_size = [x.sum() for x in roi_mask]
+
+    coms = np.vstack([center_of_mass(x) for x in roi_mask])
+
+    # calulcate euclidean distance matrix between roi centers of mass
+    dist_mat = np.zeros((len(roi_mask), len(roi_mask)))
+    dist_mat[np.triu_indices(len(roi_mask), k=1)] = pdist(coms)
+    dist_mat += dist_mat.T # symmetrize to fill in below diagonal
+
+    DistanceMatrix = pd.DataFrame(data=dist_mat, index=name_list, columns=name_list)
+
+    # geometric mean of the sizes for each pair of ROIs
+    sz_mat = np.sqrt(np.outer(np.array(roi_size), np.array(roi_size)))
+    SizeMatrix = pd.DataFrame(data=sz_mat, index=name_list, columns=name_list)
+
+    return coms, roi_size, DistanceMatrix, SizeMatrix
+
+
+
 class FunctionalConnectivity():
     """FunctionalConnectivity class."""
 
