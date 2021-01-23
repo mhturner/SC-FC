@@ -14,7 +14,7 @@ t0 = Sys.time()
 
 # Load neuron / body IDs
 body_ids =  read.csv(file.path(data_dir, 'connectome_connectivity', 'body_ids.csv'), header = FALSE)
-# body_ids = sample_n(body_ids, 100) # testing
+# body_ids = sample_n(body_ids, 10) # testing
 
 # Load atlas(es)
 if (comparison_space == 'JFRC2'){
@@ -84,20 +84,22 @@ for (body_id in body_ids[,1]){
   output_regions = as.numeric(names(output_tab))  # now unique regions
   output_counts = as.vector(output_tab)
 
+  if (length(input_regions) > 0 && length(output_regions) > 0){
   # Cell count 
   branson_count_matrix[input_regions, output_regions] = 
     branson_count_matrix[input_regions, output_regions] + 1
   
-  # Total T-bar count 
-  branson_tbar_matrix[input_regions, output_regions] = 
-    branson_tbar_matrix[input_regions, output_regions] + 
-    t(replicate(length(input_regions), output_counts))
-  
-  # Weighted T-bar count: output tbars mult. by fraction of total input synapses in source region 
-  branson_weighted_tbar_matrix[input_regions, output_regions] = 
-    branson_weighted_tbar_matrix[input_regions, output_regions] + 
-    as.matrix(input_counts / sum(input_counts)) %*% t(as.matrix(output_counts))
+    # Total T-bar count 
+    branson_tbar_matrix[input_regions, output_regions] = 
+      branson_tbar_matrix[input_regions, output_regions] + 
+      t(replicate(length(input_regions), output_counts))
     
+    # Weighted T-bar count: output tbars mult. by fraction of total input synapses in source region 
+    branson_weighted_tbar_matrix[input_regions, output_regions] = 
+      branson_weighted_tbar_matrix[input_regions, output_regions] + 
+      as.matrix(input_counts / sum(input_counts)) %*% t(as.matrix(output_counts))
+  }
+  
   # # # # # # ITO ATLAS # # # # # # # # # # # #
   input_regions = ito_atlas[input_yxz] # subset atlas matrix with integer array
   input_regions = input_regions[input_regions!=0] # remove 0 regions (non-brain)
@@ -111,20 +113,22 @@ for (body_id in body_ids[,1]){
   output_regions = as.numeric(names(output_tab))  # now unique regions
   output_counts = as.vector(output_tab)
   
-  # Cell count 
-  ito_count_matrix[input_regions, output_regions] = 
-    ito_count_matrix[input_regions, output_regions] + 1
+  if (length(input_regions) > 0 && length(output_regions) > 0){
+    # Cell count 
+    ito_count_matrix[input_regions, output_regions] = 
+      ito_count_matrix[input_regions, output_regions] + 1
+    
+    # Total T-bar count 
+    ito_tbar_matrix[input_regions, output_regions] = 
+      ito_tbar_matrix[input_regions, output_regions] + 
+      t(replicate(length(input_regions), output_counts))
+    
+    # Weighted T-bar count: output tbars mult. by fraction of total input synapses in source region 
+    ito_weighted_tbar_matrix[input_regions, output_regions] = 
+      ito_weighted_tbar_matrix[input_regions, output_regions] + 
+      as.matrix(input_counts / sum(input_counts)) %*% t(as.matrix(output_counts))
+  }
   
-  # Total T-bar count 
-  ito_tbar_matrix[input_regions, output_regions] = 
-    ito_tbar_matrix[input_regions, output_regions] + 
-    t(replicate(length(input_regions), output_counts))
-  
-  # Weighted T-bar count: output tbars mult. by fraction of total input synapses in source region 
-  ito_weighted_tbar_matrix[input_regions, output_regions] = 
-    ito_weighted_tbar_matrix[input_regions, output_regions] + 
-    as.matrix(input_counts / sum(input_counts)) %*% t(as.matrix(output_counts))
-
   
   # Append output synapse counts to synapse mask
   ct_by_vox = aggregate(data.frame(output_yxz)$x, by=data.frame(output_yxz), length)
