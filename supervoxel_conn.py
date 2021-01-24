@@ -65,29 +65,16 @@ for cm in cmats_ito:
 
 print('Individual to mean r = {:.2f} +/- {:.2f}'.format(np.mean(r_val), np.std(r_val)))
 
-# %% For comparison: compute corr between mean and individual fly cmats for Ito atlas data
-
-meanvals = FC.CorrelationMatrix.to_numpy()[np.triu_indices(36, k=1)]
-t_inds = np.where(~np.isnan(meanvals))[0]
-r_vals = []
-for c_ind in range(FC.cmats.shape[2]):
-    cmat = FC.cmats[:, :, c_ind]
-    r, p = pearsonr(meanvals[t_inds], cmat[np.triu_indices(36, k=1)][t_inds])
-    r_vals.append(r)
-
-print('r = {:.2f} +/- {:.2f}'.format(np.mean(r_vals), np.std(r_vals)))
-
-
-
 # %%
 # load synmask tifs and atlases
-synmask_jrc2018 = io.imread(os.path.join(data_dir, 'hemi_2_atlas', 'JRC2018_synmask.tif'))
+synmask_jrc2018 = io.imread(os.path.join(data_dir, 'hemi_2_atlas', 'JRC2018_synmask_new.tif'))
 
 branson_jfrc2 = io.imread(os.path.join(data_dir, 'template_brains', 'AnatomySubCompartments20150108_ms999centers.tif'))
 branson_jrc2018 = io.imread(os.path.join(data_dir, 'template_brains', '2018_999_atlas.tif'))
 
 ito_jfrc2 = io.imread(os.path.join(data_dir, 'template_brains', 'JFRCtempate2010.mask130819_Original.tif'))
 ito_jrc2018 = io.imread(os.path.join(data_dir, 'template_brains', 'ito_2018.tif'))
+
 
 # %% SC-FC correlation
 fh0, ax0 = plt.subplots(2, 2, figsize=(10, 8))
@@ -264,8 +251,6 @@ ax4[1, 0].imshow(ito_jfrc2[108, :, :], cmap=cmap, interpolation='None')
 
 ax4[1, 1].imshow(ito_jrc2018[250, :, :], cmap=cmap, interpolation='None')
 
-np.max(synmask_jrc2018)
-np.unique(synmask_jrc2018)
 
 # %%
 # save_dpi = 400
