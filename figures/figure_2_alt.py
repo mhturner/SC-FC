@@ -232,27 +232,35 @@ ax.tick_params(axis='y', labelsize=10)
 # ax.tick_params(axis='y', labelsize=10)
 
 # %%
-metrics = ['CellCount', 'WeightedSynapseCount', 'TBars', 'Size', 'Nearness']
-R_by_metric = pd.DataFrame(data=np.zeros((FC.cmats.shape[2], len(metrics))), columns=metrics)
+atlas_path = os.path.join(data_dir, 'atlas_data', 'vfb_68_Original.nii.gz')
+include_inds_ito, name_list_ito = bridge.getItoNames()
+coms, roi_size, DistanceMatrix, SizeMatrix = functional_connectivity.getRegionGeometry(atlas_path, include_inds_ito, name_list_ito)
+
+# metrics = ['cellcount', 'weighted_tbar', 'tbar', 'Size', 'Nearness']
+metrics = ['cellcount', 'tbar', 'Size', 'Nearness']
+R_by_metric = pd.DataFrame(data=np.zeros((len(cmats_z), len(metrics))), columns=metrics)
 pop_r = []
 for metric in metrics:
-    if metric in ['CellCount', 'WeightedSynapseCount', 'TBars']:
-        anatomical_adjacency, keep_inds = AC.getAdjacency(metric, do_log=True)
+    if metric in ['cellcount', 'weighted_tbar', 'tbar']:
+        Structural_Matrix = anatomical_connectivity.getAtlasConnectivity(include_inds_ito, name_list_ito, 'ito', metric=metric).to_numpy().copy()
+        Structural_Matrix = (Structural_Matrix + Structural_Matrix.T) / 2 # symmetrize
+        keep_inds = np.where(Structural_Matrix[np.triu_indices(len(name_list_ito), k=1)] > 0)
+        anatomical_adjacency = np.log10(Structural_Matrix[np.triu_indices(len(name_list_ito), k=1)][keep_inds])
     elif metric == 'Size':
-        anatomical_adjacency = FC.SizeMatrix.to_numpy()[FC.upper_inds]
-        keep_inds = np.arange(FC.upper_inds[0].size)
+        anatomical_adjacency = SizeMatrix.to_numpy()[np.triu_indices(len(name_list_ito), k=1)]
+        keep_inds = np.arange(np.triu_indices(len(name_list_ito), k=1)[0].size)
     elif metric == 'Nearness':
-        anatomical_adjacency = 1/FC.DistanceMatrix.to_numpy()[FC.upper_inds]
-        keep_inds = np.arange(FC.upper_inds[0].size)
+        anatomical_adjacency = 1/DistanceMatrix.to_numpy()[np.triu_indices(len(name_list_ito), k=1)]
+        keep_inds = np.arange(np.triu_indices(len(name_list_ito), k=1)[0].size)
 
-    functional_adjacency_pop = FC.CorrelationMatrix.to_numpy()[FC.upper_inds][keep_inds]
+    functional_adjacency_pop = Functional_Matrix.to_numpy()[np.triu_indices(len(name_list_ito), k=1)][keep_inds]
     r_new, _ = pearsonr(anatomical_adjacency, functional_adjacency_pop)
     pop_r.append(r_new)
 
     r_vals = []
-    for c_ind in range(FC.cmats.shape[2]):
-        cmat = FC.cmats[:, :, c_ind]
-        functional_adjacency_new = cmat[FC.upper_inds][keep_inds]
+    for c_ind in range(len(cmats_z)):
+        cmat = cmats_z[c_ind]
+        functional_adjacency_new = cmat[np.triu_indices(len(name_list_ito), k=1)][keep_inds]
         r_new, _ = pearsonr(anatomical_adjacency, functional_adjacency_new)
         r_vals.append(r_new)
     R_by_metric.loc[:, metric] = r_vals

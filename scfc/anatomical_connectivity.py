@@ -16,14 +16,18 @@ import os
 from . import bridge
 
 
-def getAtlasConnectivity(include_inds, name_list, atlas_id):
-    """."""
+def getAtlasConnectivity(include_inds, name_list, atlas_id, metric='cellcount'):
+    """
+    .
+
+    metric: 'cellcount', 'tbar', 'weighted_tbar'
+    """
     data_dir = bridge.getUserConfiguration()['data_dir']
     if atlas_id == 'branson':
-        cellcount_full = pd.read_csv(os.path.join(data_dir, 'hemi_2_atlas', 'JRC2018_branson_cellcount_matrix.csv'), header=0).to_numpy()[:, 1:]
+        cellcount_full = pd.read_csv(os.path.join(data_dir, 'hemi_2_atlas', 'JRC2018_branson_{}_matrix.csv'.format(metric)), header=0).to_numpy()[:, 1:]
         cellcount_full = pd.DataFrame(data=cellcount_full, index=np.arange(1, 1000), columns=np.arange(1, 1000))
     elif atlas_id == 'ito':
-        cellcount_full = pd.read_csv(os.path.join(data_dir, 'hemi_2_atlas', 'JRC2018_ito_cellcount_matrix.csv'), header=0).to_numpy()[:, 1:]
+        cellcount_full = pd.read_csv(os.path.join(data_dir, 'hemi_2_atlas', 'JRC2018_ito_{}_matrix.csv'.format(metric)), header=0).to_numpy()[:, 1:]
         cellcount_full = pd.DataFrame(data=cellcount_full, index=np.arange(1, 87), columns=np.arange(1, 87))
 
     # filter and sort cellcount_full by include_inds

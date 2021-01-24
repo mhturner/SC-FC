@@ -66,6 +66,10 @@ for cm in cmats_ito:
 print('Individual to mean r = {:.2f} +/- {:.2f}'.format(np.mean(r_val), np.std(r_val)))
 
 # %%
+
+
+anatomical_connectivity.getAtlasConnectivity(include_inds_ito, name_list_ito, 'ito', metric='weighted_tbar').shape
+# %%
 # load synmask tifs and atlases
 synmask_jrc2018 = io.imread(os.path.join(data_dir, 'hemi_2_atlas', 'JRC2018_synmask_new.tif'))
 

@@ -36,13 +36,13 @@ branson_weighted_tbar_matrix <- matrix(0, max(branson_atlas), max(branson_atlas)
 
 ito_count_matrix <- matrix(0, max(ito_atlas), max(ito_atlas))
 ito_tbar_matrix <- matrix(0, max(ito_atlas), max(ito_atlas))
-ito_weighted_tbar_matrix <- matrix(0, max(branson_atlas), max(branson_atlas))
+ito_weighted_tbar_matrix <- matrix(0, max(ito_atlas), max(ito_atlas))
 
 syn_mask <- array(0, dim=dim(ito_atlas))
 
 # Load neuron / body IDs
 all_body_ids =  read.csv(file.path(data_dir, 'connectome_connectivity', 'body_ids.csv'), header = FALSE)
-all_body_ids = sample_n(all_body_ids, 1000) # testing
+all_body_ids = sample_n(all_body_ids, 350) # testing
 
 # split into chunks for less gigantic neuprint calls
 chunks = split(all_body_ids[,1], ceiling(seq_along(all_body_ids[,1])/100))
@@ -54,7 +54,7 @@ for (c_ind in 1:length(chunks)){
   # get synapses associated with bodies
   syn_data = neuprint_get_synapses(body_ids)
   
-  sprintf('Loaded chunk %s; syn_data size = %s x %s', c_ind, dim(syn_data)[1],  dim(syn_data)[2])
+  print(sprintf('Loaded chunk %s: syn_data size = %s x %s', c_ind, dim(syn_data)[1],  dim(syn_data)[2]))
   
   # convert hemibrain raw locations to microns
   syn_data[,c("x", "y", "z")] = syn_data[,c("x", "y", "z")] * 8/1000 # vox -> um
@@ -146,18 +146,18 @@ for (c_ind in 1:length(chunks)){
     ct = ct + 1
   } # end body_ids
   
-  sprintf('Completed chunk %s: total cells = %s', c_ind, ct)
+  print(sprintf('Completed chunk %s: total cells = %s', c_ind, ct))
   
 } # end chunks
 
 # Save conn matrices and syn mask
 write.csv(branson_count_matrix, file.path(data_dir, 'hemi_2_atlas', paste(comparison_space, 'branson_cellcount_matrix.csv', sep='_')))
-write.csv(branson_tbar_matrix, file.path(data_dir, 'hemi_2_atlas', paste(comparison_space, 'branson_tbar_matrix', sep='_')))
-write.csv(branson_weighted_tbar_matrix, file.path(data_dir, 'hemi_2_atlas', paste(comparison_space, 'branson_weighted_tbar_matrix', sep='_')))
+write.csv(branson_tbar_matrix, file.path(data_dir, 'hemi_2_atlas', paste(comparison_space, 'branson_tbar_matrix.csv', sep='_')))
+write.csv(branson_weighted_tbar_matrix, file.path(data_dir, 'hemi_2_atlas', paste(comparison_space, 'branson_weighted_tbar_matrix.csv', sep='_')))
 
 write.csv(ito_count_matrix, file.path(data_dir, 'hemi_2_atlas', paste(comparison_space, 'ito_cellcount_matrix.csv', sep='_')))
-write.csv(ito_tbar_matrix, file.path(data_dir, 'hemi_2_atlas', paste(comparison_space, 'ito_tbar_matrix', sep='_')))
-write.csv(ito_weighted_tbar_matrix, file.path(data_dir, 'hemi_2_atlas', paste(comparison_space, 'ito_weighted_tbar_matrix', sep='_')))
+write.csv(ito_tbar_matrix, file.path(data_dir, 'hemi_2_atlas', paste(comparison_space, 'ito_tbar_matrix.csv', sep='_')))
+write.csv(ito_weighted_tbar_matrix, file.path(data_dir, 'hemi_2_atlas', paste(comparison_space, 'ito_weighted_tbar_matrix.csv', sep='_')))
 
 print(max(syn_mask))
 writeTIF(syn_mask, file.path(data_dir, 'hemi_2_atlas', paste(comparison_space, 'synmask.tif', sep='_')))
