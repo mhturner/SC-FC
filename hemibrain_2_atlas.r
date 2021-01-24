@@ -42,11 +42,11 @@ syn_mask <- array(0, dim=dim(ito_atlas))
 
 # Load neuron / body IDs
 all_body_ids =  read.csv(file.path(data_dir, 'connectome_connectivity', 'body_ids.csv'), header = FALSE)
-all_body_ids = sample_n(all_body_ids, 350) # testing
+# all_body_ids = sample_n(all_body_ids, 350) # testing
 
 # split into chunks for less gigantic neuprint calls
-chunks = split(all_body_ids[,1], ceiling(seq_along(all_body_ids[,1])/100))
-# chunks = split(all_body_ids[,1], ceiling(seq_along(all_body_ids[,1])/1000))
+# chunks = split(all_body_ids[,1], ceiling(seq_along(all_body_ids[,1])/100)) # testing
+chunks = split(all_body_ids[,1], ceiling(seq_along(all_body_ids[,1])/1000))
 
 for (c_ind in 1:length(chunks)){
   body_ids = chunks[[c_ind]]
@@ -159,7 +159,6 @@ write.csv(ito_count_matrix, file.path(data_dir, 'hemi_2_atlas', paste(comparison
 write.csv(ito_tbar_matrix, file.path(data_dir, 'hemi_2_atlas', paste(comparison_space, 'ito_tbar_matrix.csv', sep='_')))
 write.csv(ito_weighted_tbar_matrix, file.path(data_dir, 'hemi_2_atlas', paste(comparison_space, 'ito_weighted_tbar_matrix.csv', sep='_')))
 
-print(max(syn_mask))
 writeTIF(syn_mask, file.path(data_dir, 'hemi_2_atlas', paste(comparison_space, 'synmask.tif', sep='_')))
 
 Sys.time() - t0
