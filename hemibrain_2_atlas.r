@@ -5,6 +5,8 @@ library(neuprintr)
 library(dplyr)
 library(bioimagetools)
 
+options(warn=1)
+
 comparison_space <- commandArgs(trailingOnly = TRUE)
 
 # data_dir = '/home/mhturner/Dropbox/ClandininLab/Analysis/SC-FC/data'
@@ -19,17 +21,13 @@ body_ids =  read.csv(file.path(data_dir, 'connectome_connectivity', 'body_ids.cs
 # Load atlas(es)
 if (comparison_space == 'JFRC2'){
   res = 0.68 # um/voxel of atlas
-  suppressWarnings({
-    ito_atlas <- bioimagetools::readTIF(file.path(data_dir, 'template_brains', 'JFRCtempate2010.mask130819_Original.tif'), as.is=TRUE)
-    branson_atlas <- bioimagetools::readTIF(file.path(data_dir, 'template_brains', 'AnatomySubCompartments20150108_ms999centers.tif'), as.is=TRUE)
-  })
+  ito_atlas <- bioimagetools::readTIF(file.path(data_dir, 'template_brains', 'JFRCtempate2010.mask130819_Original.tif'), as.is=TRUE)
+  branson_atlas <- bioimagetools::readTIF(file.path(data_dir, 'template_brains', 'AnatomySubCompartments20150108_ms999centers.tif'), as.is=TRUE)
   
 } else if (comparison_space == 'JRC2018'){
   res = 0.38 # um/voxel of atlas
-  suppressWarnings({
-    ito_atlas <- bioimagetools::readTIF(file.path(data_dir, 'template_brains', 'ito_2018.tif'), as.is=TRUE)
-    branson_atlas <- bioimagetools::readTIF(file.path(data_dir, 'template_brains', '2018_999_atlas.tif'), as.is=TRUE)
-  })
+  ito_atlas <- bioimagetools::readTIF(file.path(data_dir, 'template_brains', 'ito_2018.tif'), as.is=TRUE)
+  branson_atlas <- bioimagetools::readTIF(file.path(data_dir, 'template_brains', '2018_999_atlas.tif'), as.is=TRUE)
   
 } else {
   print('Unrecognized comparison space argument')
@@ -47,6 +45,8 @@ syn_mask <- array(0, dim=dim(ito_atlas))
 
 # get synapses associated with bodies
 syn_data = neuprint_get_synapses(body_ids[,1])
+
+sprintf('syn_data size = %s x %s', dim(syn_data)[1],  dim(syn_data)[2])
 
 # convert hemibrain raw locations to microns
 syn_data[,c("x", "y", "z")] = syn_data[,c("x", "y", "z")] * 8/1000 # vox -> um
@@ -129,10 +129,11 @@ for (body_id in body_ids[,1]){
       as.matrix(input_counts / sum(input_counts)) %*% t(as.matrix(output_counts))
   }
   
-  
-  # Append output synapse counts to synapse mask
-  ct_by_vox = aggregate(data.frame(output_yxz)$x, by=data.frame(output_yxz), length)
-  syn_mask[data.matrix(ct_by_vox)[,1:3]] = syn_mask[data.matrix(ct_by_vox)[,1:3]] + data.matrix(ct_by_vox)[,4]
+  if (length(output_yxz) > 0){
+    # Append output synapse counts to synapse mask
+    ct_by_vox = aggregate(data.frame(output_yxz)$x, by=data.frame(output_yxz), length)
+    syn_mask[data.matrix(ct_by_vox)[,1:3]] = syn_mask[data.matrix(ct_by_vox)[,1:3]] + data.matrix(ct_by_vox)[,4]
+  }
   
 }
 
