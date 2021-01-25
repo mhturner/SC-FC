@@ -85,8 +85,8 @@ for key, value in anat_position.items():
     ax_anat.scatter(xi, yi, zi, c='b', s=5+40*G_anat.degree(weight='weight')[key], edgecolors='k', alpha=0.25)
     ax_fxn.scatter(xi, yi, zi, c='b', s=5+20*G_fxn.degree(weight='weight')[key], edgecolors='k', alpha=0.25)
     if name_list_ito[key] not in roilabels_to_skip:
-        ax_anat.text(xi, yi, zi+2, name_list_ito[key], zdir=(0, 0, 0), fontsize=7, fontweight='bold')
-        ax_fxn.text(xi, yi, zi+2, name_list_ito[key], zdir=(0, 0, 0), fontsize=7, fontweight='bold')
+        ax_anat.text(xi, yi, zi+2, bridge.displayName(name_list_ito[key]), zdir=(0, 0, 0), fontsize=7, fontweight='bold')
+        ax_fxn.text(xi, yi, zi+2, bridge.displayName(name_list_ito[key]), zdir=(0, 0, 0), fontsize=7, fontweight='bold')
 
 # plot connections
 for i, j in enumerate(G_anat.edges()):
@@ -128,7 +128,7 @@ print('r deg = {:.4f}'.format(r))
 ax[0].plot(deg_anat, deg_fxn, alpha=1.0, marker='o', linestyle='none')
 for r_ind, r in enumerate(name_list_ito):
     if r in roilabels_to_show:
-        ax[0].annotate(r, (deg_anat[r_ind]+0.4, deg_fxn[r_ind]-0.2), fontsize=8, fontweight='bold')
+        ax[0].annotate(bridge.displayName(r), (deg_anat[r_ind]+0.4, deg_fxn[r_ind]-0.2), fontsize=8, fontweight='bold')
 
 ax[0].set_xlabel('Structural degree')
 ax[0].set_ylabel('Functional degree')
@@ -141,7 +141,7 @@ print('r clust = {:.4f}'.format(r))
 ax[1].plot(clust_anat, clust_fxn, alpha=1.0, marker='o', linestyle='none')
 for r_ind, r in enumerate(name_list_ito):
     if r in roilabels_to_show:
-        ax[1].annotate(r, (clust_anat[r_ind]+0.002, clust_fxn[r_ind]-0.003), fontsize=8, fontweight='bold')
+        ax[1].annotate(bridge.displayName(r), (clust_anat[r_ind]+0.002, clust_fxn[r_ind]-0.003), fontsize=8, fontweight='bold')
 ax[1].set_xlabel('Structural clustering')
 ax[1].set_ylabel('Functional clustering')
 ax[1].set_ylim([0, 0.445])

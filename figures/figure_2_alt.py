@@ -22,7 +22,7 @@ from matplotlib import rcParams
 rcParams.update({'font.size': 12})
 rcParams.update({'axes.spines.right': False})
 rcParams.update({'axes.spines.top': False})
-rcParams['svg.fonttype'] = 'none' # let illustrator handle the font type
+rcParams['svg.fonttype'] = 'none'  # let illustrator handle the font type
 
 data_dir = bridge.getUserConfiguration()['data_dir']
 analysis_dir = bridge.getUserConfiguration()['analysis_dir']
@@ -105,7 +105,7 @@ ax = ax.ravel()
 [x.set_xlim([-15, timevec[-1]]) for x in ax]
 for p_ind, pr in enumerate(pull_regions):
     ax[p_ind].plot(timevec, region_dff.loc[pr, x_start:(x_start+dt-1)], color=colors[p_ind])
-    ax[p_ind].annotate(pr, (-10, 0), rotation=90, fontsize=10)
+    ax[p_ind].annotate(bridge.displayName(pr), (-10, 0), rotation=90, fontsize=10)
 
 plotting.addScaleBars(ax[0], dT=10, dF=0.10, T_value=-2.5, F_value=-0.10)
 fig2_1.subplots_adjust(hspace=0.02, wspace=0.02)
@@ -133,9 +133,9 @@ for ind_1, eg1 in enumerate(pull_regions):
             ax[ind_1-1, ind_2].axhline(0, color='k', alpha=0.5, linestyle='-')
             ax[ind_1-1, ind_2].axvline(0, color='k', alpha=0.5, linestyle='-')
             if ind_2==0:
-                ax[ind_1-1, ind_2].set_ylabel(eg1, fontsize=10)
+                ax[ind_1-1, ind_2].set_ylabel(bridge.displayName(eg1), fontsize=10)
             if ind_1==3:
-                ax[ind_1-1, ind_2].set_xlabel(eg2, fontsize=10)
+                ax[ind_1-1, ind_2].set_xlabel(bridge.displayName(eg2), fontsize=10)
 fig2_2.subplots_adjust(hspace=0.02, wspace=0.02)
 
 plotting.addScaleBars(ax[0, 0], dT=-30, dF=0.25, T_value=time[-1], F_value=-0.15)
@@ -167,15 +167,19 @@ for r_ind, r_key in enumerate(sort_keys):
 
 fig2_3, ax = plt.subplots(1, 2, figsize=(9, 4))
 # fxnal heatmap
-sns.heatmap(FC_ordered, ax=ax[0], yticklabels=True, xticklabels=True, cbar_kws={'label': 'Functional Correlation (z)', 'shrink': .75}, cmap="cividis", rasterized=True)
+sns.heatmap(FC_ordered, ax=ax[0],
+            yticklabels=[bridge.displayName(x) for x in FC_ordered.index],
+            xticklabels=[bridge.displayName(x) for x in FC_ordered.index],
+            cbar_kws={'label': 'Functional Correlation (z)', 'shrink': .75}, cmap="cividis", rasterized=True)
 ax[0].set_aspect('equal')
 ax[0].tick_params(axis='both', which='major', labelsize=6)
 # structural heatmap
-sns.heatmap(np.log10(SC_ordered).replace([np.inf, -np.inf], 0), ax=ax[1], yticklabels=True, xticklabels=True, cmap="cividis", rasterized=True, cbar=False)
+sns.heatmap(np.log10(SC_ordered).replace([np.inf, -np.inf], 0), ax=ax[1],
+            yticklabels=[bridge.displayName(x) for x in SC_ordered.index],
+            xticklabels=[bridge.displayName(x) for x in SC_ordered.index],
+            cmap="cividis", rasterized=True, cbar=False)
 cb = fig2_3.colorbar(matplotlib.cm.ScalarMappable(norm=matplotlib.colors.SymLogNorm(vmin=1, vmax=np.nanmax(SC_ordered.to_numpy()), base=10, linthresh=0.1, linscale=1), cmap="cividis"), ax=ax[1], shrink=0.75, label='Connecting cells')
 cb.outline.set_linewidth(0)
-# ax[1].set_xlabel('Target', fontsize=10)
-# ax[1].set_ylabel('Source', fontsize=10)
 ax[1].set_aspect('equal')
 ax[1].tick_params(axis='both', which='major', labelsize=6)
 fig2_3.subplots_adjust(wspace=0.25)
@@ -290,15 +294,15 @@ fig2_5.savefig(os.path.join(analysis_dir, 'figpanels', 'fig2_5.svg'), format='sv
 fig2_6.savefig(os.path.join(analysis_dir, 'figpanels', 'fig2_6.svg'), format='svg', transparent=True, dpi=save_dpi)
 
 # %% Supp: Branson atlas SC-FC
+# TODO: new region labeling. Bar for region ranges + color code?
 
-# Branson matrices
+response_filepaths = glob.glob(os.path.join(data_dir, 'branson_responses') + '/' + '*.pkl')
+
 include_inds_branson, name_list_branson = bridge.getBransonNames()
 
-atlas_path = os.path.join(data_dir, 'atlas_data', 'AnatomySubCompartments20150108_ms999centers.nii')
-coms, roi_size, DistanceMatrix, SizeMatrix = functional_connectivity.getRegionGeometry(atlas_path, include_inds_branson, name_list_branson)
+CorrelationMatrix_branson, cmats_branson = functional_connectivity.getCmat(response_filepaths, include_inds_branson, name_list_branson)
+Branson_JRC2018 = anatomical_connectivity.getAtlasConnectivity(include_inds_branson, name_list_branson, 'branson')
 
-roi_size
-# %%
 figS2_0, ax = plt.subplots(1, 3, figsize=(15, 4))
 sns.heatmap(CorrelationMatrix_branson, ax=ax[0], cmap='cividis', cbar_kws={'label': 'Functional Correlation (z)', 'shrink': .75})
 ax[0].set_aspect('equal')
@@ -341,6 +345,7 @@ figS2_0.savefig(os.path.join(analysis_dir, 'figpanels', 'figS2_0.svg'), format='
 
 # %% Supp: subsampled region cmats and SC-FC corr
 
+# TODO: fix for new atlas comp
 atlas_fns = glob.glob(os.path.join(data_dir, 'atlas_data', 'vfb_68_2*'))
 sizes = []
 for fn in atlas_fns:
@@ -393,6 +398,9 @@ ax2.spines['right'].set_visible(True)
 figS2_1.savefig(os.path.join(analysis_dir, 'figpanels', 'figS2_1.svg'), format='svg', transparent=True, dpi=save_dpi)
 
 # %% Supp: AC+FC vs. completeness, distance
+
+# TODO: fix for new atlas comp
+
 cell_ct, _ = AC.getAdjacency('CellCount', do_log=False)
 completeness = (AC.CompletenessMatrix.to_numpy() + AC.CompletenessMatrix.to_numpy().T) / 2
 fc = FC.CorrelationMatrix.to_numpy()[FC.upper_inds]

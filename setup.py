@@ -19,7 +19,8 @@ setup(
                       'networkx',
                       'munkres',
                       'PyYAML',
-                      'seriate'],
+                      'seriate',
+                      'scikit-image'],
     include_package_data=True,
     zip_safe=False,
 )

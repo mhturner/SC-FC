@@ -80,6 +80,11 @@ def getRoiMapping():
     return mapping
 
 
+def displayName(name):
+    """."""
+    return name.replace('_R', '(R)').replace('_L', '(L)').replace('_', '')
+
+
 def getBransonNames():
     """."""
     data_dir = getUserConfiguration()['data_dir']

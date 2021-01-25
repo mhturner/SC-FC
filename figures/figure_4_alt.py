@@ -94,7 +94,10 @@ ax.tick_params(axis='both', which='major', labelsize=8)
 ax.set_aspect(1)
 
 fig4_2, ax = plt.subplots(1, 1, figsize=(4, 4))
-sns.heatmap(sorted_diff, ax=ax, yticklabels=True, xticklabels=True, cbar_kws={'label': 'Difference (FC - SC)', 'shrink': .65}, cmap="RdBu_r", rasterized=True, vmin=-lim, vmax=lim)
+sns.heatmap(sorted_diff, ax=ax,
+            yticklabels=[bridge.displayName(x) for x in sorted_diff.columns],
+            xticklabels=[bridge.displayName(x) for x in sorted_diff.index],
+            cbar_kws={'label': 'Difference (FC - SC)', 'shrink': .65}, cmap="RdBu_r", rasterized=True, vmin=-lim, vmax=lim)
 ax.set_aspect('equal')
 ax.tick_params(axis='both', which='major', labelsize=6)
 
@@ -156,7 +159,7 @@ for r_ind in sort_inds:
     new_err = np.std(diff_by_region[r_ind, :]) / np.sqrt(diff_by_region.shape[1])
     ax.plot(plot_position, new_mean, linestyle='None', marker='o', color=color)
     ax.plot([plot_position, plot_position], [new_mean-new_err, new_mean+new_err], linestyle='-', linewidth=2, marker='None', color=color)
-    ax.annotate(current_roi, (plot_position-0.25, 1.1), rotation=90, fontsize=8, color=color, fontweight='bold')
+    ax.annotate(bridge.displayName(current_roi), (plot_position-0.25, 1.1), rotation=90, fontsize=8, color=color, fontweight='bold')
 
     plot_position += 1
 
@@ -183,9 +186,6 @@ for r in regions:
     print(p)
     print(p < p_cutoff)
     print('------------')
-
-
-# %%
 
 
 # %%

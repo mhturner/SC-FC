@@ -71,7 +71,7 @@ for p_ind, pr in enumerate(ConnectivityCount.index):
     axS1[p_ind].plot(ct, marker='.', linestyle='none', rasterized=False)
 
     axS1[p_ind].set_xticks([])
-    axS1[p_ind].annotate('{}'.format(pr), (12, 6e3), fontsize=8)
+    axS1[p_ind].annotate('{}'.format(bridge.displayName(pr)), (12, 6e3), fontsize=8)
     axS1[p_ind].set_yscale('log')
     axS1[p_ind].set_ylim([0.5, 5e4])
     axS1[p_ind].set_yticks([1e0, 1e2, 1e4])
@@ -83,14 +83,14 @@ for p_ind, pr in enumerate(ConnectivityCount.index):
 
         ax[0].set_xticks(list(range(len(ct))))
         ax[0].tick_params(axis='both', which='major', labelsize=10)
-        ax[0].set_xticklabels(ct.index)
+        ax[0].set_xticklabels([bridge.displayName(x) for x in ct.index])
         ax[0].set_yscale('log')
         ax[0].set_ylim([0.5, 1e4])
         for tick in ax[0].get_xticklabels():
             tick.set_rotation(90)
             tick.set_fontsize(7)
         ax[0].set_ylabel('Cells')
-        ax[0].annotate('Source: {}'.format(pr), (12, 1e4), fontsize=12)
+        ax[0].annotate('Source: {}'.format(bridge.displayName(pr)), (12, 1e4), fontsize=12)
 
     # # # TBAR COUNT:
     outbound = ConnectivityTBars.loc[pr, :]
@@ -118,7 +118,7 @@ for p_ind, pr in enumerate(ConnectivityCount.index):
 
         ax[1].set_xticks(list(range(len(ct))))
         ax[1].tick_params(axis='both', which='major', labelsize=10)
-        ax[1].set_xticklabels(ct.index)
+        ax[1].set_xticklabels([bridge.displayName(x) for x in ct.index])
         ax[1].set_yscale('log')
         ax[1].set_ylim([0.05, 5e6])
         ax[1].tick_params(axis='y', which='minor')
@@ -230,71 +230,6 @@ ax[1, 1].axvline(x=1, color='k', zorder=0, alpha=0.5)
 
 fig1_1.savefig(os.path.join(analysis_dir, 'figpanels', 'fig1_1.svg'), format='svg', transparent=True, dpi=save_dpi)
 
-
-# %%
-
-# Atlas name, connectome region(s), super-region, abbreviations
-region_name_data = np.array([
-                            ['AL(R)', 'AL(R)', 'AL', 'AL: Antennal lobe'],
-                            ['AOTU(R)', 'AOTU(R)', 'VLNP', 'AOTU: Anterior optic tubercle'],
-                            ['ATL(R+L)', 'ATL(R+L)', 'INP', 'ATL: Antler'],
-                            ['AVLP(R)', 'AVLP(R)', 'VLNP', 'AVLP: Anterior ventrolateral protocerebrum'],
-                            ['BU(R+L)', 'BU(R+L)', 'LX', 'BU: Bulb'],
-                            ['CAN(R)', 'CAN(R)', 'PENP', 'CAN: Cantle'],
-                            ['CRE(R+L)', 'CRE(R+L)', 'INP', 'CRE: Crepine'],
-                            ['EB', 'EB', 'CX', 'EB: Ellipsoid  body'],
-                            ['EPA', 'EPA', 'VMNP', 'EPA: Epaulette'],
-                            ['FB', 'FB, AB(R), AB(L)', 'CX', 'FB: Fan-shaped body; AB: Asymmmetrical body'],
-                            ['GOR(R+L)', 'GOR(R+L)', 'VMNP', 'GOR: Gorget'],
-                            ['IB(R+L)', 'IB', 'INP', 'IB: Inferior bridge'],
-                            ['ICL(R)', 'ICL(R)', 'INP', 'ICL: Inferior clamp'],
-                            ['LAL(R)', 'LAL(R)', 'LX', 'LAL: Lateral accessory lobe'],
-                            ['LH(R)', 'LH(R)', 'LH', 'LH: Lateral horn'],
-                            ['MBCA(R)', 'CA(R)', 'MB', 'CA: Calyx'],
-                            ['MBML(R+L)', r"$\beta$L, $\beta$'L, $\gamma$L (R+L)", 'MB', 'ML: Medial lobe'],
-                            ['MBPED(R)', 'PED(R)', 'MB', 'PED: Pedunculus'],
-                            ['MBVL(R)', r"$\alpha$L, $\alpha$'L (R)", 'MB', "VL: Ventral lobe"],
-                            ['NO', 'NO', 'CX', 'NO: Noduli'],
-                            ['PB', 'PB', 'CX', 'PB: Protocerebral bridge'],
-                            ['PLP(R)', 'PLP(R)', 'VLNP', 'PLP: Posteriorlateral protocerebrum'],
-                            ['PVLP(R)', 'PVLP(R)', 'VLNP', 'PVLP: Posterior ventrolateral protocerebrum'],
-                            ['SCL(R)', 'SCL(R)', 'INP', 'SCL: Superior clamp'],
-                            ['SIP(R)', 'SIP(R)', 'SNP', 'SIP: Superior intermediate protocerebrum'],
-                            ['SLP(R)', 'SLP(R)', 'SNP', 'SLP: Superior lateral protocerebrum'],
-                            ['SMP(R+L)', 'SMP(R+L)', 'SNP', 'SMP: Superior medial protocerebrum'],
-                            ['SPS(R)', 'SPS(R)', 'VMNP', 'SPS: Superior posterior slope'],
-                            ['VES(R)', 'VES(R)', 'VMNP', 'VES: Vest'],
-                            ['WED(R)', 'WED(R)', 'VLNP', 'WED: Wedge'],
-                            ])
-
-df = pd.DataFrame(region_name_data, columns=['Atlas region', 'Connectome region(s)', 'Super-region', 'Abbreviation(s)'])
-
-df = df.sort_values('Super-region')
-
-colWidths=[1.0, 2.0, 1.0, 3]
-row_height=0.4
-row_colors=['#f1f1f2', 'w']
-
-size = (df.shape[0]*row_height, np.sum(colWidths))
-figS1_1, ax = plt.subplots(figsize=size)
-ax.axis('off')
-
-mpl_table = ax.table(cellText=df.values, bbox=[0, 0, 1, 1], colLabels=df.columns, colWidths=colWidths, cellLoc='left')
-
-mpl_table.auto_set_font_size(False)
-mpl_table.set_fontsize(12)
-
-for k, cell in six.iteritems(mpl_table._cells):
-    cell.set_edgecolor('w')
-    if k[0] == 0 or k[1] < 0:
-        cell.set_text_props(weight='bold', color='w')
-        cell.set_facecolor('#40466e')
-    else:
-        cell.set_facecolor(row_colors[k[0] % len(row_colors)])
-
-ax.axis("off")
-
-figS1_1.savefig(os.path.join(analysis_dir, 'figpanels', 'table_S1.png'), format='png', transparent=True, dpi=save_dpi)
 
 # %%
 # load synmask tifs and atlases
