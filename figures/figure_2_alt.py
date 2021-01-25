@@ -236,8 +236,7 @@ atlas_path = os.path.join(data_dir, 'atlas_data', 'vfb_68_Original.nii.gz')
 include_inds_ito, name_list_ito = bridge.getItoNames()
 coms, roi_size, DistanceMatrix, SizeMatrix = functional_connectivity.getRegionGeometry(atlas_path, include_inds_ito, name_list_ito)
 
-# metrics = ['cellcount', 'weighted_tbar', 'tbar', 'Size', 'Nearness']
-metrics = ['cellcount', 'tbar', 'Size', 'Nearness']
+metrics = ['cellcount', 'weighted_tbar', 'tbar', 'Size', 'Nearness']
 R_by_metric = pd.DataFrame(data=np.zeros((len(cmats_z), len(metrics))), columns=metrics)
 pop_r = []
 for metric in metrics:
@@ -287,6 +286,54 @@ ax.tick_params(axis='y', labelsize=10)
 # fig2_4.savefig(os.path.join(analysis_dir, 'figpanels', 'fig2_4.svg'), format='svg', transparent=True, dpi=save_dpi)
 # fig2_5.savefig(os.path.join(analysis_dir, 'figpanels', 'fig2_5.svg'), format='svg', transparent=True, dpi=save_dpi)
 # fig2_6.savefig(os.path.join(analysis_dir, 'figpanels', 'fig2_6.svg'), format='svg', transparent=True, dpi=save_dpi)
+
+# %% Supp: Branson atlas SC-FC
+
+# Branson matrices
+response_filepaths = glob.glob(os.path.join(data_dir, 'branson_responses') + '/' + '*.pkl')
+include_inds_branson, name_list_branson = bridge.getBransonNames()
+CorrelationMatrix_branson, cmats_branson = functional_connectivity.getCmat(response_filepaths, include_inds_branson, name_list_branson)
+Branson_JRC2018 = anatomical_connectivity.getAtlasConnectivity(include_inds_branson, name_list_branson, 'branson')
+
+# %%
+figS2_0, ax = plt.subplots(1, 3, figsize=(15, 4))
+sns.heatmap(CorrelationMatrix_branson, ax=ax[0], cmap='cividis', cbar_kws={'label': 'Functional Correlation (z)', 'shrink': .75})
+ax[0].set_aspect('equal')
+ax[0].tick_params(axis='both', which='major', labelsize=8)
+
+tmp = Branson_JRC2018.to_numpy()
+np.fill_diagonal(tmp, np.nan)
+conn_mat = pd.DataFrame(data=tmp, index=name_list_branson, columns=name_list_branson)
+sns.heatmap(np.log10(conn_mat).replace([np.inf, -np.inf], 0), ax=ax[1], cmap="cividis", rasterized=True, cbar=False)
+cb = figS2_0.colorbar(matplotlib.cm.ScalarMappable(norm=matplotlib.colors.SymLogNorm(vmin=1, vmax=np.nanmax(conn_mat.to_numpy()), base=10, linthresh=0.1, linscale=1), cmap="cividis"), ax=ax[1], shrink=0.75, label='Connecting cells')
+cb.outline.set_linewidth(0)
+ax[1].set_aspect('equal')
+ax[1].tick_params(axis='both', which='major', labelsize=8)
+
+# corr: branson
+x = Branson_JRC2018.to_numpy()[np.triu_indices(len(name_list_branson), k=1)]
+keep_inds = np.where(x > 0)
+x = np.log10(x[keep_inds])
+y = CorrelationMatrix_branson.to_numpy()[np.triu_indices(len(name_list_branson), k=1)]
+y = y[keep_inds]
+
+r, p = pearsonr(x, y)
+coef = np.polyfit(x, y, 1)
+linfit = np.poly1d(coef)
+
+# hexbin plot
+hb = ax[2].hexbin(x, y, bins='log', gridsize=40)
+xx = np.linspace(x.min(), x.max(), 100)
+ax[2].plot(xx, linfit(xx), color='w', linewidth=2, marker=None)
+ax[2].set_xlabel('Cell Count')
+ax[2].set_ylabel('Functional corr. (z)')
+ax[2].annotate('r = {:.2f}'.format(r), xy=(0.05, 1.05), color='w')
+ax[2].tick_params(axis='x', labelsize=10)
+ax[2].tick_params(axis='y', labelsize=10)
+ax[2].set_xticks([0, 1, 2, 3])
+ax[2].set_xticklabels(['$10^0$', '$10^1$', '$10^2$', '$10^3$'])
+cb = figS2_0.colorbar(hb, ax=ax[2], shrink=0.75)
+
 
 # %% Supp: subsampled region cmats and SC-FC corr
 

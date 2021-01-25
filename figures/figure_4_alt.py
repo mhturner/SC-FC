@@ -255,13 +255,12 @@ def fitLinReg(x, y):
     return pred, avg_r2, err_r2
 
 
-# metrics = ['CellCount', 'TBars']
-metrics = ['CellCount']
+metrics = ['cellcount', 'tbar']
 for ind in range(2):
     metric = metrics[ind]
 
     # direct connectivity
-    Structural_Matrix = anatomical_connectivity.getAtlasConnectivity(include_inds_ito, name_list_ito, 'ito').to_numpy().copy()
+    Structural_Matrix = anatomical_connectivity.getAtlasConnectivity(include_inds_ito, name_list_ito, 'ito', metric=metric).to_numpy().copy()
     Structural_Matrix = (Structural_Matrix + Structural_Matrix.T) / 2 # symmetrize
 
     keep_inds = np.where(Structural_Matrix[np.triu_indices(len(name_list_ito), k=1)] > 0)

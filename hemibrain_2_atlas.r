@@ -159,6 +159,7 @@ write.csv(ito_count_matrix, file.path(data_dir, 'hemi_2_atlas', paste(comparison
 write.csv(ito_tbar_matrix, file.path(data_dir, 'hemi_2_atlas', paste(comparison_space, 'ito_tbar_matrix.csv', sep='_')))
 write.csv(ito_weighted_tbar_matrix, file.path(data_dir, 'hemi_2_atlas', paste(comparison_space, 'ito_weighted_tbar_matrix.csv', sep='_')))
 
+print(sprintf('Syn_mask max. = %s', max(syn_mask)))
 writeTIF(syn_mask, file.path(data_dir, 'hemi_2_atlas', paste(comparison_space, 'synmask.tif', sep='_')))
 
 Sys.time() - t0

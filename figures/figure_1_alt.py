@@ -4,12 +4,14 @@ Turner, Mann, Clandinin: Figure generation script: Fig. 1.
 https://github.com/mhturner/SC-FC
 """
 
+import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 import os
 from scipy.stats import norm, zscore, kstest
 import six
 import pandas as pd
+from skimage import io
 
 from scfc import bridge, anatomical_connectivity
 from matplotlib import rcParams
@@ -19,6 +21,7 @@ rcParams.update({'axes.spines.right': False})
 rcParams.update({'axes.spines.top': False})
 rcParams['svg.fonttype'] = 'none' # let illustrator handle the font type
 
+data_dir = bridge.getUserConfiguration()['data_dir']
 analysis_dir = bridge.getUserConfiguration()['analysis_dir']
 
 plot_colors = plt.get_cmap('tab10')(np.arange(8)/8)
@@ -126,8 +129,8 @@ for p_ind, pr in enumerate(ConnectivityCount.index):
 
 figS1_0.text(-0.01, 0.5, 'Connections from source region (cells)', va='center', rotation='vertical', fontsize=14)
 
-# fig1_0.savefig(os.path.join(analysis_dir, 'figpanels', 'fig1_0.svg'), format='svg', transparent=True, dpi=save_dpi)
-# figS1_0.savefig(os.path.join(analysis_dir, 'figpanels', 'figS1_0.svg'), format='svg', transparent=True, dpi=save_dpi)
+fig1_0.savefig(os.path.join(analysis_dir, 'figpanels', 'fig1_0.svg'), format='svg', transparent=True, dpi=save_dpi)
+figS1_0.savefig(os.path.join(analysis_dir, 'figpanels', 'figS1_0.svg'), format='svg', transparent=True, dpi=save_dpi)
 
 # %% Summary across all regions: zscore within each outgoing and compare to lognorm
 # CELL COUNT:
@@ -227,6 +230,7 @@ ax[1, 1].axvline(x=1, color='k', zorder=0, alpha=0.5)
 
 fig1_1.savefig(os.path.join(analysis_dir, 'figpanels', 'fig1_1.svg'), format='svg', transparent=True, dpi=save_dpi)
 
+
 # %%
 
 # Atlas name, connectome region(s), super-region, abbreviations
@@ -291,3 +295,44 @@ for k, cell in six.iteritems(mpl_table._cells):
 ax.axis("off")
 
 figS1_1.savefig(os.path.join(analysis_dir, 'figpanels', 'table_S1.png'), format='png', transparent=True, dpi=save_dpi)
+
+# %%
+# load synmask tifs and atlases
+synmask_jrc2018 = io.imread(os.path.join(data_dir, 'hemi_2_atlas', 'JRC2018_synmask_new.tif'))
+branson_jrc2018 = io.imread(os.path.join(data_dir, 'template_brains', '2018_999_atlas.tif'))
+ito_jrc2018 = io.imread(os.path.join(data_dir, 'template_brains', 'ito_2018.tif'))
+
+include_inds_ito, name_list_ito = bridge.getItoNames()
+include_inds_branson, name_list_branson = bridge.getBransonNames()
+
+# %%
+# # only show atlas regions in analysis
+# ito_jrc2018[~np.isin(ito_jrc2018, include_inds_ito)] = 0
+# branson_jrc2018[~np.isin(branson_jrc2018, include_inds_branson)] = 0
+
+
+# %% atlas alignment images
+# branson atlas
+figS1_2, ax = plt.subplots(3, 1, figsize=(4, 9))
+[x.set_axis_off() for x in ax.ravel()]
+
+np.random.seed(1)
+tmp = 0.75 * np.ones((1000, 3))
+tmp[include_inds_branson, :] = np.random.rand(len(include_inds_branson), 3)
+tmp[0, :] = [1, 1, 1]
+cmap = matplotlib.colors.ListedColormap(tmp)
+ax[0].imshow(branson_jrc2018[250, :, :], cmap=cmap, interpolation='None')
+
+# Ito atlas
+np.random.seed(1)
+tmp = 0.75 * np.ones((86, 3))
+tmp[include_inds_ito, :] = np.random.rand(len(include_inds_ito), 3)
+tmp[0, :] = [1, 1, 1]
+cmap = matplotlib.colors.ListedColormap(tmp)
+ax[1].imshow(ito_jrc2018[250, :, :], cmap=cmap, interpolation='None')
+
+# syn density mask
+im = ax[2].imshow(synmask_jrc2018[245:255, :, :].mean(axis=0), interpolation='None')
+cb = figS1_2.colorbar(im, ax=ax, shrink=0.2)
+
+figS1_2.savefig(os.path.join(analysis_dir, 'figpanels', 'figS1_2.png'), format='png', transparent=True, dpi=save_dpi)
