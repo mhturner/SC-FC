@@ -298,18 +298,12 @@ figS1_1.savefig(os.path.join(analysis_dir, 'figpanels', 'table_S1.png'), format=
 
 # %%
 # load synmask tifs and atlases
-synmask_jrc2018 = io.imread(os.path.join(data_dir, 'hemi_2_atlas', 'JRC2018_synmask_new.tif'))
+synmask_jrc2018 = io.imread(os.path.join(data_dir, 'hemi_2_atlas', 'JRC2018_synmask.tif'))
 branson_jrc2018 = io.imread(os.path.join(data_dir, 'template_brains', '2018_999_atlas.tif'))
 ito_jrc2018 = io.imread(os.path.join(data_dir, 'template_brains', 'ito_2018.tif'))
 
 include_inds_ito, name_list_ito = bridge.getItoNames()
 include_inds_branson, name_list_branson = bridge.getBransonNames()
-
-# %%
-# # only show atlas regions in analysis
-# ito_jrc2018[~np.isin(ito_jrc2018, include_inds_ito)] = 0
-# branson_jrc2018[~np.isin(branson_jrc2018, include_inds_branson)] = 0
-
 
 # %% atlas alignment images
 # branson atlas
@@ -321,7 +315,7 @@ tmp = 0.75 * np.ones((1000, 3))
 tmp[include_inds_branson, :] = np.random.rand(len(include_inds_branson), 3)
 tmp[0, :] = [1, 1, 1]
 cmap = matplotlib.colors.ListedColormap(tmp)
-ax[0].imshow(branson_jrc2018[250, :, :], cmap=cmap, interpolation='None')
+ax[1].imshow(branson_jrc2018[250, :, :], cmap=cmap, interpolation='None')
 
 # Ito atlas
 np.random.seed(1)
@@ -329,10 +323,10 @@ tmp = 0.75 * np.ones((86, 3))
 tmp[include_inds_ito, :] = np.random.rand(len(include_inds_ito), 3)
 tmp[0, :] = [1, 1, 1]
 cmap = matplotlib.colors.ListedColormap(tmp)
-ax[1].imshow(ito_jrc2018[250, :, :], cmap=cmap, interpolation='None')
+ax[0].imshow(ito_jrc2018[250, :, :], cmap=cmap, interpolation='None')
 
 # syn density mask
 im = ax[2].imshow(synmask_jrc2018[245:255, :, :].mean(axis=0), interpolation='None')
 cb = figS1_2.colorbar(im, ax=ax, shrink=0.2)
-
-figS1_2.savefig(os.path.join(analysis_dir, 'figpanels', 'figS1_2.png'), format='png', transparent=True, dpi=save_dpi)
+figS1_2.tight_layout()
+figS1_2.savefig(os.path.join(analysis_dir, 'figpanels', 'figS1_2.svg'), format='svg', transparent=True, dpi=save_dpi)

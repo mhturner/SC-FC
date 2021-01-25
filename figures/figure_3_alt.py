@@ -48,7 +48,7 @@ adjacency_fxn = adjacency_fxn / adjacency_fxn.max()
 # %% Plot fxn and anat graphs in 3D brain space
 
 take_top_edges = 100
-roilabels_to_skip = ['ATL(R)', 'IB', 'MPED(R)', 'SIP(R)', 'PLP(R)', 'SPS(R)', 'GOR(R)', 'GOR(L)', 'ICL(R)', 'BU(L)', 'BU(R)', 'SCL(R)', 'CRE(R)']
+roilabels_to_skip = ['ATL_R', 'IB', 'MB_PED_R', 'SIP_R', 'PLP_R', 'SPS_R', 'GOR_R', 'GOR_L', 'ICL_R', 'BU_L', 'BU_R', 'SCL_R', 'CRE_R']
 
 cmap = plt.get_cmap('magma')
 
@@ -111,7 +111,7 @@ for i, j in enumerate(G_fxn.edges()):
     ax_fxn.plot(x, y, z, c=plot_colors[0], alpha=0.25, linewidth=2)
 
 fig3_0.subplots_adjust(wspace=0.01)
-# fig3_0.savefig(os.path.join(analysis_dir, 'figpanels', 'fig3_0.svg'), format='svg', transparent=True, dpi=save_dpi)
+fig3_0.savefig(os.path.join(analysis_dir, 'figpanels', 'fig3_0.svg'), format='svg', transparent=True, dpi=save_dpi)
 # %% compare anat + fxnal graph metrics: degree and clustering
 
 roilabels_to_show = ['BU_R', 'AVLP_R', 'MB_ML_R', 'PVLP_R', 'AL_R', 'LH_R', 'EB', 'PLP_R', 'AOTU_R']
@@ -148,7 +148,7 @@ ax[1].set_ylim([0, 0.445])
 ax[1].set_xlim([0, 0.124])
 
 fig3_1.subplots_adjust(wspace=0.5, hspace=0.1)
-# fig3_1.savefig(os.path.join(analysis_dir, 'figpanels', 'fig3_1.svg'), format='svg', transparent=True, dpi=save_dpi)
+fig3_1.savefig(os.path.join(analysis_dir, 'figpanels', 'fig3_1.svg'), format='svg', transparent=True, dpi=save_dpi)
 
 # %% Illustration schematics of graph metrics
 
@@ -333,4 +333,4 @@ print('Measured clustering is {:.2f} larger than random ({:.2f} sigma)'.format(f
 
 
 fig3_4.subplots_adjust(wspace=0.5, hspace=0.5)
-# fig3_4.savefig(os.path.join(analysis_dir, 'figpanels', 'fig3_4.svg'), format='svg', transparent=True, dpi=save_dpi)
+fig3_4.savefig(os.path.join(analysis_dir, 'figpanels', 'fig3_4.svg'), format='svg', transparent=True, dpi=save_dpi)

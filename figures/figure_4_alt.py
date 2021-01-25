@@ -10,6 +10,7 @@ from scipy.stats import zscore, spearmanr
 import pandas as pd
 import seaborn as sns
 import glob
+from scipy import stats
 
 from sklearn.linear_model import LinearRegression
 from sklearn.model_selection import RepeatedKFold, cross_validate
@@ -97,9 +98,9 @@ sns.heatmap(sorted_diff, ax=ax, yticklabels=True, xticklabels=True, cbar_kws={'l
 ax.set_aspect('equal')
 ax.tick_params(axis='both', which='major', labelsize=6)
 
-# fig4_0.savefig(os.path.join(analysis_dir, 'figpanels', 'fig4_0.svg'), format='svg', transparent=True, dpi=save_dpi)
-# fig4_1.savefig(os.path.join(analysis_dir, 'figpanels', 'fig4_1.svg'), format='svg', transparent=True, dpi=save_dpi)
-# fig4_2.savefig(os.path.join(analysis_dir, 'figpanels', 'fig4_2.svg'), format='svg', transparent=True, dpi=save_dpi)
+fig4_0.savefig(os.path.join(analysis_dir, 'figpanels', 'fig4_0.svg'), format='svg', transparent=True, dpi=save_dpi)
+fig4_1.savefig(os.path.join(analysis_dir, 'figpanels', 'fig4_1.svg'), format='svg', transparent=True, dpi=save_dpi)
+fig4_2.savefig(os.path.join(analysis_dir, 'figpanels', 'fig4_2.svg'), format='svg', transparent=True, dpi=save_dpi)
 
 
 # %% Average diff for each region, cluster and sort by super-regions
@@ -167,7 +168,25 @@ ax.set_xticks([])
 
 sns.palplot(colors)
 # np.array(colors)
-# fig4_3.savefig(os.path.join(analysis_dir, 'figpanels', 'fig4_3.svg'), format='svg', transparent=True, dpi=save_dpi)
+fig4_3.savefig(os.path.join(analysis_dir, 'figpanels', 'fig4_3.svg'), format='svg', transparent=True, dpi=save_dpi)
+
+# Groups of ROIs sig different than rest of distr.?
+alpha = 0.01
+m = len(regions)
+p_cutoff = alpha / m
+xx = diff_by_region.mean(axis=1)
+for r in regions:
+    rois = regions[r]
+
+    h, p = stats.ttest_ind(diff_by_region[~np.array([x in rois for x in name_list_ito]), :].ravel(), diff_by_region[np.array([x in rois for x in name_list_ito]), :].ravel())
+    print(r)
+    print(p)
+    print(p < p_cutoff)
+    print('------------')
+
+
+# %%
+
 
 # %%
 
@@ -231,7 +250,7 @@ for b_ind in range(num_bins):
     err_y = y[inds].std()/np.sqrt(len(inds))
     ax[1].plot([bin_mean_x, bin_mean_x], [bin_mean_y - err_y, bin_mean_y + err_y], linestyle='-', marker='None', color='k', alpha=1, linewidth=2)
 
-# fig4_4.savefig(os.path.join(analysis_dir, 'figpanels', 'fig4_4.svg'), format='svg', transparent=True, dpi=save_dpi)
+fig4_4.savefig(os.path.join(analysis_dir, 'figpanels', 'fig4_4.svg'), format='svg', transparent=True, dpi=save_dpi)
 
 # %% supp: multiple regression model on direct + shortest path
 
@@ -321,4 +340,4 @@ for ind in range(2):
     ax[2].set_aspect('equal')
     ax[2].set_title('Direct + shortest path')
 
-    # figS4_0.savefig(os.path.join(analysis_dir, 'figpanels', 'figS4_{}.svg'.format(ind)), format='svg', transparent=True, dpi=save_dpi)
+    figS4_0.savefig(os.path.join(analysis_dir, 'figpanels', 'figS4_{}.svg'.format(ind)), format='svg', transparent=True, dpi=save_dpi)

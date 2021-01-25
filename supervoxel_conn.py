@@ -15,12 +15,7 @@ import nibabel as nib
 
 data_dir = bridge.getUserConfiguration()['data_dir']
 analysis_dir = bridge.getUserConfiguration()['analysis_dir']
-token = bridge.getUserConfiguration()['token']
 
-# start client
-neuprint_client = Client('neuprint.janelia.org', dataset='hemibrain:v1.2', token=token)
-# Get FunctionalConnectivity object
-# FC = functional_connectivity.FunctionalConnectivity(data_dir=data_dir, fs=1.2, cutoff=0.01, mapping=bridge.getRoiMapping())
 
 # %%
 
@@ -65,10 +60,28 @@ for cm in cmats_ito:
 
 print('Individual to mean r = {:.2f} +/- {:.2f}'.format(np.mean(r_val), np.std(r_val)))
 
+# %% ROI SIZES
+
+# branson
+include_inds_branson, name_list_branson = bridge.getBransonNames()
+branson_jfrc2 = io.imread(os.path.join(data_dir, 'template_brains', 'AnatomySubCompartments20150108_ms999centers.tif'))
+sizes_branson = [np.sum(branson_jfrc2 == x) for x in include_inds_branson]
+
+# Ito
+include_inds_ito, name_list_ito = bridge.getItoNames()
+ito_jfrc2 = io.imread(os.path.join(data_dir, 'template_brains', 'JFRCtempate2010.mask130819_Original.tif'))
+
+sizes_ito = [np.sum(ito_jfrc2 == x) for x in include_inds_ito]
+
 # %%
+fh, ax = plt.subplots(1, 1, figsize=(4, 3))
+ax.hist(sizes_branson, 20, alpha=0.5, label='Branson')
+ax.hist(sizes_ito, alpha=0.5, label='Ito')
+ax.set_xlabel('Region size (voxels - JFRC2, 0.68)')
+ax.set_ylabel('Count')
+fh.legend()
 
 
-anatomical_connectivity.getAtlasConnectivity(include_inds_ito, name_list_ito, 'ito', metric='weighted_tbar').shape
 # %%
 # load synmask tifs and atlases
 synmask_jrc2018 = io.imread(os.path.join(data_dir, 'hemi_2_atlas', 'JRC2018_synmask_new.tif'))
