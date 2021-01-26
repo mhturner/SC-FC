@@ -18,7 +18,19 @@ analysis_dir = bridge.getUserConfiguration()['analysis_dir']
 
 
 # %%
+cell_type = 'LNO' # LC, MBON, KC, ER, OPN, LNO
+tbar = pd.read_csv(os.path.join(data_dir, 'hemi_2_atlas', '{}_ito_tbar.csv'.format(cell_type)), header=0).iloc[:, 1:]
 
+tbar.index = np.arange(1, 87)
+
+include_inds_ito, name_list_ito = bridge.getItoNames()
+tbar = tbar.loc[include_inds_ito, :]
+tbar.index = name_list_ito
+
+tbar = tbar.loc[:, ~np.all(tbar == 0, axis=0)]
+
+fh, ax = plt.subplots(1, 1, figsize=(8, 8))
+sns.heatmap(tbar, ax=ax)
 
 # %%  # # # BRANSON ATLAS # # #
 

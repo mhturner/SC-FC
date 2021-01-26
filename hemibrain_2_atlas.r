@@ -49,7 +49,7 @@ all_body_ids =  read.csv(file.path(data_dir, 'connectome_connectivity', 'body_id
 chunks = split(all_body_ids[,1], ceiling(seq_along(all_body_ids[,1])/1000))
 
 for (c_ind in 1:length(chunks)){
-  body_ids = chunks[[c_ind]]
+  body_ids = neuprint_ids(chunks[[c_ind]])
   
   # get synapses associated with bodies
   syn_data = neuprint_get_synapses(body_ids)

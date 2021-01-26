@@ -234,11 +234,22 @@ fig1_1.savefig(os.path.join(analysis_dir, 'figpanels', 'fig1_1.svg'), format='sv
 # %%
 # load synmask tifs and atlases
 synmask_jrc2018 = io.imread(os.path.join(data_dir, 'hemi_2_atlas', 'JRC2018_synmask.tif'))
+# scale synmask by max synapse per. voxel density from script (=64).
+#       writeTIF in R script auto scales to 2**16 max for some reason
+synmask_jrc2018 = (synmask_jrc2018 / np.max(synmask_jrc2018))
+synmask_jrc2018 = 64 * synmask_jrc2018
+
 branson_jrc2018 = io.imread(os.path.join(data_dir, 'template_brains', '2018_999_atlas.tif'))
 ito_jrc2018 = io.imread(os.path.join(data_dir, 'template_brains', 'ito_2018.tif'))
 
 include_inds_ito, name_list_ito = bridge.getItoNames()
 include_inds_branson, name_list_branson = bridge.getBransonNames()
+
+# %%
+
+
+plt.hist(synmask_jrc2018[synmask_jrc2018>0], 60);
+
 
 # %% atlas alignment images
 # branson atlas
@@ -261,7 +272,7 @@ cmap = matplotlib.colors.ListedColormap(tmp)
 ax[0].imshow(ito_jrc2018[250, :, :], cmap=cmap, interpolation='None')
 
 # syn density mask
-im = ax[2].imshow(synmask_jrc2018[245:255, :, :].mean(axis=0), interpolation='None')
+im = ax[2].imshow(synmask_jrc2018[240:260, :, :].mean(axis=0), interpolation='None')
 cb = figS1_2.colorbar(im, ax=ax, shrink=0.2)
 figS1_2.tight_layout()
 figS1_2.savefig(os.path.join(analysis_dir, 'figpanels', 'figS1_2.svg'), format='svg', transparent=True, dpi=save_dpi)
