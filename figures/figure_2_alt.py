@@ -304,7 +304,7 @@ CorrelationMatrix_branson, cmats_branson = functional_connectivity.getCmat(respo
 Branson_JRC2018 = anatomical_connectivity.getAtlasConnectivity(include_inds_branson, name_list_branson, 'branson')
 
 figS2_0, ax = plt.subplots(1, 3, figsize=(15, 4))
-sns.heatmap(CorrelationMatrix_branson, ax=ax[0], cmap='cividis', cbar_kws={'label': 'Functional Correlation (z)', 'shrink': .75})
+sns.heatmap(CorrelationMatrix_branson, ax=ax[0], cmap='cividis', cbar_kws={'label': 'Functional Correlation (z)', 'shrink': .75}, rasterized=True)
 ax[0].set_aspect('equal')
 ax[0].tick_params(axis='both', which='major', labelsize=8)
 
@@ -342,6 +342,33 @@ ax[2].set_xticklabels(['$10^0$', '$10^1$', '$10^2$', '$10^3$'])
 cb = figS2_0.colorbar(hb, ax=ax[2], shrink=0.75)
 
 figS2_0.savefig(os.path.join(analysis_dir, 'figpanels', 'figS2_0.svg'), format='svg', transparent=True, dpi=save_dpi)
+
+# %%
+
+# http://dawnmy.github.io/2016/10/24/Plot-heatmaap-with-side-color-indicating-the-class-of-variables/
+atlas_colors = plt.get_cmap('tab10')(np.arange(8)/8)
+
+num_regions = len(np.unique(name_list_branson))
+num_regions
+cmap = sns.diverging_palette(h_neg=210, h_pos=350, s=90, l=30, as_cmap=True)
+name_list_branson
+figS2_0, ax = plt.subplots(1, 3, figsize=(15, 4))
+g = sns.clustermap(CorrelationMatrix_branson, cmap='cividis', ax=ax[0],
+                   cbar_kws={'label': 'Functional Correlation (z)', 'shrink': .75}, rasterized=True,
+                   row_cluster=False, col_cluster=False,
+                   row_colors=atlas_colors, col_colors=atlas_colors,
+                   linewidths=0, xticklabels=False, yticklabels=False)
+ax[0].set_aspect('equal')
+ax[0].tick_params(axis='both', which='major', labelsize=8)
+
+
+
+tmp = Branson_JRC2018.to_numpy()
+np.fill_diagonal(tmp, np.nan)
+conn_mat = pd.DataFrame(data=tmp, index=name_list_branson, columns=name_list_branson)
+
+
+
 
 # %% Supp: subsampled region cmats and SC-FC corr
 

@@ -86,7 +86,7 @@ for p_ind, pr in enumerate(ConnectivityCount.index):
         ax[0].tick_params(axis='both', which='major', labelsize=10)
         ax[0].set_xticklabels([bridge.displayName(x) for x in ct.index])
         ax[0].set_yscale('log')
-        ax[0].set_ylim([0.5, 1e4])
+        ax[0].set_ylim([1, 8e3])
         for tick in ax[0].get_xticklabels():
             tick.set_rotation(90)
             tick.set_fontsize(7)
@@ -121,7 +121,7 @@ for p_ind, pr in enumerate(ConnectivityCount.index):
         ax[1].tick_params(axis='both', which='major', labelsize=10)
         ax[1].set_xticklabels([bridge.displayName(x) for x in ct.index])
         ax[1].set_yscale('log')
-        ax[1].set_ylim([0.05, 5e6])
+        ax[1].set_ylim([10, 2e7])
         ax[1].tick_params(axis='y', which='minor')
         for tick in ax[1].get_xticklabels():
             tick.set_rotation(90)
@@ -246,15 +246,9 @@ ito_jrc2018 = io.imread(os.path.join(data_dir, 'template_brains', 'ito_2018.tif'
 include_inds_ito, name_list_ito = bridge.getItoNames()
 include_inds_branson, name_list_branson = bridge.getBransonNames()
 
-# %%
-
-
-plt.hist(synmask_jrc2018[synmask_jrc2018>0], 60);
-
-
 # %% atlas alignment images
 # branson atlas
-figS1_2, ax = plt.subplots(3, 1, figsize=(4, 9))
+figS1_2, ax = plt.subplots(3, 1, figsize=(4, 8))
 [x.set_axis_off() for x in ax.ravel()]
 
 np.random.seed(1)
@@ -274,7 +268,7 @@ ax[0].imshow(ito_jrc2018[250, :, :], cmap=cmap, interpolation='None')
 
 # syn density mask
 im = ax[2].imshow(synmask_jrc2018[240:260, :, :].mean(axis=0), interpolation='None')
-cb = figS1_2.colorbar(im, ax=ax, shrink=0.2)
+cb = figS1_2.colorbar(im, ax=ax[2], shrink=1.0, orientation="horizontal", pad=0.2, label='Synapse density (Tbars/voxel)')
 figS1_2.tight_layout()
 figS1_2.savefig(os.path.join(analysis_dir, 'figpanels', 'figS1_2.svg'), format='svg', transparent=True, dpi=save_dpi)
 

@@ -233,7 +233,7 @@ r, p = spearmanr(x, y)
 ax[1].annotate(r'$\rho$={:.2f}'.format(r), (90, 2.5))
 ax[1].set_xticks([1, 10, 100])
 
-bins = np.logspace(np.log10(x.min()), np.log10(x.max()), 8)
+bins = np.logspace(np.log10(x.min()), np.log10(x.max()), 7)
 num_bins = len(bins)-1
 
 for b_ind in range(num_bins):
