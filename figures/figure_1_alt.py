@@ -12,6 +12,7 @@ from scipy.stats import norm, zscore, kstest
 import six
 import pandas as pd
 from skimage import io
+import seaborn as sns
 
 from scfc import bridge, anatomical_connectivity
 from matplotlib import rcParams
@@ -276,3 +277,19 @@ im = ax[2].imshow(synmask_jrc2018[240:260, :, :].mean(axis=0), interpolation='No
 cb = figS1_2.colorbar(im, ax=ax, shrink=0.2)
 figS1_2.tight_layout()
 figS1_2.savefig(os.path.join(analysis_dir, 'figpanels', 'figS1_2.svg'), format='svg', transparent=True, dpi=save_dpi)
+
+# %% Alignment testing
+
+cell_type = 'LNO' # LC, MBON, KC, ER, OPN, LNO
+tbar = pd.read_csv(os.path.join(data_dir, 'hemi_2_atlas', '{}_ito_tbar.csv'.format(cell_type)), header=0).iloc[:, 1:]
+
+tbar.index = np.arange(1, 87)
+
+include_inds_ito, name_list_ito = bridge.getItoNames()
+tbar = tbar.loc[include_inds_ito, :]
+tbar.index = name_list_ito
+
+tbar = tbar.loc[:, ~np.all(tbar == 0, axis=0)]
+
+fh, ax = plt.subplots(1, 1, figsize=(8, 8))
+sns.heatmap(tbar, ax=ax)
