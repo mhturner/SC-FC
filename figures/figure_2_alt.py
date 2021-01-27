@@ -408,8 +408,6 @@ unique_regions = np.unique(name_list_branson)
 
 figS2_3, ax = plt.subplots(4, 5, figsize=(10, 8))
 ax = ax.ravel()
-[x.set_xticks([]) for x in ax]
-[x.set_yticks([]) for x in ax]
 ct = 0
 dists = []
 for ind, ur in enumerate(unique_regions):
@@ -418,6 +416,7 @@ for ind, ur in enumerate(unique_regions):
         dist = DistanceMatrix.iloc[pull_inds, pull_inds]
 
         intra_sc = Branson_JRC2018.loc[ur, ur]
+        intra_sc = (intra_sc + intra_sc.T) / 2
         intra_fc = CorrelationMatrix_branson.loc[ur, ur]
         n_roi = intra_sc.shape[0]
 
@@ -427,25 +426,69 @@ for ind, ur in enumerate(unique_regions):
 
         ax[ct].scatter(x, y, c=d, marker='.', vmin=0, vmax=123)
         r, p = pearsonr(np.log10(x[x>0]), y[x>0])
-        # ax[ct].set_title(bridge.displayName(ur), fontsize=12)
         ax[ct].annotate('{}\nr={:.2f}'.format(bridge.displayName(ur), r), xy=(1.3, 0.8), fontsize=10)
         ax[ct].set_ylim([0, 1])
         ax[ct].set_xlim([1, 2000])
         ax[ct].set_xscale('log')
-        ax[ct].set_xticks([])
+        if ct !=15:
+            ax[ct].set_xticks([])
+            ax[ct].set_yticks([])
         ct += 1
         dists.append(d)
 
 dists = np.hstack(dists)
 np.max(dists)
 cb = figS2_3.colorbar(matplotlib.cm.ScalarMappable(norm=matplotlib.colors.Normalize(vmin=0, vmax=123)), ax=ax, shrink=0.75, label='Distance (um)')
-figS2_3.text(0.5, 0.08, 'log$_{10}$(Cell Count)', ha='center', fontsize=16)
+figS2_3.text(0.5, 0.08, 'Structural connectivity (cell count)', ha='center', fontsize=16)
 figS2_3.text(0.08, 0.5, 'Functional correlation (z)', va='center', rotation='vertical', fontsize=16)
 
 figS2_3.savefig(os.path.join(analysis_dir, 'figpanels', 'figS2_3.svg'), format='svg', transparent=True, dpi=save_dpi)
 
 # %% Heterogeneity in Branson distributions, vs. Ito
 
+response_filepaths = glob.glob(os.path.join(data_dir, 'branson_responses') + '/' + '*.pkl')
+include_inds_branson, name_list_branson = bridge.getBransonNames()
+CorrelationMatrix_branson, cmats_branson = functional_connectivity.getCmat(response_filepaths, include_inds_branson, name_list_branson)
+Branson_JRC2018 = anatomical_connectivity.getAtlasConnectivity(include_inds_branson, name_list_branson, 'branson')
+
+response_filepaths = glob.glob(os.path.join(data_dir, 'ito_responses') + '/' + '*.pkl')
+include_inds_ito, name_list_ito = bridge.getItoNames()
+CorrelationMatrix_ito, cmats_ito = functional_connectivity.getCmat(response_filepaths, include_inds_ito, name_list_ito)
+Ito_JRC2018 = anatomical_connectivity.getAtlasConnectivity(include_inds_ito, name_list_ito, 'ito')
+
+unique_bransons = np.unique(name_list_branson)
+struct_branson = (Branson_JRC2018 + Branson_JRC2018.T) / 2
+struct_ito = (Ito_JRC2018 + Ito_JRC2018.T) / 2
+
+figS2_4, ax0 = plt.subplots(4, 5, figsize=(10, 8))
+ax0 = ax0.ravel()
+[x.set_xlim([CorrelationMatrix_branson.min().min(), CorrelationMatrix_branson.max().max()]) for x in ax0]
+
+figS2_5, ax1 = plt.subplots(4, 5, figsize=(10, 8))
+ax1 = ax1.ravel()
+ct = 0
+dists = []
+for ind, ub in enumerate(unique_bransons):
+    if ub in name_list_ito:
+        ito_name = ub
+    else:
+        continue
+
+    pull_inds = np.where(ub == name_list_branson)[0]
+    if len(pull_inds) > 3:
+
+        fc_branson = CorrelationMatrix_branson.loc[ub, :].to_numpy().ravel()
+        fc_ito = CorrelationMatrix_ito.loc[ito_name, :].to_numpy().ravel()
+
+        ax0[ct].hist(fc_branson, 20, alpha=0.5, density=True, label='Branson')
+        ax0[ct].hist(fc_ito, 10, alpha=0.5, density=True, label='Ito')
+
+        sc_branson = struct_branson.loc[ub, :].to_numpy().ravel()
+        sc_ito = struct_ito.loc[ito_name, :].to_numpy().ravel()
+        ax1[ct].hist(sc_branson, 20, alpha=0.5, density=True, label='Branson')
+        ax1[ct].hist(sc_ito, 10, alpha=0.5, density=True, label='Ito')
+        ax1[ct].set_xscale('log')
+        ct +=1
 
 
 

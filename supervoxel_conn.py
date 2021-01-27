@@ -22,9 +22,7 @@ analysis_dir = bridge.getUserConfiguration()['analysis_dir']
 # %%  # # # BRANSON ATLAS # # #
 
 response_filepaths = glob.glob(os.path.join(data_dir, 'branson_responses') + '/' + '*.pkl')
-
 include_inds_branson, name_list_branson = bridge.getBransonNames()
-
 CorrelationMatrix_branson, cmats_branson = functional_connectivity.getCmat(response_filepaths, include_inds_branson, name_list_branson)
 Branson_JRC2018 = anatomical_connectivity.getAtlasConnectivity(include_inds_branson, name_list_branson, 'branson')
 
@@ -43,7 +41,6 @@ print('Individual to mean r = {:.2f} +/- {:.2f}'.format(np.mean(r_val), np.std(r
 # %% Ito correlation matrix
 response_filepaths = glob.glob(os.path.join(data_dir, 'ito_responses') + '/' + '*.pkl')
 include_inds_ito, name_list_ito = bridge.getItoNames()
-
 CorrelationMatrix_ito, cmats_ito = functional_connectivity.getCmat(response_filepaths, include_inds_ito, name_list_ito)
 Ito_JRC2018 = anatomical_connectivity.getAtlasConnectivity(include_inds_ito, name_list_ito, 'ito')
 
@@ -83,13 +80,22 @@ fh.legend()
 
 # %%
 # load synmask tifs and atlases
-synmask_jrc2018 = io.imread(os.path.join(data_dir, 'hemi_2_atlas', 'JRC2018_synmask_new.tif'))
+synmask_jrc2018 = io.imread(os.path.join(data_dir, 'hemi_2_atlas', 'JRC2018_synmask.tif'))
 
 branson_jfrc2 = io.imread(os.path.join(data_dir, 'template_brains', 'AnatomySubCompartments20150108_ms999centers.tif'))
 branson_jrc2018 = io.imread(os.path.join(data_dir, 'template_brains', '2018_999_atlas.tif'))
 
 ito_jfrc2 = io.imread(os.path.join(data_dir, 'template_brains', 'JFRCtempate2010.mask130819_Original.tif'))
 ito_jrc2018 = io.imread(os.path.join(data_dir, 'template_brains', 'ito_2018.tif'))
+
+# %%
+
+from collections import Counter
+ito_number = include_inds_ito[np.array(name_list_ito)=='CAN_R'][0]
+
+
+tt = branson_jrc2018[ito_jrc2018 == ito_number]
+Counter(tt)
 
 
 # %% SC-FC correlation
