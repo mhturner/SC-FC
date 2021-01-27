@@ -11,6 +11,8 @@ from scipy.stats import pearsonr
 import pandas as pd
 import seaborn as sns
 import glob
+import nibabel as nib
+from scipy.ndimage.measurements import center_of_mass
 
 from scipy.spatial.distance import pdist
 from seriate import seriate
@@ -294,7 +296,6 @@ fig2_5.savefig(os.path.join(analysis_dir, 'figpanels', 'fig2_5.svg'), format='sv
 fig2_6.savefig(os.path.join(analysis_dir, 'figpanels', 'fig2_6.svg'), format='svg', transparent=True, dpi=save_dpi)
 
 # %% Supp: Branson atlas SC-FC
-# TODO: new region labeling. Bar for region ranges + color code?
 
 response_filepaths = glob.glob(os.path.join(data_dir, 'branson_responses') + '/' + '*.pkl')
 
@@ -303,21 +304,63 @@ include_inds_branson, name_list_branson = bridge.getBransonNames()
 CorrelationMatrix_branson, cmats_branson = functional_connectivity.getCmat(response_filepaths, include_inds_branson, name_list_branson)
 Branson_JRC2018 = anatomical_connectivity.getAtlasConnectivity(include_inds_branson, name_list_branson, 'branson')
 
-figS2_0, ax = plt.subplots(1, 3, figsize=(15, 4))
-sns.heatmap(CorrelationMatrix_branson, ax=ax[0], cmap='cividis', cbar_kws={'label': 'Functional Correlation (z)', 'shrink': .75}, rasterized=True)
-ax[0].set_aspect('equal')
-ax[0].tick_params(axis='both', which='major', labelsize=8)
 
+names, inds_unique = np.unique(name_list_branson, return_index=True)
+inds_unique = np.append(inds_unique, len(name_list_branson))
+cmap = plt.get_cmap('tab20')(np.arange(len(names))/len(names))
+np.random.seed(1)
+np.random.shuffle(cmap)
+
+inds = [np.where(names==name)[0][0] for name in name_list_branson]
+atlas_colors = [cmap[i] for i in inds]
+
+# Functional corr
+g_fxn = sns.clustermap(CorrelationMatrix_branson, cmap='cividis',
+                       cbar_kws={},
+                       rasterized=True,
+                       row_cluster=False, col_cluster=False,
+                       row_colors=atlas_colors, col_colors=atlas_colors,
+                       linewidths=0, xticklabels=False, yticklabels=False,
+                       figsize=(6, 6),
+                       cbar_pos=(0, 0, 0.0, 0.0))
+g_fxn.cax.set_visible(False)
+for l_ind, label in enumerate(names):
+    loc = (inds_unique[l_ind] + inds_unique[l_ind+1]) / 2
+    g_fxn.ax_heatmap.annotate(text=bridge.displayName(label), xy=(loc, 0), rotation=90, fontsize=8, color='k', fontweight='bold')
+    g_fxn.ax_heatmap.annotate(text=bridge.displayName(label), xy=(0, loc), rotation=0, fontsize=8, color='k', fontweight='bold')
+
+position=g_fxn.fig.add_axes([1.0, 0.1, 0.025, 0.6])
+cb = g_fxn.fig.colorbar(matplotlib.cm.ScalarMappable(norm=matplotlib.colors.Normalize(vmin=np.nanmin(CorrelationMatrix_branson.to_numpy()), vmax=np.nanmax(CorrelationMatrix_branson.to_numpy())), cmap="cividis"),
+                        ax=g_fxn.ax_row_dendrogram, label='Functional Correlation (z)',
+                        cax=position)
+
+
+# Structural conn
 tmp = Branson_JRC2018.to_numpy()
 np.fill_diagonal(tmp, np.nan)
 conn_mat = pd.DataFrame(data=tmp, index=name_list_branson, columns=name_list_branson)
-sns.heatmap(np.log10(conn_mat).replace([np.inf, -np.inf], 0), ax=ax[1], cmap="cividis", rasterized=True, cbar=False)
-cb = figS2_0.colorbar(matplotlib.cm.ScalarMappable(norm=matplotlib.colors.SymLogNorm(vmin=1, vmax=np.nanmax(conn_mat.to_numpy()), base=10, linthresh=0.1, linscale=1), cmap="cividis"), ax=ax[1], shrink=0.75, label='Connecting cells')
-cb.outline.set_linewidth(0)
-ax[1].set_aspect('equal')
-ax[1].tick_params(axis='both', which='major', labelsize=8)
+g_struct = sns.clustermap(np.log10(conn_mat).replace([np.inf, -np.inf], 0), cmap='cividis',
+                          cbar_kws={},
+                          rasterized=True,
+                          row_cluster=False, col_cluster=False,
+                          row_colors=atlas_colors, col_colors=atlas_colors,
+                          linewidths=0, xticklabels=False, yticklabels=False,
+                          figsize=(6, 6),
+                          cbar_pos=(0, 0, 0.0, 0.0))
+g_struct.cax.set_visible(False)
+for l_ind, label in enumerate(names):
+    loc = (inds_unique[l_ind] + inds_unique[l_ind+1]) / 2
+    g_struct.ax_heatmap.annotate(text=bridge.displayName(label), xy=(loc, 0), rotation=90, fontsize=8, color='k', fontweight='bold')
+    g_struct.ax_heatmap.annotate(text=bridge.displayName(label), xy=(0, loc), rotation=0, fontsize=8, color='k', fontweight='bold')
+
+position=g_struct.fig.add_axes([1.0, 0.1, 0.025, 0.6])
+cb = g_struct.fig.colorbar(matplotlib.cm.ScalarMappable(norm=matplotlib.colors.SymLogNorm(vmin=1, vmax=np.nanmax(conn_mat.to_numpy()), base=10, linthresh=0.1, linscale=1), cmap="cividis"),
+                           ax=g_struct.ax_row_dendrogram, label='Connecting cells',
+                           cax=position)
+
 
 # corr: branson
+figS2_2, ax = plt.subplots(1, 1, figsize=(6, 5))
 x = Branson_JRC2018.to_numpy()[np.triu_indices(len(name_list_branson), k=1)]
 keep_inds = np.where(x > 0)
 x = np.log10(x[keep_inds])
@@ -329,43 +372,79 @@ coef = np.polyfit(x, y, 1)
 linfit = np.poly1d(coef)
 
 # hexbin plot
-hb = ax[2].hexbin(x, y, bins='log', gridsize=40)
+hb = ax.hexbin(x, y, bins='log', gridsize=40)
 xx = np.linspace(x.min(), x.max(), 100)
-ax[2].plot(xx, linfit(xx), color='w', linewidth=2, marker=None)
-ax[2].set_xlabel('Cell Count')
-ax[2].set_ylabel('Functional corr. (z)')
-ax[2].annotate('r = {:.2f}'.format(r), xy=(0.05, 1.05), color='w')
-ax[2].tick_params(axis='x', labelsize=10)
-ax[2].tick_params(axis='y', labelsize=10)
-ax[2].set_xticks([0, 1, 2, 3])
-ax[2].set_xticklabels(['$10^0$', '$10^1$', '$10^2$', '$10^3$'])
-cb = figS2_0.colorbar(hb, ax=ax[2], shrink=0.75)
+ax.plot(xx, linfit(xx), color='w', linewidth=2, marker=None)
+ax.set_xlabel('Cell Count')
+ax.set_ylabel('Functional corr. (z)')
+ax.annotate('r = {:.2f}'.format(r), xy=(0.05, 1.05), color='w')
+ax.tick_params(axis='x', labelsize=10)
+ax.tick_params(axis='y', labelsize=10)
+ax.set_xticks([0, 1, 2, 3])
+ax.set_xticklabels(['$10^0$', '$10^1$', '$10^2$', '$10^3$'])
+cb = figS2_2.colorbar(hb, ax=ax, shrink=0.75, label='Connections')
 
-figS2_0.savefig(os.path.join(analysis_dir, 'figpanels', 'figS2_0.svg'), format='svg', transparent=True, dpi=save_dpi)
+g_fxn.savefig(os.path.join(analysis_dir, 'figpanels', 'figS2_0.svg'), format='svg', transparent=True, dpi=save_dpi)
+g_struct.savefig(os.path.join(analysis_dir, 'figpanels', 'figS2_1.svg'), format='svg', transparent=True, dpi=save_dpi)
+figS2_2.savefig(os.path.join(analysis_dir, 'figpanels', 'figS2_2.svg'), format='svg', transparent=True, dpi=save_dpi)
 
+# %% Branson: intra regions
+res = 0.68  # um / vox isotropic
+atlas_path = os.path.join(data_dir, 'atlas_data', 'AnatomySubCompartments20150108_ms999centers.nii')
+
+mask_brain = np.asarray(np.squeeze(nib.load(atlas_path).get_fdata()), 'uint16')
+
+coms = np.vstack([center_of_mass(mask_brain==x) for x in include_inds_branson]) # x,y,z (voxel space)
+
+coms = coms * res
 # %%
+# calulcate euclidean distance matrix between roi centers of mass
+dist_mat = np.zeros((len(include_inds_branson), len(include_inds_branson)))
+dist_mat[np.triu_indices(len(include_inds_branson), k=1)] = pdist(coms)
+dist_mat += dist_mat.T # symmetrize to fill in below diagonal
+DistanceMatrix = pd.DataFrame(data=dist_mat, index=name_list_branson, columns=name_list_branson)
 
-# http://dawnmy.github.io/2016/10/24/Plot-heatmaap-with-side-color-indicating-the-class-of-variables/
-atlas_colors = plt.get_cmap('tab10')(np.arange(8)/8)
+unique_regions = np.unique(name_list_branson)
 
-num_regions = len(np.unique(name_list_branson))
-num_regions
-cmap = sns.diverging_palette(h_neg=210, h_pos=350, s=90, l=30, as_cmap=True)
-name_list_branson
-figS2_0, ax = plt.subplots(1, 3, figsize=(15, 4))
-g = sns.clustermap(CorrelationMatrix_branson, cmap='cividis', ax=ax[0],
-                   cbar_kws={'label': 'Functional Correlation (z)', 'shrink': .75}, rasterized=True,
-                   row_cluster=False, col_cluster=False,
-                   row_colors=atlas_colors, col_colors=atlas_colors,
-                   linewidths=0, xticklabels=False, yticklabels=False)
-ax[0].set_aspect('equal')
-ax[0].tick_params(axis='both', which='major', labelsize=8)
+figS2_3, ax = plt.subplots(4, 5, figsize=(10, 8))
+ax = ax.ravel()
+[x.set_xticks([]) for x in ax]
+[x.set_yticks([]) for x in ax]
+ct = 0
+dists = []
+for ind, ur in enumerate(unique_regions):
+    pull_inds = np.where(ur == name_list_branson)[0]
+    if len(pull_inds) > 3:
+        dist = DistanceMatrix.iloc[pull_inds, pull_inds]
 
+        intra_sc = Branson_JRC2018.loc[ur, ur]
+        intra_fc = CorrelationMatrix_branson.loc[ur, ur]
+        n_roi = intra_sc.shape[0]
 
+        x = intra_sc.to_numpy()[np.triu_indices(n_roi, k=1)]
+        y = intra_fc.to_numpy()[np.triu_indices(n_roi, k=1)]
+        d = dist.to_numpy()[np.triu_indices(n_roi, k=1)]
 
-tmp = Branson_JRC2018.to_numpy()
-np.fill_diagonal(tmp, np.nan)
-conn_mat = pd.DataFrame(data=tmp, index=name_list_branson, columns=name_list_branson)
+        ax[ct].scatter(x, y, c=d, marker='.', vmin=0, vmax=123)
+        r, p = pearsonr(np.log10(x[x>0]), y[x>0])
+        # ax[ct].set_title(bridge.displayName(ur), fontsize=12)
+        ax[ct].annotate('{}\nr={:.2f}'.format(bridge.displayName(ur), r), xy=(1.3, 0.8), fontsize=10)
+        ax[ct].set_ylim([0, 1])
+        ax[ct].set_xlim([1, 2000])
+        ax[ct].set_xscale('log')
+        ax[ct].set_xticks([])
+        ct += 1
+        dists.append(d)
+
+dists = np.hstack(dists)
+np.max(dists)
+cb = figS2_3.colorbar(matplotlib.cm.ScalarMappable(norm=matplotlib.colors.Normalize(vmin=0, vmax=123)), ax=ax, shrink=0.75, label='Distance (um)')
+figS2_3.text(0.5, 0.08, 'log$_{10}$(Cell Count)', ha='center', fontsize=16)
+figS2_3.text(0.08, 0.5, 'Functional correlation (z)', va='center', rotation='vertical', fontsize=16)
+
+figS2_3.savefig(os.path.join(analysis_dir, 'figpanels', 'figS2_3.svg'), format='svg', transparent=True, dpi=save_dpi)
+
+# %% Heterogeneity in Branson distributions, vs. Ito
 
 
 

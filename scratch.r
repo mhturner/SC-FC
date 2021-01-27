@@ -2,6 +2,7 @@ library(neuprintr)
 library(nat)
 library(dplyr)
 
+data_dir = '/home/mhturner/Dropbox/ClandininLab/Analysis/SC-FC/data'
 
 # Colours
 ## some nice colors!! Inspired by LaCroixColoR
@@ -20,7 +21,7 @@ names(lacroix) = c("purple", "pink",
                    "yellow", "palegreen", 
                    "navy","cerise",
                    "red", "marine")
-
+#  eg1: LNO --------------------------------------------------------------------
 neur = neuprint_search("LNO.*", field = "type", meta=TRUE)
 
 body_ids = neuprint_ids(neur$bodyid)
@@ -31,8 +32,21 @@ plot3d(skels, col = sample(lacroix,length(skels), replace = TRUE), lwd = 2)
 NO.mesh = neuprint_ROI_mesh(roi = "NO")
 plot3d(NO.mesh, add = TRUE, alpha = 0.5, col = lacroix[["orange"]])
 
-NO.mesh = neuprint_ROI_mesh(roi = "LAL(R)")
-plot3d(NO.mesh, add = TRUE, alpha = 0.5, col = lacroix[["palegreen"]])
+rgl.snapshot(filename = file.path(data_dir, 'hemi_2_atlas', 'LNO_skels.png'), fmt ="png")
+
+# %%
+neur = neuprint_search("LNO.*", field = "type", meta=TRUE)
+
+#  eg2:  --------------------------------------------------------------------
 
 
+body_ids = neuprint_ids(neur$bodyid)
+skels = neuprint_read_skeletons(body_ids)
+
+plot3d(skels, col = sample(lacroix,length(skels), replace = TRUE), lwd = 2)
+
+NO.mesh = neuprint_ROI_mesh(roi = "NO")
+plot3d(NO.mesh, add = TRUE, alpha = 0.5, col = lacroix[["orange"]])
+
+rgl.snapshot(filename = file.path(data_dir, 'hemi_2_atlas', 'LNO_skels.png'), fmt ="png")
 

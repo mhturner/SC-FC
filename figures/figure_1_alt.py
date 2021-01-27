@@ -272,9 +272,11 @@ cb = figS1_2.colorbar(im, ax=ax[2], shrink=1.0, orientation="horizontal", pad=0.
 figS1_2.tight_layout()
 figS1_2.savefig(os.path.join(analysis_dir, 'figpanels', 'figS1_2.svg'), format='svg', transparent=True, dpi=save_dpi)
 
-# %% Alignment testing
+# %% Alignment testing: LNO
 
 cell_type = 'LNO' # LC, MBON, KC, ER, OPN, LNO
+target = 'NO'
+
 tbar = pd.read_csv(os.path.join(data_dir, 'hemi_2_atlas', '{}_ito_tbar.csv'.format(cell_type)), header=0).iloc[:, 1:]
 
 tbar.index = np.arange(1, 87)
@@ -285,5 +287,63 @@ tbar.index = name_list_ito
 
 tbar = tbar.loc[:, ~np.all(tbar == 0, axis=0)]
 
-fh, ax = plt.subplots(1, 1, figsize=(8, 8))
-sns.heatmap(tbar, ax=ax)
+fh, ax = plt.subplots(1, 1, figsize=(6, 6))
+sns.heatmap(np.log10(tbar).replace(-np.inf, 0), ax=ax, cmap='cividis', cbar=False, xticklabels=True, yticklabels=[bridge.displayName(x) for x in tbar.index])
+cb = fh.colorbar(matplotlib.cm.ScalarMappable(norm=matplotlib.colors.SymLogNorm(vmin=1, vmax=np.nanmax(tbar.to_numpy()), base=10, linthresh=0.1, linscale=1), cmap="cividis"), ax=ax, shrink=1.0, label='T-Bars')
+
+ax.tick_params(axis='both', which='major', labelsize=8)
+
+in_no = tbar.loc[:, ~np.all(tbar == 0, axis=0)]
+in_target = tbar.loc[target, :].sum().sum()
+
+print('{} / {} tbars in {} ({:.2f}%)'.format(in_target, tbar.sum().sum(), target, 100 * in_target / tbar.sum().sum()))
+
+# %% Alignment testing: LC
+
+cell_type = 'ER' # LC, MBON, KC, ER, OPN, LNO
+target = ['EB']
+
+tbar = pd.read_csv(os.path.join(data_dir, 'hemi_2_atlas', '{}_ito_tbar.csv'.format(cell_type)), header=0).iloc[:, 1:]
+
+tbar.index = np.arange(1, 87)
+
+include_inds_ito, name_list_ito = bridge.getItoNames()
+tbar = tbar.loc[include_inds_ito, :]
+tbar.index = name_list_ito
+
+tbar = tbar.loc[:, ~np.all(tbar == 0, axis=0)]
+
+fh, ax = plt.subplots(1, 1, figsize=(6, 6))
+sns.heatmap(np.log10(tbar).replace(-np.inf, 0), ax=ax, cmap='cividis', cbar=False, xticklabels=True, yticklabels=[bridge.displayName(x) for x in tbar.index])
+cb = fh.colorbar(matplotlib.cm.ScalarMappable(norm=matplotlib.colors.SymLogNorm(vmin=1, vmax=np.nanmax(tbar.to_numpy()), base=10, linthresh=0.1, linscale=1), cmap="cividis"), ax=ax, shrink=1.0, label='T-Bars')
+
+ax.tick_params(axis='both', which='major', labelsize=8)
+
+in_no = tbar.loc[:, ~np.all(tbar == 0, axis=0)]
+in_target = tbar.loc[target, :].sum().sum()
+
+print('{} / {} tbars in {} ({:.2f}%)'.format(in_target, tbar.sum().sum(), target, 100 * in_target / tbar.sum().sum()))
+
+# %%
+from neuprint import (fetch_neurons, NeuronCriteria, Client)
+token = bridge.getUserConfiguration()['token']
+neuprint_client = Client('neuprint.janelia.org', dataset='hemibrain:v1.2', token=token)
+
+Neur, Syn = fetch_neurons(NeuronCriteria(type='ER.*', status='Traced', regex=True, cropped=False)) # only take uncropped neurons
+
+outs = Neur.outputRois
+comp_names = [bridge.displayName(x) for x in name_list_ito]
+
+regions = []
+for out in outs:
+    for r in out:
+        if r in comp_names:
+            regions.append(r)
+count(regions)
+index, counts = np.unique(regions, return_counts=True)
+index
+count
+
+Neur.roiInfo.get('MB(L)')
+
+Neur.roiInfo[0]

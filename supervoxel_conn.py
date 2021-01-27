@@ -190,32 +190,7 @@ ax1[1].set_xticklabels(['$10^0$', '$10^1$', '$10^2$', '$10^3$'])
 # fh1.savefig(os.path.join(analysis_dir, 'figpanels', 'branson_fh1.png'), format='png', transparent=True, dpi=400)
 # %%
 
-unique_regions = np.unique(name_list)
 
-fh, ax = plt.subplots(4, 5, figsize=(10, 8))
-ax = ax.ravel()
-[x.set_xticks([]) for x in ax]
-[x.set_yticks([]) for x in ax]
-ct = 0
-for ind, ur in enumerate(unique_regions):
-    pull_inds = np.where(ur == name_list)[0]
-    if len(pull_inds) > 3:
-
-        intra_sc = Connectivity_JRC2018.loc[ur, ur]
-        intra_fc = CorrelationMatrix.loc[ur, ur]
-        n_roi = intra_sc.shape[0]
-        x = intra_sc.to_numpy()[np.triu_indices(n_roi, k=1)]
-        y = intra_fc.to_numpy()[np.triu_indices(n_roi, k=1)]
-        ax[ct].plot(x, y, 'k.')
-        r, p = pearsonr(np.log10(x[x>0]), y[x>0])
-        ax[ct].set_title(ur)
-        ax[ct].annotate('r={:.2f}'.format(r), xy=(1.2, 0.9))
-        ax[ct].set_ylim([0, 1])
-        ax[ct].set_xlim([1, 2000])
-        ax[ct].set_xscale('log')
-        ax[ct].set_xticks([])
-
-        ct += 1
 
 
 
