@@ -12,32 +12,40 @@ from scfc import functional_connectivity, bridge
 fs = 1.2 # Hz
 cutoff = 0.01 # Hz
 
+# subsampled_sizes = np.logspace(1, 4.4, 16) # voxels
+# n_iter = 10 # num iterations for randomly subsampling regions
+
+subsampled_sizes = np.logspace(1, 4.4, 3) # voxels
+n_iter = 2 # num iterations for randomly subsampling regions
+
 t_total_0 = time.time()
 
 data_dir = bridge.getUserConfiguration()['data_dir']
 analysis_dir = bridge.getUserConfiguration()['analysis_dir']
 
-roinames_path = os.path.join(data_dir, 'atlas_data', 'Original_Index_panda_full.csv')
-mapping = functional_connectivity.getRoiMapping()
+brain_filepaths = glob.glob(os.path.join(data_dir, 'brain_files', 'func_volreg') + '*')
 
-brain_filepaths = glob.glob(os.path.join(data_dir, '5d_atlas', 'func_volreg') + '*')
-
-subsampled_sizes = np.logspace(1, 4.4, 16) # voxels
-n_iter = 10 # num iterations for randomly subsampling regions
 
 # Get full cmat, avg across flies
 t0 = time.time()
 cmats = []
 for brain_fp in brain_filepaths:
+    t0 = time.time()
     suffix = brain_fp.split('func_volreg_')[-1]
     file_id = suffix.replace('.nii.gz', '')
-    atlas_fp = os.path.join(data_dir, '5d_atlas', 'vfb_68_' + suffix)
-    roi_mask, _ = functional_connectivity.loadAtlasData(atlas_fp, roinames_path, mapping=mapping)
+    atlas_fp = os.path.join(data_dir, 'ito_68_atlas', 'vfb_68_' + suffix)
 
-    # Load functional brain
+    mask_brain = np.asarray(np.squeeze(nib.load(atlas_fp).get_fdata()), 'uint16')
     functional_brain = np.asanyarray(nib.load(brain_fp).dataobj).astype('uint16')
 
-    # get region responses and filter, trim
+    rois = np.unique(mask_brain) # roi ID numbers
+    roi_mask = []
+    for r_ind, r in enumerate(rois):
+        new_roi_mask = np.zeros_like(mask_brain)
+        new_roi_mask = mask_brain == r # bool
+        roi_mask.append(new_roi_mask)
+
+    # region_responses: n_rois x n_timepoints np array, mean voxel response in each region
     region_responses_full = functional_connectivity.computeRegionResponses(functional_brain, roi_mask)
     region_responses_full = functional_connectivity.filterRegionResponse(region_responses_full, cutoff=cutoff, fs=fs)
     region_responses_full = functional_connectivity.trimRegionResponse(file_id, region_responses_full)
@@ -54,17 +62,25 @@ cmats = np.stack(cmats, axis=2) # population cmats, z transformed
 CorrelationMatrix_Full = np.mean(cmats, axis=2) # roi x roi
 print('Finished full region cmat (time = {:.1f} sec)'.format(time.time()-t0))
 
+
 # population cmats for subsampled sizes and iterations
 cmats_pop = []
 for brain_fp in brain_filepaths:
     suffix = brain_fp.split('func_volreg_')[-1]
     print('Starting brain {}'.format(suffix))
     t0 = time.time()
-    atlas_fp = os.path.join(data_dir, '5d_atlas', 'vfb_68_' + suffix)
-    roi_mask, _ = functional_connectivity.loadAtlasData(atlas_fp, roinames_path, mapping=mapping)
+    atlas_fp = os.path.join(data_dir, 'ito_68_atlas', 'vfb_68_' + suffix)
 
-    # Load functional brain
+    mask_brain = np.asarray(np.squeeze(nib.load(atlas_fp).get_fdata()), 'uint16')
     functional_brain = np.asanyarray(nib.load(brain_fp).dataobj).astype('uint16')
+
+    rois = np.unique(mask_brain) # roi ID numbers
+    roi_mask = []
+    for r_ind, r in enumerate(rois):
+        new_roi_mask = np.zeros_like(mask_brain)
+        new_roi_mask = mask_brain == r # bool
+        roi_mask.append(new_roi_mask)
+
     cmats_sizes = []
     for subsampled_size in subsampled_sizes:
         cmats_iter = []
@@ -91,7 +107,7 @@ for brain_fp in brain_filepaths:
         cmats_iter = np.stack(cmats_iter, axis=2) # roi x roi x iterations
         cmats_sizes.append(cmats_iter)
 
-    cmats_sizes = np.stack(cmats_sizes, axis=3) # roi x roi x iterations x size    print(cmats_sizes.shape)
+    cmats_sizes = np.stack(cmats_sizes, axis=3) # roi x roi x iterations x size
     cmats_pop.append(cmats_sizes)
     print('Finished brain {} (time = {:.1f} sec)'.format(suffix, time.time()-t0))
 

@@ -17,7 +17,6 @@ setup(
                       'seaborn',
                       'scikit-learn',
                       'networkx',
-                      'munkres',
                       'PyYAML',
                       'seriate',
                       'scikit-image'],

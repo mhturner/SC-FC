@@ -242,11 +242,6 @@ class AnatomicalConnectivity():
         self.upper_inds = np.triu_indices(len(self.rois), k=1) # k=1 excludes main diagonal
         self.lower_inds = np.tril_indices(len(self.rois), k=-1) # k=-1 excludes main diagonal
 
-        if neuprint_client is not None:
-            # get reconstruction completeness matrix
-            roi_completeness = getRoiCompleteness(neuprint_client, self.mapping)
-            self.CompletenessMatrix = pd.DataFrame(data=np.outer(roi_completeness['frac_post'], roi_completeness['frac_pre']), index=roi_completeness.index, columns=roi_completeness.index)
-
     def getConnectivityMatrix(self, type, symmetrize=False, diag=None, computed_date=None):
         """
         Retrieve computed connectivity matrix.
