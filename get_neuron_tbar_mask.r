@@ -36,6 +36,7 @@ body_ids = neuprint_ids(body_ids)
 
 # get synapses and types associated with bodies
 syn_data = neuprint_get_synapses(body_ids)
+syn_data = syn_data[!duplicated(syn_data[2:5]),] # remove duplicate T-bar locations (single t-bar -> multiple postsynapses)
 types = neuprint_get_meta(body_ids)$type
 
 # convert hemibrain raw locations to microns
@@ -44,7 +45,6 @@ syn_data[,c("x", "y", "z")] = syn_data[,c("x", "y", "z")] * 8/1000 # vox -> um
 syn_data[,c("x", "y", "z")] = xform_brain(syn_data[,c("x", "y", "z")], sample = JRCFIB2018F, reference = JRC2018F) / res # x,y,z um -> atlas voxels
 # get output synapses (Tbars)
 output_synapses = as.data.frame(syn_data[syn_data$prepost==0, c("x", "y", "z", "bodyid")])
-output_synapses = output_synapses[!duplicated(output_synapses[1:3]),] # remove duplicate T-bar locations (single t-bar -> multiple postsynapses)
 
 cols = unique(types)
 ito_tbar <- data.frame(matrix(0, ncol = length(cols), nrow = max(ito_atlas)))

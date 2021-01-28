@@ -14,7 +14,7 @@ from skimage import io
 import seaborn as sns
 from neuprint import (fetch_neurons, NeuronCriteria, Client)
 
-from scfc import bridge, anatomical_connectivity
+from scfc import bridge, anatomical_connectivity, functional_connectivity
 from matplotlib import rcParams
 rcParams.update({'font.size': 10})
 rcParams.update({'figure.autolayout': True})
@@ -132,6 +132,12 @@ figS1_0.text(-0.01, 0.5, 'Connections from source region (cells)', va='center', 
 
 fig1_0.savefig(os.path.join(analysis_dir, 'figpanels', 'fig1_0.svg'), format='svg', transparent=True, dpi=save_dpi)
 figS1_0.savefig(os.path.join(analysis_dir, 'figpanels', 'figS1_0.svg'), format='svg', transparent=True, dpi=save_dpi)
+
+# %%
+AC = anatomical_connectivity.AnatomicalConnectivity(data_dir=data_dir, neuprint_client=neuprint_client, mapping=bridge.getRoiMapping())
+old_t = AC.getConnectivityMatrix('TBars')
+
+ConnectivityTBars
 
 # %% Summary across all regions: zscore within each outgoing and compare to lognorm
 # CELL COUNT:

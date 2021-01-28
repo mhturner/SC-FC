@@ -53,6 +53,7 @@ for (c_ind in 1:length(chunks)){
   
   # get synapses associated with bodies
   syn_data = neuprint_get_synapses(body_ids)
+  syn_data = syn_data[!duplicated(syn_data[2:5]),] # remove duplicate T-bar locations (single t-bar -> multiple postsynapses)
   
   print(sprintf('Loaded chunk %s: syn_data size = %s x %s', c_ind, dim(syn_data)[1],  dim(syn_data)[2]))
   
@@ -69,8 +70,7 @@ for (c_ind in 1:length(chunks)){
   # split into input / output 
   input_synapses = as.data.frame(syn_data[syn_data$prepost==1, c("x", "y", "z", "bodyid")])
   output_synapses = as.data.frame(syn_data[syn_data$prepost==0, c("x", "y", "z", "bodyid")])
-  output_synapses = output_synapses[!duplicated(output_synapses[1:3]),] # remove duplicate T-bar locations (single t-bar -> multiple postsynapses)
-  
+
   # For each cell in synapse list
   ct = 0
   for (body_id in body_ids){
@@ -90,7 +90,7 @@ for (c_ind in 1:length(chunks)){
     
     output_regions = branson_atlas[output_yxz]
     output_regions = output_regions[output_regions!=0]
-    output_tab = table(output_regions) 
+    output_tab = table(output_regions)
     output_regions = as.numeric(names(output_tab))  # now unique regions
     output_counts = as.vector(output_tab)
     

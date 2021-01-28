@@ -388,13 +388,146 @@ g_fxn.savefig(os.path.join(analysis_dir, 'figpanels', 'figS2_0.svg'), format='sv
 g_struct.savefig(os.path.join(analysis_dir, 'figpanels', 'figS2_1.svg'), format='svg', transparent=True, dpi=save_dpi)
 figS2_2.savefig(os.path.join(analysis_dir, 'figpanels', 'figS2_2.svg'), format='svg', transparent=True, dpi=save_dpi)
 
+# %% Branson avg vs Ito
+
+response_filepaths = glob.glob(os.path.join(data_dir, 'branson_responses') + '/' + '*.pkl')
+include_inds_branson, name_list_branson = bridge.getBransonNames()
+CorrelationMatrix_branson, cmats_branson = functional_connectivity.getCmat(response_filepaths, include_inds_branson, name_list_branson)
+Branson_JRC2018 = anatomical_connectivity.getAtlasConnectivity(include_inds_branson, name_list_branson, 'branson')
+
+response_filepaths = glob.glob(os.path.join(data_dir, 'ito_responses') + '/' + '*.pkl')
+include_inds_ito, name_list_ito = bridge.getItoNames()
+CorrelationMatrix_ito, cmats_ito = functional_connectivity.getCmat(response_filepaths, include_inds_ito, name_list_ito)
+Ito_JRC2018 = anatomical_connectivity.getAtlasConnectivity(include_inds_ito, name_list_ito, 'ito')
+
+# %%
+unique_regions = np.unique(name_list_branson)
+
+branson_matched_sc = np.zeros((len(unique_regions), len(unique_regions)))
+branson_matched_sc.fill(np.nan)
+branson_matched_fc = np.zeros((len(unique_regions), len(unique_regions)))
+branson_matched_fc.fill(np.nan)
+
+ito_matched_sc = np.zeros((len(unique_regions), len(unique_regions)))
+ito_matched_sc.fill(np.nan)
+ito_matched_fc = np.zeros((len(unique_regions), len(unique_regions)))
+ito_matched_fc.fill(np.nan)
+
+for r_ind, r_region in enumerate(unique_regions):
+    if r_region in name_list_ito:
+        ito_row = [r_region]
+    elif r_region == 'MB_L':
+        ito_row = ['MB_ML_L']
+    elif r_region == 'MB_R':
+        ito_row = ['MB_CA_R', 'MB_ML_R', 'MB_PED_R', 'MB_VL_R']
+    else:
+        continue
+
+    for c_ind, c_region in enumerate(unique_regions):
+        if c_region in name_list_ito:
+            ito_col = [c_region]
+        elif c_region == 'MB_L':
+            ito_col = ['MB_ML_L']
+        elif c_region == 'MB_R':
+            ito_col = ['MB_CA_R', 'MB_ML_R', 'MB_PED_R', 'MB_VL_R']
+        else:
+            continue
+
+        branson_matched_sc[r_ind, c_ind] = np.mean(np.mean(Branson_JRC2018.loc[r_region, c_region]))
+        branson_matched_fc[r_ind, c_ind] = np.mean(np.mean(CorrelationMatrix_branson.loc[r_region, c_region]))
+
+        ito_matched_sc[r_ind, c_ind] = np.mean(np.mean(Ito_JRC2018.loc[ito_row, ito_col]))
+        ito_matched_fc[r_ind, c_ind] = np.mean(np.mean(CorrelationMatrix_ito.loc[ito_row, ito_col]))
+
+branson_matched_sc = pd.DataFrame(data=branson_matched_sc, index=unique_regions, columns=unique_regions).dropna(axis=0, how='all').dropna(axis=1, how='all')
+branson_matched_fc = pd.DataFrame(data=branson_matched_fc, index=unique_regions, columns=unique_regions).dropna(axis=0, how='all').dropna(axis=1, how='all')
+
+ito_matched_sc = pd.DataFrame(data=ito_matched_sc, index=unique_regions, columns=unique_regions).dropna(axis=0, how='all').dropna(axis=1, how='all')
+ito_matched_fc = pd.DataFrame(data=ito_matched_fc, index=unique_regions, columns=unique_regions).dropna(axis=0, how='all').dropna(axis=1, how='all')
+
+figS2_3, ax = plt.subplots(1, 2, figsize=(7, 3))
+sns.heatmap(np.log10(branson_matched_sc).replace([np.inf, -np.inf], 0), ax=ax[0],
+            yticklabels=True,
+            xticklabels=True,
+            cmap="cividis", rasterized=True, cbar=False, vmin=0)
+cb = figS2_3.colorbar(matplotlib.cm.ScalarMappable(norm=matplotlib.colors.SymLogNorm(vmin=1, vmax=np.nanmax(branson_matched_sc.to_numpy()), base=10, linthresh=0.1, linscale=1), cmap="cividis"),
+                      ax=ax[0], shrink=0.75)
+cb.outline.set_linewidth(0)
+cb.ax.tick_params(labelsize=8)
+ax[0].set_aspect('equal')
+ax[0].tick_params(axis='both', which='major', labelsize=6)
+
+sns.heatmap(np.log10(ito_matched_sc).replace([np.inf, -np.inf], 0), ax=ax[1],
+            yticklabels=True,
+            xticklabels=True,
+            cmap="cividis", rasterized=True, cbar=False, vmin=0)
+cb = figS2_3.colorbar(matplotlib.cm.ScalarMappable(norm=matplotlib.colors.SymLogNorm(vmin=1, vmax=np.nanmax(ito_matched_sc.to_numpy()), base=10, linthresh=0.1, linscale=1), cmap="cividis"),
+                      ax=ax[1], shrink=0.75, label='Connecting cells')
+cb.outline.set_linewidth(0)
+cb.ax.tick_params(labelsize=8)
+ax[1].set_aspect('equal')
+ax[1].tick_params(axis='both', which='major', labelsize=6)
+
+figS2_4, ax = plt.subplots(1, 2, figsize=(7, 3))
+sns.heatmap(branson_matched_fc, ax=ax[0], cmap='cividis', xticklabels=True, yticklabels=True, vmin=0, cbar=False)
+cb = figS2_4.colorbar(matplotlib.cm.ScalarMappable(norm=matplotlib.colors.Normalize(vmin=np.nanmin(branson_matched_fc.to_numpy()), vmax=np.nanmax(branson_matched_fc.to_numpy())), cmap="cividis"),
+                      ax=ax[0], shrink=0.75)
+cb.ax.tick_params(labelsize=8)
+ax[0].set_aspect('equal')
+ax[0].tick_params(axis='both', which='major', labelsize=6)
+
+sns.heatmap(ito_matched_fc, ax=ax[1], cmap='cividis', xticklabels=True, yticklabels=True, vmin=0, cbar=False)
+cb = figS2_4.colorbar(matplotlib.cm.ScalarMappable(norm=matplotlib.colors.Normalize(vmin=np.nanmin(ito_matched_fc.to_numpy()), vmax=np.nanmax(ito_matched_fc.to_numpy())), cmap="cividis"),
+                      ax=ax[1], label='Functional Corr. (z)', shrink=0.75)
+cb.ax.tick_params(labelsize=8)
+ax[1].set_aspect('equal')
+ax[1].tick_params(axis='both', which='major', labelsize=6)
+
+figS2_5, ax = plt.subplots(1, 2, figsize=(6, 3))
+x = ito_matched_sc.to_numpy().ravel()
+y = branson_matched_sc.to_numpy().ravel()
+keep_inds = np.where(np.logical_and(x>0, y>0))
+x = np.log10(x[keep_inds])
+y = np.log10(y[keep_inds])
+r, p = pearsonr(x, y)
+
+coef = np.polyfit(x, y, 1)
+linfit = np.poly1d(coef)
+xx = np.linspace(x.min(), x.max(), 100)
+ax[0].annotate('r={:.2f}'.format(r), xy=(0.1, 8e3))
+ax[0].plot(10**x, 10**y, color=[0.5, 0.5, 0.5], marker='.', linestyle='None')
+ax[0].plot([0.1, 8000], [0.1, 8000], 'k--')
+ax[0].plot(10**xx, 10**linfit(xx), color='k', linewidth=2, marker=None)
+ax[0].set_xscale('log')
+ax[0].set_yscale('log')
+ax[0].set_xlabel('Ito Conn. (cells)')
+ax[0].set_ylabel('Branson Conn. (cells)')
+ax[0].set_aspect('equal')
+
+x = ito_matched_fc.to_numpy()[np.triu_indices(ito_matched_fc.shape[0], k=1)]
+y = branson_matched_fc.to_numpy()[np.triu_indices(ito_matched_fc.shape[0], k=1)]
+r, p = pearsonr(x, y)
+coef = np.polyfit(x, y, 1)
+linfit = np.poly1d(coef)
+xx = np.linspace(x.min(), x.max(), 100)
+ax[1].annotate('r={:.2f}'.format(r), xy=(0, 1.0))
+ax[1].plot(x, y, color=[0.5, 0.5, 0.5], marker='.', linestyle='None')
+ax[1].plot([0, 1], [0, 1], 'k--')
+ax[1].plot(xx, linfit(xx), color='k', linewidth=2, marker=None)
+ax[1].set_xlabel('Ito Corr. (z)')
+ax[1].set_ylabel('Branson Corr. (z)')
+ax[1].set_aspect('equal')
+
+figS2_3.savefig(os.path.join(analysis_dir, 'figpanels', 'figS2_3.svg'), format='svg', transparent=True, dpi=save_dpi)
+figS2_4.savefig(os.path.join(analysis_dir, 'figpanels', 'figS2_4.svg'), format='svg', transparent=True, dpi=save_dpi)
+figS2_5.savefig(os.path.join(analysis_dir, 'figpanels', 'figS2_5.svg'), format='svg', transparent=True, dpi=save_dpi)
 # %% Branson: intra regions
 res = 0.68  # um / vox isotropic
 atlas_path = os.path.join(data_dir, 'atlas_data', 'AnatomySubCompartments20150108_ms999centers.nii')
 
 mask_brain = np.asarray(np.squeeze(nib.load(atlas_path).get_fdata()), 'uint16')
 
-coms = np.vstack([center_of_mass(mask_brain==x) for x in include_inds_branson]) # x,y,z (voxel space)
+coms = np.vstack([center_of_mass(mask_brain==x) for x in include_inds_branson]) # x,y,z (voxel space) <---- LONG COMPUTE TIME
 
 coms = coms * res
 # %%
@@ -406,7 +539,7 @@ DistanceMatrix = pd.DataFrame(data=dist_mat, index=name_list_branson, columns=na
 
 unique_regions = np.unique(name_list_branson)
 
-figS2_3, ax = plt.subplots(4, 5, figsize=(10, 8))
+figS2_6, ax = plt.subplots(4, 5, figsize=(10, 8))
 ax = ax.ravel()
 ct = 0
 dists = []
@@ -438,58 +571,11 @@ for ind, ur in enumerate(unique_regions):
 
 dists = np.hstack(dists)
 np.max(dists)
-cb = figS2_3.colorbar(matplotlib.cm.ScalarMappable(norm=matplotlib.colors.Normalize(vmin=0, vmax=123)), ax=ax, shrink=0.75, label='Distance (um)')
-figS2_3.text(0.5, 0.08, 'Structural connectivity (cell count)', ha='center', fontsize=16)
-figS2_3.text(0.08, 0.5, 'Functional correlation (z)', va='center', rotation='vertical', fontsize=16)
+cb = figS2_6.colorbar(matplotlib.cm.ScalarMappable(norm=matplotlib.colors.Normalize(vmin=0, vmax=123)), ax=ax, shrink=0.75, label='Distance (um)')
+figS2_6.text(0.5, 0.08, 'Structural connectivity (cell count)', ha='center', fontsize=16)
+figS2_6.text(0.08, 0.5, 'Functional correlation (z)', va='center', rotation='vertical', fontsize=16)
 
-figS2_3.savefig(os.path.join(analysis_dir, 'figpanels', 'figS2_3.svg'), format='svg', transparent=True, dpi=save_dpi)
-
-# %% Heterogeneity in Branson distributions, vs. Ito
-
-response_filepaths = glob.glob(os.path.join(data_dir, 'branson_responses') + '/' + '*.pkl')
-include_inds_branson, name_list_branson = bridge.getBransonNames()
-CorrelationMatrix_branson, cmats_branson = functional_connectivity.getCmat(response_filepaths, include_inds_branson, name_list_branson)
-Branson_JRC2018 = anatomical_connectivity.getAtlasConnectivity(include_inds_branson, name_list_branson, 'branson')
-
-response_filepaths = glob.glob(os.path.join(data_dir, 'ito_responses') + '/' + '*.pkl')
-include_inds_ito, name_list_ito = bridge.getItoNames()
-CorrelationMatrix_ito, cmats_ito = functional_connectivity.getCmat(response_filepaths, include_inds_ito, name_list_ito)
-Ito_JRC2018 = anatomical_connectivity.getAtlasConnectivity(include_inds_ito, name_list_ito, 'ito')
-
-unique_bransons = np.unique(name_list_branson)
-struct_branson = (Branson_JRC2018 + Branson_JRC2018.T) / 2
-struct_ito = (Ito_JRC2018 + Ito_JRC2018.T) / 2
-
-figS2_4, ax0 = plt.subplots(4, 5, figsize=(10, 8))
-ax0 = ax0.ravel()
-[x.set_xlim([CorrelationMatrix_branson.min().min(), CorrelationMatrix_branson.max().max()]) for x in ax0]
-
-figS2_5, ax1 = plt.subplots(4, 5, figsize=(10, 8))
-ax1 = ax1.ravel()
-ct = 0
-dists = []
-for ind, ub in enumerate(unique_bransons):
-    if ub in name_list_ito:
-        ito_name = ub
-    else:
-        continue
-
-    pull_inds = np.where(ub == name_list_branson)[0]
-    if len(pull_inds) > 3:
-
-        fc_branson = CorrelationMatrix_branson.loc[ub, :].to_numpy().ravel()
-        fc_ito = CorrelationMatrix_ito.loc[ito_name, :].to_numpy().ravel()
-
-        ax0[ct].hist(fc_branson, 20, alpha=0.5, density=True, label='Branson')
-        ax0[ct].hist(fc_ito, 10, alpha=0.5, density=True, label='Ito')
-
-        sc_branson = struct_branson.loc[ub, :].to_numpy().ravel()
-        sc_ito = struct_ito.loc[ito_name, :].to_numpy().ravel()
-        ax1[ct].hist(sc_branson, 20, alpha=0.5, density=True, label='Branson')
-        ax1[ct].hist(sc_ito, 10, alpha=0.5, density=True, label='Ito')
-        ax1[ct].set_xscale('log')
-        ct +=1
-
+figS2_6.savefig(os.path.join(analysis_dir, 'figpanels', 'figS2_3.svg'), format='svg', transparent=True, dpi=save_dpi)
 
 
 # %% Supp: subsampled region cmats and SC-FC corr
