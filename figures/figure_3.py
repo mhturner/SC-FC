@@ -5,10 +5,10 @@ https://github.com/mhturner/SC-FC
 """
 
 import matplotlib.pyplot as plt
-from neuprint import Client
 import numpy as np
 import networkx as nx
 import os
+import glob
 
 from scfc import bridge, anatomical_connectivity, functional_connectivity, plotting
 from matplotlib import rcParams
@@ -19,36 +19,36 @@ rcParams['svg.fonttype'] = 'none' # let illustrator handle the font type
 
 data_dir = bridge.getUserConfiguration()['data_dir']
 analysis_dir = bridge.getUserConfiguration()['analysis_dir']
-token = bridge.getUserConfiguration()['token']
-
-# start client
-neuprint_client = Client('neuprint.janelia.org', dataset='hemibrain:v1.2', token=token)
-
-# Get FunctionalConnectivity object
-FC = functional_connectivity.FunctionalConnectivity(data_dir=data_dir, fs=1.2, cutoff=0.01, mapping=bridge.getRoiMapping())
-
-# Get AnatomicalConnectivity object
-AC = anatomical_connectivity.AnatomicalConnectivity(data_dir=data_dir, neuprint_client=neuprint_client, mapping=bridge.getRoiMapping())
 
 plot_colors = plt.get_cmap('tab10')(np.arange(8)/8)
 save_dpi = 400
 
 # %% get adjacency matrices for graphs
-anat_position = {}
-for r in range(len(FC.coms)):
-    anat_position[r] = FC.coms[r, :]
+atlas_path = os.path.join(data_dir, 'atlas_data', 'vfb_68_Original.nii.gz')
+include_inds_ito, name_list_ito = bridge.getItoNames()
+coms, roi_size, DistanceMatrix, SizeMatrix = functional_connectivity.getRegionGeometry(atlas_path, include_inds_ito, name_list_ito)
 
-adjacency_anat = AC.getConnectivityMatrix('CellCount', symmetrize=True, diag=0).to_numpy()
-adjacency_fxn = FC.CorrelationMatrix.to_numpy().copy()
+anat_position = {}
+for r in range(len(coms)):
+    anat_position[r] = coms[r, :]
+
+Structural_Matrix = anatomical_connectivity.getAtlasConnectivity(include_inds_ito, name_list_ito, 'ito').to_numpy().copy()
+adjacency_anat = (Structural_Matrix + Structural_Matrix.T) / 2 # symmetrize
+np.fill_diagonal(adjacency_anat, 0)
+
+response_filepaths = glob.glob(os.path.join(data_dir, 'ito_responses') + '/' + '*.pkl')
+Functional_Matrix, _ = functional_connectivity.getCmat(response_filepaths, include_inds_ito, name_list_ito)
+adjacency_fxn = Functional_Matrix.to_numpy().copy()
 np.fill_diagonal(adjacency_fxn, 0)
 
 # normalize each adjacency
 adjacency_anat = adjacency_anat / adjacency_anat.max()
 adjacency_fxn = adjacency_fxn / adjacency_fxn.max()
+
 # %% Plot fxn and anat graphs in 3D brain space
 
 take_top_edges = 100
-roilabels_to_skip = ['ATL(R)', 'IB', 'MPED(R)', 'SIP(R)', 'PLP(R)', 'SPS(R)', 'GOR(R)', 'GOR(L)', 'ICL(R)', 'BU(L)', 'BU(R)', 'SCL(R)', 'CRE(R)']
+roilabels_to_skip = ['ATL_R', 'IB', 'MB_PED_R', 'SIP_R', 'PLP_R', 'SPS_R', 'GOR_R', 'GOR_L', 'ICL_R', 'BU_L', 'BU_R', 'SCL_R', 'CRE_R']
 
 cmap = plt.get_cmap('magma')
 
@@ -84,9 +84,9 @@ for key, value in anat_position.items():
     # Plot nodes
     ax_anat.scatter(xi, yi, zi, c='b', s=5+40*G_anat.degree(weight='weight')[key], edgecolors='k', alpha=0.25)
     ax_fxn.scatter(xi, yi, zi, c='b', s=5+20*G_fxn.degree(weight='weight')[key], edgecolors='k', alpha=0.25)
-    if FC.rois[key] not in roilabels_to_skip:
-        ax_anat.text(xi, yi, zi+2, FC.rois[key], zdir=(0, 0, 0), fontsize=7, fontweight='bold')
-        ax_fxn.text(xi, yi, zi+2, FC.rois[key], zdir=(0, 0, 0), fontsize=7, fontweight='bold')
+    if name_list_ito[key] not in roilabels_to_skip:
+        ax_anat.text(xi, yi, zi+2, bridge.displayName(name_list_ito[key]), zdir=(0, 0, 0), fontsize=7, fontweight='bold')
+        ax_fxn.text(xi, yi, zi+2, bridge.displayName(name_list_ito[key]), zdir=(0, 0, 0), fontsize=7, fontweight='bold')
 
 # plot connections
 for i, j in enumerate(G_anat.edges()):
@@ -114,7 +114,7 @@ fig3_0.subplots_adjust(wspace=0.01)
 fig3_0.savefig(os.path.join(analysis_dir, 'figpanels', 'fig3_0.svg'), format='svg', transparent=True, dpi=save_dpi)
 # %% compare anat + fxnal graph metrics: degree and clustering
 
-roilabels_to_show = ['BU(R)', 'AVLP(R)', 'MBML(R)', 'PVLP(R)', 'AL(R)', 'LH(R)', 'EB', 'PLP(R)', 'AOTU(R)']
+roilabels_to_show = ['BU_R', 'AVLP_R', 'MB_ML_R', 'PVLP_R', 'AL_R', 'LH_R', 'EB', 'PLP_R', 'AOTU_R']
 
 # Plot clustering and degree using full adjacency to make graphs
 G_anat = nx.from_numpy_matrix(adjacency_anat, create_using=nx.DiGraph)
@@ -126,9 +126,9 @@ deg_anat = np.array([val for (node, val) in G_anat.degree(weight='weight')])
 r, p = plotting.addLinearFit(ax[0], deg_anat, deg_fxn, alpha=0.5)
 print('r deg = {:.4f}'.format(r))
 ax[0].plot(deg_anat, deg_fxn, alpha=1.0, marker='o', linestyle='none')
-for r_ind, r in enumerate(FC.rois):
+for r_ind, r in enumerate(name_list_ito):
     if r in roilabels_to_show:
-        ax[0].annotate(r, (deg_anat[r_ind]+0.4, deg_fxn[r_ind]-0.2), fontsize=8, fontweight='bold')
+        ax[0].annotate(bridge.displayName(r), (deg_anat[r_ind]+0.4, deg_fxn[r_ind]-0.2), fontsize=8, fontweight='bold')
 
 ax[0].set_xlabel('Structural degree')
 ax[0].set_ylabel('Functional degree')
@@ -139,9 +139,9 @@ clust_anat = np.array(list(nx.clustering(G_anat, weight='weight').values()))
 r, p = plotting.addLinearFit(ax[1], clust_anat, clust_fxn, alpha=0.5)
 print('r clust = {:.4f}'.format(r))
 ax[1].plot(clust_anat, clust_fxn, alpha=1.0, marker='o', linestyle='none')
-for r_ind, r in enumerate(FC.rois):
+for r_ind, r in enumerate(name_list_ito):
     if r in roilabels_to_show:
-        ax[1].annotate(r, (clust_anat[r_ind]+0.002, clust_fxn[r_ind]-0.003), fontsize=8, fontweight='bold')
+        ax[1].annotate(bridge.displayName(r), (clust_anat[r_ind]+0.002, clust_fxn[r_ind]-0.003), fontsize=8, fontweight='bold')
 ax[1].set_xlabel('Structural clustering')
 ax[1].set_ylabel('Functional clustering')
 ax[1].set_ylim([0, 0.445])
@@ -246,12 +246,13 @@ fig3_3.savefig(os.path.join(analysis_dir, 'figpanels', 'fig3_3.svg'), format='sv
 # %% Connectome degree stats: scale free + small world comparisons
 
 # 1) Binarize and compute random adjacency
-anat_connect = AC.getConnectivityMatrix('CellCount', diag=0)
+anat_connect = anatomical_connectivity.getAtlasConnectivity(include_inds_ito, name_list_ito, 'ito').to_numpy().copy()
+np.fill_diagonal(adjacency_anat, 0)
 
-thresh_quant = 0.5 # quantile
-threshold = np.quantile(anat_connect.to_numpy().ravel(), thresh_quant)
+thresh_quant = 0.35 # quantile
+threshold = np.quantile(anat_connect.ravel(), thresh_quant)
 adj_data = anat_connect > threshold
-adj_data = adj_data.to_numpy().astype('int')
+adj_data = adj_data.astype('int')
 G_data = nx.from_numpy_matrix(adj_data, create_using=nx.DiGraph)
 
 K = np.sum(adj_data.ravel())
@@ -278,13 +279,13 @@ random_degree = np.vstack(random_degree)
 
 fig3_4 = plt.figure(figsize=(9, 4))
 ax = fig3_4.add_subplot(1, 2, 2)
-anat_connect = AC.getConnectivityMatrix('CellCount', diag=None)
-edge_weights = anat_connect.to_numpy().copy().ravel()
-bins = np.logspace(0, np.log10(edge_weights.max()), 50)
+anat_connect = anatomical_connectivity.getAtlasConnectivity(include_inds_ito, name_list_ito, 'ito').to_numpy().copy()
+edge_weights = anat_connect.copy().ravel()
+bins = np.logspace(0, np.log10(edge_weights.max()), 40)
 vals, bins = np.histogram(edge_weights, bins=bins, density=True)
 
 # plot simple power law scaling
-xx = np.arange(1, 1000)
+xx = np.arange(10, 1000)
 a = -1.0
 yy = xx**(a)
 ax.plot(xx, yy/np.sum(yy), linestyle='-', linewidth=2, alpha=1.0, color=[0, 0, 0])
@@ -313,7 +314,7 @@ ax = fig3_4.add_subplot(2, 4, 2)
 ax.hist(random_path_lens, bins=20, density=False, color='k')
 measured_path = nx.average_shortest_path_length(G_data)
 ax.axvline(measured_path, color=plot_colors[3], linewidth=2)
-ax.set_xlim(1.4, 1.58)
+ax.set_xlim(1.2, 1.5)
 ax.set_xlabel('Path length')
 sigma_diff_path = (measured_path-np.mean(random_path_lens)) / np.std(random_path_lens)
 factor_diff_path = (measured_path-np.mean(random_path_lens)) / np.mean(random_path_lens)
@@ -324,7 +325,7 @@ ax = fig3_4.add_subplot(2, 4, 6)
 ax.hist(random_clustering, bins=20, density=False, color='k')
 measured_cluster = nx.average_clustering(G_data)
 ax.axvline(measured_cluster, color=plot_colors[3], linewidth=2)
-ax.set_xlim(0.45, 0.85)
+ax.set_xlim(0.50, 0.85)
 ax.set_xlabel('clustering')
 sigma_diff_cluster = (measured_cluster-np.mean(random_clustering)) / np.std(random_clustering)
 factor_diff_cluster = (measured_cluster-np.mean(random_clustering)) / np.mean(random_clustering)

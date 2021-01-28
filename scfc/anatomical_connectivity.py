@@ -40,39 +40,24 @@ def getAtlasConnectivity(include_inds, name_list, atlas_id, metric='cellcount'):
     return cellcount_filtered
 
 
-def getRoiCompleteness(neuprint_client, mapping):
+def getRoiCompleteness(neuprint_client, name_list):
     """
-    Return roi completness measures.
+    Return roi completness measures for Ito atlas regions.
 
     neuprint_client
-    mapping: mapping dict to bridge hemibrain regions to atlas regions
-    returns roi_completeness (dataframe)
+    name_list: list of Ito regions to return completeness for
     """
-    rois = list(mapping.keys())
-    rois.sort()
-
     # How many synapses belong to traced neurons
-    completeness_df = neuprint_client.fetch_roi_completeness()
-    completeness_df['frac_pre'] = completeness_df['roipre'] / completeness_df['totalpre']
-    completeness_df['frac_post'] = completeness_df['roipost'] / completeness_df['totalpost']
+    completeness_neuprint = neuprint_client.fetch_roi_completeness()
+    completeness_neuprint.index = completeness_neuprint['roi']
 
-    roi_completeness = pd.DataFrame(data=np.zeros((len(rois), 2)), index=rois, columns=['frac_pre', 'frac_post'])
-    for r in rois:
-        grouped_rois = mapping[r]
-        comp_pre = []
-        comp_post = []
-        for gr in grouped_rois:
-            ind = np.where(completeness_df['roi'] == gr)[0]
-            if len(ind) > 0:
-                new_pre = completeness_df['frac_pre'][ind].to_numpy()
-                new_post = completeness_df['frac_post'][ind].to_numpy()
-                comp_pre.append(new_pre)
-                comp_post.append(new_post)
+    completeness = np.zeros((len(name_list), 2))
+    for r_ind, roi in enumerate(name_list):
+        current_rois = completeness_neuprint.loc[bridge.ito_to_neuprint(roi), :]
+        completeness[r_ind, 0] = current_rois['roipre'].sum() / current_rois['totalpre'].sum()
+        completeness[r_ind, 1] = current_rois['roipost'].sum() / current_rois['totalpost'].sum()
 
-        if len(comp_pre) > 0:
-            roi_completeness.loc[[r], ['frac_pre']] = np.array(comp_pre).mean()
-            roi_completeness.loc[[r], ['frac_post']] = np.array(comp_post).mean()
-
+    roi_completeness = pd.DataFrame(data=completeness, index=name_list, columns=['frac_pre', 'frac_post'])
     roi_completeness['completeness'] = roi_completeness['frac_pre'] * roi_completeness['frac_post']
 
     return roi_completeness

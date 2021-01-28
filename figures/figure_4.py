@@ -4,12 +4,13 @@ Turner, Mann, Clandinin: Figure generation script: Fig. 4.
 https://github.com/mhturner/SC-FC
 """
 import matplotlib.pyplot as plt
-from neuprint import Client
 import numpy as np
 import os
 from scipy.stats import zscore, spearmanr
 import pandas as pd
 import seaborn as sns
+import glob
+from scipy import stats
 
 from sklearn.linear_model import LinearRegression
 from sklearn.model_selection import RepeatedKFold, cross_validate
@@ -24,26 +25,23 @@ rcParams['svg.fonttype'] = 'none'  # let illustrator handle the font type
 
 data_dir = bridge.getUserConfiguration()['data_dir']
 analysis_dir = bridge.getUserConfiguration()['analysis_dir']
-token = bridge.getUserConfiguration()['token']
-
-# start client
-neuprint_client = Client('neuprint.janelia.org', dataset='hemibrain:v1.2', token=token)
-
-# Get FunctionalConnectivity object
-FC = functional_connectivity.FunctionalConnectivity(data_dir=data_dir, fs=1.2, cutoff=0.01, mapping=bridge.getRoiMapping())
-
-# Get AnatomicalConnectivity object
-AC = anatomical_connectivity.AnatomicalConnectivity(data_dir=data_dir, neuprint_client=neuprint_client, mapping=bridge.getRoiMapping())
 
 plot_colors = plt.get_cmap('tab10')(np.arange(8)/8)
 save_dpi = 400
 
 # %% Difference matrix
+atlas_path = os.path.join(data_dir, 'atlas_data', 'vfb_68_Original.nii.gz')
+include_inds_ito, name_list_ito = bridge.getItoNames()
 
 # # compute difference matrix using original, asymmetric anatomical connectivity matrix
-anatomical_mat = AC.getConnectivityMatrix('CellCount', diag=0).to_numpy().copy()
-functional_mat = FC.CorrelationMatrix.to_numpy().copy()
+anatomical_mat = anatomical_connectivity.getAtlasConnectivity(include_inds_ito, name_list_ito, 'ito').to_numpy().copy()
+np.fill_diagonal(anatomical_mat, 0)
+
+response_filepaths = glob.glob(os.path.join(data_dir, 'ito_responses') + '/' + '*.pkl')
+functional_mat, cmats_z = functional_connectivity.getCmat(response_filepaths, include_inds_ito, name_list_ito)
+functional_mat = functional_mat.to_numpy().copy()
 np.fill_diagonal(functional_mat, 0)
+
 
 # log transform anatomical connectivity values
 keep_inds_diff = np.where(anatomical_mat > 0)
@@ -56,7 +54,8 @@ diff = F_zscore - A_zscore
 
 diff_m = np.zeros_like(anatomical_mat)
 diff_m[keep_inds_diff] = diff
-DifferenceMatrix = pd.DataFrame(data=diff_m, index=FC.rois, columns=FC.rois)
+DifferenceMatrix = pd.DataFrame(data=diff_m, index=name_list_ito, columns=name_list_ito)
+
 
 # %% sort difference matrix by most to least different rois
 diff_by_roi = DifferenceMatrix.mean()
@@ -95,7 +94,10 @@ ax.tick_params(axis='both', which='major', labelsize=8)
 ax.set_aspect(1)
 
 fig4_2, ax = plt.subplots(1, 1, figsize=(4, 4))
-sns.heatmap(sorted_diff, ax=ax, yticklabels=True, xticklabels=True, cbar_kws={'label': 'Difference (FC - SC)', 'shrink': .65}, cmap="RdBu_r", rasterized=True, vmin=-lim, vmax=lim)
+sns.heatmap(sorted_diff, ax=ax,
+            yticklabels=[bridge.displayName(x) for x in sorted_diff.columns],
+            xticklabels=[bridge.displayName(x) for x in sorted_diff.index],
+            cbar_kws={'label': 'Difference (FC - SC)', 'shrink': .65}, cmap="RdBu_r", rasterized=True, vmin=-lim, vmax=lim)
 ax.set_aspect('equal')
 ax.tick_params(axis='both', which='major', labelsize=6)
 
@@ -106,25 +108,27 @@ fig4_2.savefig(os.path.join(analysis_dir, 'figpanels', 'fig4_2.svg'), format='sv
 
 # %% Average diff for each region, cluster and sort by super-regions
 
-regions = {'AL/LH': ['AL(R)', 'LH(R)'],
-           'MB': ['MBCA(R)', 'MBML(R)', 'MBML(L)', 'MBPED(R)', 'MBVL(R)'],
+regions = {'AL/LH': ['AL_R', 'LH_R'],
+           'MB': ['MB_CA_R', 'MB_ML_R', 'MB_ML_L', 'MB_PED_R', 'MB_VL_R'],
            'CX': ['EB', 'FB', 'PB', 'NO'],
-           'LX': ['BU(L)', 'BU(R)', 'LAL(R)'],
-           'INP': ['CRE(L)', 'CRE(R)', 'SCL(R)', 'ICL(R)', 'IB', 'ATL(L)', 'ATL(R)'],
-           'VMNP': ['VES(R)', 'EPA(R)', 'GOR(L)', 'GOR(R)', 'SPS(R)'],
-           'SNP': ['SLP(R)', 'SIP(R)', 'SMP(R)', 'SMP(L)'],
-           'VLNP': ['AOTU(R)', 'AVLP(R)', 'PVLP(R)', 'PLP(R)', 'WED(R)'],
-           'PENP': ['CAN(R)'],
+           'LX': ['BU_L', 'BU_R', 'LAL_R'],
+           'INP': ['CRE_L', 'CRE_R', 'SCL_R', 'ICL_R', 'IB_L', 'IB_R', 'ATL_L', 'ATL_R'],
+           'VMNP': ['VES_R', 'EPA_R', 'GOR_L', 'GOR_R', 'SPS_R'],
+           'SNP': ['SLP_R', 'SIP_R', 'SMP_R', 'SMP_L'],
+           'VLNP': ['AOTU_R', 'AVLP_R', 'PVLP_R', 'PLP_R', 'WED_R'],
            }
 
+
 # log transform anatomical connectivity values
-anatomical_mat = AC.getConnectivityMatrix('CellCount', diag=0).to_numpy().copy()
+
+anatomical_mat = anatomical_connectivity.getAtlasConnectivity(include_inds_ito, name_list_ito, 'ito').to_numpy().copy()
+np.fill_diagonal(anatomical_mat, 0)
 keep_inds_diff = np.where(anatomical_mat > 0)
 anatomical_adj = np.log10(anatomical_mat[keep_inds_diff])
 
 diff_by_region = []
-for c_ind in range(FC.cmats.shape[2]): # loop over fly
-    cmat = FC.cmats[:, :, c_ind]
+for c_ind in range(len(cmats_z)): # loop over fly
+    cmat = cmats_z[c_ind]
     functional_adj = cmat[keep_inds_diff]
 
     F_zscore_fly = zscore(functional_adj)
@@ -139,11 +143,15 @@ for c_ind in range(FC.cmats.shape[2]): # loop over fly
 diff_by_region = np.vstack(diff_by_region).T  # region x fly
 sort_inds = np.argsort(diff_by_region.mean(axis=1))[::-1]
 diff_by_region.mean(axis=1)
-colors = sns.color_palette('deep', 9)
+colors = sns.color_palette('deep', 8)
 fig4_3, ax = plt.subplots(1, 1, figsize=(5.5, 3.0))
 
-for plot_position, r_ind in enumerate(sort_inds):
-    current_roi = FC.rois[r_ind]
+plot_position = 0
+for r_ind in sort_inds:
+    current_roi = name_list_ito[r_ind]
+    if current_roi == 'CAN_R': # All by itself in the PENP
+        continue
+
     super_region_ind = np.where([current_roi in regions[reg_key] for reg_key in regions.keys()])[0][0]
     color = colors[super_region_ind]
 
@@ -151,7 +159,9 @@ for plot_position, r_ind in enumerate(sort_inds):
     new_err = np.std(diff_by_region[r_ind, :]) / np.sqrt(diff_by_region.shape[1])
     ax.plot(plot_position, new_mean, linestyle='None', marker='o', color=color)
     ax.plot([plot_position, plot_position], [new_mean-new_err, new_mean+new_err], linestyle='-', linewidth=2, marker='None', color=color)
-    ax.annotate(current_roi, (plot_position-0.25, 1.1), rotation=90, fontsize=8, color=color, fontweight='bold')
+    ax.annotate(bridge.displayName(current_roi), (plot_position-0.25, 1.1), rotation=90, fontsize=8, color=color, fontweight='bold')
+
+    plot_position += 1
 
 ax.set_ylim([-1.1, 1.1])
 ax.spines['right'].set_visible(False)
@@ -160,23 +170,40 @@ ax.set_ylabel('Region avg. diff.\n(FC - SC)')
 ax.set_xticks([])
 
 sns.palplot(colors)
-np.array(colors)
+# np.array(colors)
 fig4_3.savefig(os.path.join(analysis_dir, 'figpanels', 'fig4_3.svg'), format='svg', transparent=True, dpi=save_dpi)
+
+# Groups of ROIs sig different than rest of distr.?
+alpha = 0.01
+m = len(regions)
+p_cutoff = alpha / m
+xx = diff_by_region.mean(axis=1)
+for r in regions:
+    rois = regions[r]
+
+    h, p = stats.ttest_ind(diff_by_region[~np.array([x in rois for x in name_list_ito]), :].ravel(), diff_by_region[np.array([x in rois for x in name_list_ito]), :].ravel())
+    print(r)
+    print(p)
+    print(p < p_cutoff)
+    print('------------')
+
 
 # %%
 
 # Shortest path distance:
-anat_connect = AC.getConnectivityMatrix('CellCount', diag=None)
+anat_connect = anatomical_connectivity.getAtlasConnectivity(include_inds_ito, name_list_ito, 'ito')
 shortest_path_dist, shortest_path_steps, shortest_path_weight, hub_count = bridge.getShortestPathStats(anat_connect)
 
-shortest_path_dist = shortest_path_dist.to_numpy()[~np.eye(36, dtype=bool)]
+shortest_path_dist = shortest_path_dist.to_numpy()[~np.eye(len(name_list_ito), dtype=bool)]
 
 # Direct distance:
-direct_dist = (1/AC.getConnectivityMatrix('CellCount', diag=0).to_numpy())[~np.eye(36, dtype=bool)]
+tmp = anatomical_connectivity.getAtlasConnectivity(include_inds_ito, name_list_ito, 'ito').to_numpy().copy()
+np.fill_diagonal(tmp, 0)
+direct_dist = (1/tmp)[~np.eye(len(name_list_ito), dtype=bool)]
 direct_dist[np.isinf(direct_dist)] = np.nan
 
 # FC-SC difference:
-diff = DifferenceMatrix.to_numpy()[~np.eye(36, dtype=bool)]
+diff = DifferenceMatrix.to_numpy()[~np.eye(len(name_list_ito), dtype=bool)]
 
 fig4_4, ax = plt.subplots(1, 2, figsize=(6, 3))
 lim = np.nanmax(np.abs(DifferenceMatrix.to_numpy().ravel()))
@@ -206,7 +233,7 @@ r, p = spearmanr(x, y)
 ax[1].annotate(r'$\rho$={:.2f}'.format(r), (90, 2.5))
 ax[1].set_xticks([1, 10, 100])
 
-bins = np.logspace(np.log10(x.min()), np.log10(x.max()), 10)
+bins = np.logspace(np.log10(x.min()), np.log10(x.max()), 7)
 num_bins = len(bins)-1
 
 for b_ind in range(num_bins):
@@ -247,19 +274,26 @@ def fitLinReg(x, y):
     return pred, avg_r2, err_r2
 
 
-metrics = ['CellCount', 'TBars']
+metrics = ['cellcount', 'tbar']
 for ind in range(2):
     metric = metrics[ind]
 
     # direct connectivity
-    direct_connect, keep_inds = AC.getAdjacency(metric, do_log=True)
+    Structural_Matrix = anatomical_connectivity.getAtlasConnectivity(include_inds_ito, name_list_ito, 'ito', metric=metric).to_numpy().copy()
+    Structural_Matrix = (Structural_Matrix + Structural_Matrix.T) / 2 # symmetrize
+
+    keep_inds = np.where(Structural_Matrix[np.triu_indices(len(name_list_ito), k=1)] > 0)
+    direct_connect = np.log10(Structural_Matrix[np.triu_indices(len(name_list_ito), k=1)][keep_inds])
 
     # shortest path
-    anat_connect = AC.getConnectivityMatrix(metric, diag=None)
+    anat_connect = anatomical_connectivity.getAtlasConnectivity(include_inds_ito, name_list_ito, 'ito')
     measured_sp, measured_steps, _, measured_hub = bridge.getShortestPathStats(anat_connect)
-    shortest_path = np.log10(((measured_sp.T + measured_sp.T)/2).to_numpy()[FC.upper_inds][keep_inds])
+    shortest_path = np.log10(((measured_sp.T + measured_sp.T)/2).to_numpy()[np.triu_indices(len(name_list_ito), k=1)][keep_inds])
 
-    measured_fc = FC.CorrelationMatrix.to_numpy()[FC.upper_inds][keep_inds]
+    # Predicted: FC
+    response_filepaths = glob.glob(os.path.join(data_dir, 'ito_responses') + '/' + '*.pkl')
+    Functional_Matrix, _ = functional_connectivity.getCmat(response_filepaths, include_inds_ito, name_list_ito)
+    measured_fc = Functional_Matrix.to_numpy()[np.triu_indices(len(name_list_ito), k=1)][keep_inds]
 
     figS4_0, ax = plt.subplots(1, 3, figsize=(9, 3))
 
