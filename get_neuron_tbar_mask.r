@@ -9,8 +9,8 @@ options(warn=1)
 
 cell_type <- commandArgs(trailingOnly = TRUE)
 
-data_dir = '/home/mhturner/Dropbox/ClandininLab/Analysis/SC-FC/data'
-# data_dir = '/oak/stanford/groups/trc/data/Max/flynet/data'
+# data_dir = '/home/mhturner/Dropbox/ClandininLab/Analysis/SC-FC/data'
+data_dir = '/oak/stanford/groups/trc/data/Max/flynet/data'
 
 # load atlas in JRC2018 space
 res = 0.38 # um/voxel of atlas

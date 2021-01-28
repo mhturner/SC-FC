@@ -338,7 +338,7 @@ Neur, _ = fetch_neurons(NeuronCriteria(type=".*KCa\'.*", status='Traced', regex=
 Neur.shape
  # %%
 
-
+figS1_5 = doAlignmentTest(cell_type='MBON', neuprint_search="MBON[0-9][0-9]")
 figS1_5 = doAlignmentTest(cell_type='OPN', neuprint_search=".*vPN.*")
 figS1_5 = doAlignmentTest(cell_type='KC', neuprint_search='KCab-c')
 

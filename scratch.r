@@ -29,11 +29,11 @@ skels = neuprint_read_skeletons(body_ids)
 plot3d(skels, col = sample(lacroix,length(skels), replace = TRUE), lwd = 2)
 
 NO.mesh = neuprint_ROI_mesh(roi = "NO")
-plot3d(NO.mesh, add = TRUE, alpha = 0.5, col = )
+plot3d(NO.mesh, add = TRUE, alpha = 0.5, col = "grey")
 LAL.mesh = neuprint_ROI_mesh(roi = "LAL(R)")
 plot3d(LAL.mesh, add = TRUE, alpha = 0.5, col = "grey")
-AL.mesh = neuprint_ROI_mesh(roi = "AL(R)")
-plot3d(AL.mesh, add = TRUE, alpha = 0.5, col = "grey")
+# AL.mesh = neuprint_ROI_mesh(roi = "AL(R)")
+# plot3d(AL.mesh, add = TRUE, alpha = 0.5, col = "grey")
 
 um = matrix(c(0.8894074, -0.2930942, -0.3507853, 0, 0.1790030, 0.9294183, -0.3227063, 0, 0.4206095, 0.2242260, 0.8790962, 0, 0.0000000, 0.0000000, 0.0000000, 1), nrow=4, ncol=4, byrow=TRUE)
 view3d(userMatrix = um)
@@ -51,7 +51,10 @@ skels = neuprint_read_skeletons(body_ids)
 plot3d(skels, col = sample(lacroix,length(skels), replace = TRUE), lwd = 2)
 
 EB.mesh = neuprint_ROI_mesh(roi = "EB")
-plot3d(EB.mesh, add = TRUE, alpha = 0.5, col = lacroix[["orange"]])
+plot3d(EB.mesh, add = TRUE, alpha = 0.5, col = "grey")
+
+um = matrix(c(0.8894074, -0.2930942, -0.3507853, 0, 0.1790030, 0.9294183, -0.3227063, 0, 0.4206095, 0.2242260, 0.8790962, 0, 0.0000000, 0.0000000, 0.0000000, 1), nrow=4, ncol=4, byrow=TRUE)
+view3d(userMatrix = um)
 
 rgl.snapshot(filename = file.path(data_dir, 'hemi_2_atlas', 'EBR_skels.png'), fmt ="png")
 
