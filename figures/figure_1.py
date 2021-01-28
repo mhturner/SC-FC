@@ -297,14 +297,14 @@ def doAlignmentTest(cell_type, neuprint_search):
     tbar.index = name_list_ito
     tbar = pd.DataFrame(tbar.sum(axis=1), columns=['sum'])
 
-    fh, ax = plt.subplots(1, 2, figsize=(3, 5))
+    fh, ax = plt.subplots(2, 1, figsize=(4, 2))
 
     vmin = 1
     vmax = np.nanmax(tbar.to_numpy())
 
-    sns.heatmap(np.log10(tbar).replace(-np.inf, 0), ax=ax[1], cmap='cividis', cbar=False, xticklabels=False, yticklabels=False, vmin=0, vmax=np.log10(vmax))
+    sns.heatmap(np.log10(tbar.T).replace(-np.inf, 0), ax=ax[1], cmap='cividis', cbar=False, xticklabels=[bridge.displayName(x) for x in tbar.index], yticklabels=False, vmin=0, vmax=np.log10(vmax))
 
-    ax[1].set_title('Atlas\nregistration')
+    # ax[1].set_title('Atlas\nregistration')
     ax[1].tick_params(axis='both', which='major', labelsize=8)
 
     # (2) Get TBar count according to Neuprint & Janelia region tags
@@ -324,11 +324,10 @@ def doAlignmentTest(cell_type, neuprint_search):
 
     tbar_neuprint = pd.DataFrame(tbar_count.sum(axis=0).T, index=name_list_ito, columns=['ct'])
 
-    sns.heatmap(np.log10(tbar_neuprint).replace(-np.inf, 0), ax=ax[0], cmap='cividis', cbar=False, xticklabels=False, yticklabels=[bridge.displayName(x) for x in tbar.index], vmin=0, vmax=np.log10(vmax))
-    ax[0].set_title('Neuprint')
+    sns.heatmap(np.log10(tbar_neuprint.T).replace(-np.inf, 0), ax=ax[0], cmap='cividis', cbar=False, xticklabels=False, yticklabels=False, vmin=0, vmax=np.log10(vmax))
+    # ax[0].set_title('Neuprint')
     ax[0].tick_params(axis='both', which='major', labelsize=8)
-    position=fh.add_axes([1.0, 0.1, 0.05, 0.75])
-    cb = fh.colorbar(matplotlib.cm.ScalarMappable(norm=matplotlib.colors.SymLogNorm(vmin=vmin, vmax=vmax, base=10, linthresh=0.1, linscale=1), cmap="cividis"), ax=ax, shrink=0.75, label='T-Bars', cax=position)
+    cb = fh.colorbar(matplotlib.cm.ScalarMappable(norm=matplotlib.colors.SymLogNorm(vmin=vmin, vmax=vmax, base=10, linthresh=0.1, linscale=1), cmap="cividis"), ax=ax, shrink=1.0, label='T-Bars')
 
     r, p = pearsonr(tbar.to_numpy().ravel(), tbar_neuprint.to_numpy().ravel())
     print('r = {}'.format(r))
