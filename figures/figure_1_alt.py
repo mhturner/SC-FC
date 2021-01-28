@@ -14,7 +14,7 @@ from skimage import io
 import seaborn as sns
 from neuprint import (fetch_neurons, NeuronCriteria, Client)
 
-from scfc import bridge, anatomical_connectivity, functional_connectivity
+from scfc import bridge, anatomical_connectivity
 from matplotlib import rcParams
 rcParams.update({'font.size': 10})
 rcParams.update({'figure.autolayout': True})
@@ -134,10 +134,14 @@ fig1_0.savefig(os.path.join(analysis_dir, 'figpanels', 'fig1_0.svg'), format='sv
 figS1_0.savefig(os.path.join(analysis_dir, 'figpanels', 'figS1_0.svg'), format='svg', transparent=True, dpi=save_dpi)
 
 # %%
+token = bridge.getUserConfiguration()['token']
+
+# start client
+neuprint_client = Client('neuprint.janelia.org', dataset='hemibrain:v1.2', token=token)
 AC = anatomical_connectivity.AnatomicalConnectivity(data_dir=data_dir, neuprint_client=neuprint_client, mapping=bridge.getRoiMapping())
 old_t = AC.getConnectivityMatrix('TBars')
-
-ConnectivityTBars
+old_t.sum().sum()
+ConnectivityTBars.sum().sum()
 
 # %% Summary across all regions: zscore within each outgoing and compare to lognorm
 # CELL COUNT:
@@ -328,6 +332,9 @@ def doAlignmentTest(cell_type, neuprint_search):
 
     r, p = pearsonr(tbar.to_numpy().ravel(), tbar_neuprint.to_numpy().ravel())
     print('r = {}'.format(r))
+
+    print(tbar.sum().sum())
+    print(tbar_neuprint.sum().sum())
 
     return fh
 
