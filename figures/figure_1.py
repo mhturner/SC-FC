@@ -344,9 +344,3 @@ figS1_3.savefig(os.path.join(analysis_dir, 'figpanels', 'figS1_3.svg'), format='
 
 figS1_4 = doAlignmentTest(cell_type='LNO', neuprint_search="LNO.*")
 figS1_4.savefig(os.path.join(analysis_dir, 'figpanels', 'figS1_4.svg'), format='svg', transparent=True, dpi=save_dpi)
-
-
-
-
-
-#
