@@ -282,7 +282,7 @@ cb = figS1_2.colorbar(im, ax=ax[2], shrink=1.0, orientation="horizontal", pad=0.
 figS1_2.tight_layout()
 figS1_2.savefig(os.path.join(analysis_dir, 'figpanels', 'figS1_2.svg'), format='svg', transparent=True, dpi=save_dpi)
 
-# %% Alignment testing: EB-Ring neurons
+# %% Alignment testing
 token = bridge.getUserConfiguration()['token']
 neuprint_client = Client('neuprint.janelia.org', dataset='hemibrain:v1.2', token=token)
 
@@ -297,15 +297,17 @@ def doAlignmentTest(cell_type, neuprint_search):
     tbar.index = name_list_ito
     tbar = pd.DataFrame(tbar.sum(axis=1), columns=['sum'])
 
-    fh, ax = plt.subplots(1, 2, figsize=(3, 5))
+    fh, ax = plt.subplots(2, 1, figsize=(4, 2))
 
     vmin = 1
     vmax = np.nanmax(tbar.to_numpy())
 
-    sns.heatmap(np.log10(tbar).replace(-np.inf, 0), ax=ax[1], cmap='cividis', cbar=False, xticklabels=False, yticklabels=False, vmin=0, vmax=np.log10(vmax))
+    sns.heatmap(np.log10(tbar).replace(-np.inf, 0).T, ax=ax[1],
+                cmap='cividis', cbar=False, yticklabels=False, xticklabels=[bridge.displayName(x) for x in tbar.index],
+                vmin=0, vmax=np.log10(vmax), rasterized=True)
 
-    ax[1].set_title('Atlas\nregistration')
-    ax[1].tick_params(axis='both', which='major', labelsize=8)
+    # ax[1].set_title('Atlas\nregistration')
+    ax[1].tick_params(axis='both', which='major', labelsize=7)
 
     # (2) Get TBar count according to Neuprint & Janelia region tags
     Neur, _ = fetch_neurons(NeuronCriteria(type=neuprint_search, status='Traced', regex=True))
@@ -324,11 +326,13 @@ def doAlignmentTest(cell_type, neuprint_search):
 
     tbar_neuprint = pd.DataFrame(tbar_count.sum(axis=0).T, index=name_list_ito, columns=['ct'])
 
-    sns.heatmap(np.log10(tbar_neuprint).replace(-np.inf, 0), ax=ax[0], cmap='cividis', cbar=False, xticklabels=False, yticklabels=[bridge.displayName(x) for x in tbar.index], vmin=0, vmax=np.log10(vmax))
-    ax[0].set_title('Neuprint')
-    ax[0].tick_params(axis='both', which='major', labelsize=8)
-    position=fh.add_axes([1.0, 0.1, 0.05, 0.75])
-    cb = fh.colorbar(matplotlib.cm.ScalarMappable(norm=matplotlib.colors.SymLogNorm(vmin=vmin, vmax=vmax, base=10, linthresh=0.1, linscale=1), cmap="cividis"), ax=ax, shrink=0.75, label='T-Bars', cax=position)
+    sns.heatmap(np.log10(tbar_neuprint).replace(-np.inf, 0).T, ax=ax[0],
+                cmap='cividis', cbar=False, yticklabels=False, xticklabels=False,
+                vmin=0, vmax=np.log10(vmax), rasterized=True)
+    # ax[0].set_title('Neuprint')
+    ax[0].tick_params(axis='both', which='major', labelsize=7)
+    # position = fh.add_axes([1.0, 0.1, 0.05, 0.75])
+    cb = fh.colorbar(matplotlib.cm.ScalarMappable(norm=matplotlib.colors.SymLogNorm(vmin=vmin, vmax=vmax, base=10, linthresh=0.1, linscale=1), cmap="cividis"), ax=ax, shrink=1, label='T-Bars')
 
     r, p = pearsonr(tbar.to_numpy().ravel(), tbar_neuprint.to_numpy().ravel())
     print('r = {}'.format(r))
@@ -344,8 +348,6 @@ figS1_3.savefig(os.path.join(analysis_dir, 'figpanels', 'figS1_3.svg'), format='
 
 figS1_4 = doAlignmentTest(cell_type='LNO', neuprint_search="LNO.*")
 figS1_4.savefig(os.path.join(analysis_dir, 'figpanels', 'figS1_4.svg'), format='svg', transparent=True, dpi=save_dpi)
-
-
 
 
 
