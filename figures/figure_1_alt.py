@@ -332,15 +332,6 @@ figS1_3.savefig(os.path.join(analysis_dir, 'figpanels', 'figS1_3.svg'), format='
 figS1_4 = doAlignmentTest(cell_type='LNO', neuprint_search="LNO.*")
 figS1_4.savefig(os.path.join(analysis_dir, 'figpanels', 'figS1_4.svg'), format='svg', transparent=True, dpi=save_dpi)
 
- #%%
-
-Neur, _ = fetch_neurons(NeuronCriteria(type=".*KCa\'.*", status='Traced', regex=True))
-Neur.shape
- # %%
-
-figS1_5 = doAlignmentTest(cell_type='MBON', neuprint_search="MBON[0-9][0-9]")
-figS1_5 = doAlignmentTest(cell_type='OPN', neuprint_search=".*vPN.*")
-figS1_5 = doAlignmentTest(cell_type='KC', neuprint_search='KCab-c')
 
 
 
