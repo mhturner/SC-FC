@@ -103,7 +103,7 @@ np.fill_diagonal(mean_cmat, np.nan)
 CorrelationMatrix_Full = pd.DataFrame(data=mean_cmat, index=name_list_ito, columns=name_list_ito)
 
 RegionResponses.to_pickle(os.path.join(data_dir, 'subsample_CorrelationMatrix_Full.pkl'))
-np.save(os.path.join(data_dir, 'subsample_cmats_full.npy'), (cmats_full)
+np.save(os.path.join(data_dir, 'subsample_cmats_full.npy'), (cmats_full))
 print('Saved full cmats to {}'.format(data_dir))
 
 # Subsampled corrmat
