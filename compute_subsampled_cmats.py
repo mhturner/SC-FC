@@ -4,7 +4,6 @@ import nibabel as nib
 import numpy as np
 import time
 import glob
-import datetime
 import pandas as pd
 
 from scfc import functional_connectivity, bridge
@@ -13,11 +12,8 @@ from scfc import functional_connectivity, bridge
 fs = 1.2 # Hz
 cutoff = 0.01 # Hz
 
-# subsampled_sizes = np.logspace(1, 4.4, 16) # voxels
-# n_iter = 10 # num iterations for randomly subsampling regions
-
-subsampled_sizes = np.logspace(1, 4.4, 3) # voxels
-n_iter = 2 # num iterations for randomly subsampling regions
+subsampled_sizes = np.logspace(1, 4.4, 16) # voxels
+n_iter = 10 # num iterations for randomly subsampling regions
 
 t_total_0 = time.time()
 
@@ -31,8 +27,7 @@ include_inds_ito, name_list_ito = bridge.getItoNames()
 t0 = time.time()
 cmats_full = []
 cmats_subsampled = []
-for brain_fp in brain_filepaths[0:2]: # TESTING
-    # for brain_fp in brain_filepaths:
+for brain_fp in brain_filepaths:
     t0 = time.time()
     suffix = brain_fp.split('func_volreg_')[-1]
     file_id = suffix.replace('.nii.gz', '')
