@@ -97,8 +97,8 @@ mean_cmat = np.mean(np.stack(cmats_full, axis=2), axis=2) # roi x roi
 np.fill_diagonal(mean_cmat, np.nan)
 CorrelationMatrix_Full = pd.DataFrame(data=mean_cmat, index=name_list_ito, columns=name_list_ito)
 
-RegionResponses.to_pickle(os.path.join(data_dir, 'subsample_CorrelationMatrix_Full.pkl'))
-np.save(os.path.join(data_dir, 'subsample_cmats_full.npy'), (cmats_full))
+CorrelationMatrix_Full.to_pickle(os.path.join(data_dir, 'subsample_CorrelationMatrix_Full.pkl'))
+np.save(os.path.join(data_dir, 'subsample_cmats_full.npy'), cmats_full)
 print('Saved full cmats to {}'.format(data_dir))
 
 # Subsampled corrmat

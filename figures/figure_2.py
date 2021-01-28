@@ -583,6 +583,9 @@ figS2_6.savefig(os.path.join(analysis_dir, 'figpanels', 'figS2_3.svg'), format='
 
 # TODO: fix for new atlas comp
 
+CorrelationMatrix_Full = pd.read_pickle(os.path.join(data_dir, 'subsample', 'subsample_CorrelationMatrix_Full.pkl'))
+cmats_full = np.load(os.path.join(data_dir, 'subsample', 'subsample_cmats_full.npy'))
+
 token = bridge.getUserConfiguration()['token']
 
 # start client
