@@ -8,11 +8,11 @@ import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 import os
-from scipy.stats import norm, zscore, kstest
-import six
+from scipy.stats import norm, zscore, kstest, pearsonr
 import pandas as pd
 from skimage import io
 import seaborn as sns
+from neuprint import (fetch_neurons, NeuronCriteria, Client)
 
 from scfc import bridge, anatomical_connectivity
 from matplotlib import rcParams
@@ -272,78 +272,77 @@ cb = figS1_2.colorbar(im, ax=ax[2], shrink=1.0, orientation="horizontal", pad=0.
 figS1_2.tight_layout()
 figS1_2.savefig(os.path.join(analysis_dir, 'figpanels', 'figS1_2.svg'), format='svg', transparent=True, dpi=save_dpi)
 
-# %% Alignment testing: LNO
-
-cell_type = 'LNO' # LC, MBON, KC, ER, OPN, LNO
-target = 'NO'
-
-tbar = pd.read_csv(os.path.join(data_dir, 'hemi_2_atlas', '{}_ito_tbar.csv'.format(cell_type)), header=0).iloc[:, 1:]
-
-tbar.index = np.arange(1, 87)
-
-include_inds_ito, name_list_ito = bridge.getItoNames()
-tbar = tbar.loc[include_inds_ito, :]
-tbar.index = name_list_ito
-
-tbar = tbar.loc[:, ~np.all(tbar == 0, axis=0)]
-
-fh, ax = plt.subplots(1, 1, figsize=(6, 6))
-sns.heatmap(np.log10(tbar).replace(-np.inf, 0), ax=ax, cmap='cividis', cbar=False, xticklabels=True, yticklabels=[bridge.displayName(x) for x in tbar.index])
-cb = fh.colorbar(matplotlib.cm.ScalarMappable(norm=matplotlib.colors.SymLogNorm(vmin=1, vmax=np.nanmax(tbar.to_numpy()), base=10, linthresh=0.1, linscale=1), cmap="cividis"), ax=ax, shrink=1.0, label='T-Bars')
-
-ax.tick_params(axis='both', which='major', labelsize=8)
-
-in_no = tbar.loc[:, ~np.all(tbar == 0, axis=0)]
-in_target = tbar.loc[target, :].sum().sum()
-
-print('{} / {} tbars in {} ({:.2f}%)'.format(in_target, tbar.sum().sum(), target, 100 * in_target / tbar.sum().sum()))
-
-# %% Alignment testing: LC
-
-cell_type = 'ER' # LC, MBON, KC, ER, OPN, LNO
-target = ['EB']
-
-tbar = pd.read_csv(os.path.join(data_dir, 'hemi_2_atlas', '{}_ito_tbar.csv'.format(cell_type)), header=0).iloc[:, 1:]
-
-tbar.index = np.arange(1, 87)
-
-include_inds_ito, name_list_ito = bridge.getItoNames()
-tbar = tbar.loc[include_inds_ito, :]
-tbar.index = name_list_ito
-
-tbar = tbar.loc[:, ~np.all(tbar == 0, axis=0)]
-
-fh, ax = plt.subplots(1, 1, figsize=(6, 6))
-sns.heatmap(np.log10(tbar).replace(-np.inf, 0), ax=ax, cmap='cividis', cbar=False, xticklabels=True, yticklabels=[bridge.displayName(x) for x in tbar.index])
-cb = fh.colorbar(matplotlib.cm.ScalarMappable(norm=matplotlib.colors.SymLogNorm(vmin=1, vmax=np.nanmax(tbar.to_numpy()), base=10, linthresh=0.1, linscale=1), cmap="cividis"), ax=ax, shrink=1.0, label='T-Bars')
-
-ax.tick_params(axis='both', which='major', labelsize=8)
-
-in_no = tbar.loc[:, ~np.all(tbar == 0, axis=0)]
-in_target = tbar.loc[target, :].sum().sum()
-
-print('{} / {} tbars in {} ({:.2f}%)'.format(in_target, tbar.sum().sum(), target, 100 * in_target / tbar.sum().sum()))
-
-# %%
-from neuprint import (fetch_neurons, NeuronCriteria, Client)
+# %% Alignment testing: EB-Ring neurons
 token = bridge.getUserConfiguration()['token']
 neuprint_client = Client('neuprint.janelia.org', dataset='hemibrain:v1.2', token=token)
 
-Neur, Syn = fetch_neurons(NeuronCriteria(type='ER.*', status='Traced', regex=True, cropped=False)) # only take uncropped neurons
 
-outs = Neur.outputRois
-comp_names = [bridge.displayName(x) for x in name_list_ito]
+def doAlignmentTest(cell_type, neuprint_search):
 
-regions = []
-for out in outs:
-    for r in out:
-        if r in comp_names:
-            regions.append(r)
-count(regions)
-index, counts = np.unique(regions, return_counts=True)
-index
-count
+    # (1) Get TBar count based on atlas aligntment
+    tbar = pd.read_csv(os.path.join(data_dir, 'hemi_2_atlas', '{}_ito_tbar.csv'.format(cell_type)), header=0).iloc[:, 1:]
+    tbar.index = np.arange(1, 87)
+    include_inds_ito, name_list_ito = bridge.getItoNames()
+    tbar = tbar.loc[include_inds_ito, :]
+    tbar.index = name_list_ito
+    tbar = pd.DataFrame(tbar.sum(axis=1), columns=['sum'])
 
-Neur.roiInfo.get('MB(L)')
+    fh, ax = plt.subplots(1, 2, figsize=(3, 5))
 
-Neur.roiInfo[0]
+    vmin = 1
+    vmax = np.nanmax(tbar.to_numpy())
+
+    sns.heatmap(np.log10(tbar).replace(-np.inf, 0), ax=ax[1], cmap='cividis', cbar=False, xticklabels=False, yticklabels=False, vmin=0, vmax=np.log10(vmax))
+
+    ax[1].set_title('Atlas\nregistration')
+    ax[1].tick_params(axis='both', which='major', labelsize=8)
+
+    # (2) Get TBar count according to Neuprint & Janelia region tags
+    Neur, _ = fetch_neurons(NeuronCriteria(type=neuprint_search, status='Traced', regex=True))
+
+    neuprint_rois = [bridge.ito_to_neuprint(x) for x in name_list_ito]
+
+    tbar_count = np.zeros((Neur.shape[0], len(neuprint_rois)))
+    for roi_ind, nr in enumerate(neuprint_rois):
+        for n_ind, roiInfo in enumerate(Neur.roiInfo):
+            if len(nr) > 1:
+                new_tbars = np.sum([roiInfo.get(x, {'pre': 0}).get('pre', 0) for x in nr])
+            else:
+                new_tbars = roiInfo.get(nr[0], {'pre': 0}).get('pre', 0)
+
+            tbar_count[n_ind, roi_ind] = new_tbars
+
+    tbar_neuprint = pd.DataFrame(tbar_count.sum(axis=0).T, index=name_list_ito, columns=['ct'])
+
+    sns.heatmap(np.log10(tbar_neuprint).replace(-np.inf, 0), ax=ax[0], cmap='cividis', cbar=False, xticklabels=False, yticklabels=[bridge.displayName(x) for x in tbar.index], vmin=0, vmax=np.log10(vmax))
+    ax[0].set_title('Neuprint')
+    ax[0].tick_params(axis='both', which='major', labelsize=8)
+    position=fh.add_axes([1.0, 0.1, 0.05, 0.75])
+    cb = fh.colorbar(matplotlib.cm.ScalarMappable(norm=matplotlib.colors.SymLogNorm(vmin=vmin, vmax=vmax, base=10, linthresh=0.1, linscale=1), cmap="cividis"), ax=ax, shrink=0.75, label='T-Bars', cax=position)
+
+    r, p = pearsonr(tbar.to_numpy().ravel(), tbar_neuprint.to_numpy().ravel())
+    print('r = {}'.format(r))
+
+    return fh
+
+
+figS1_3 = doAlignmentTest(cell_type='ER', neuprint_search='ER.*')
+figS1_3.savefig(os.path.join(analysis_dir, 'figpanels', 'figS1_3.svg'), format='svg', transparent=True, dpi=save_dpi)
+
+figS1_4 = doAlignmentTest(cell_type='LNO', neuprint_search="LNO.*")
+figS1_4.savefig(os.path.join(analysis_dir, 'figpanels', 'figS1_4.svg'), format='svg', transparent=True, dpi=save_dpi)
+
+ #%%
+
+Neur, _ = fetch_neurons(NeuronCriteria(type=".*KCa\'.*", status='Traced', regex=True))
+Neur.shape
+ # %%
+
+
+figS1_5 = doAlignmentTest(cell_type='OPN', neuprint_search=".*vPN.*")
+figS1_5 = doAlignmentTest(cell_type='KC', neuprint_search='KCab-c')
+
+
+
+
+#

@@ -69,6 +69,7 @@ for (c_ind in 1:length(chunks)){
   # split into input / output 
   input_synapses = as.data.frame(syn_data[syn_data$prepost==1, c("x", "y", "z", "bodyid")])
   output_synapses = as.data.frame(syn_data[syn_data$prepost==0, c("x", "y", "z", "bodyid")])
+  output_synapses = output_synapses[!duplicated(output_synapses[1:3]),] # remove duplicate T-bar locations (single t-bar -> multiple postsynapses)
   
   # For each cell in synapse list
   ct = 0

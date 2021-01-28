@@ -28,6 +28,50 @@ def getUserConfiguration():
     return cfg
 
 
+def ito_to_neuprint(ito_name):
+    """."""
+    mapping = {'AL_R': ['AL(R)'],
+               'AOTU_R': ['AOTU(R)'],
+               'ATL_R': ['ATL(R)'],
+               'ATL_L': ['ATL(L)'],
+               'AVLP_R': ['AVLP(R)'],
+               'BU_R': ['BU(R)'],
+               'BU_L': ['BU(L)'],
+               'CAN_R': ['CAN(R)'],
+               'CRE_R': ['CRE(R)'],
+               'CRE_L': ['CRE(L)'],
+               'EB': ['EB'],
+               'EPA_R': ['EPA(R)'],
+               'FB': ['AB(R)', 'AB(L)', 'FB'],
+               'GOR_R': ['GOR(R)'],
+               'GOR_L': ['GOR(L)'],
+               'IB_L': ['IB'],
+               'IB_R': ['IB'],
+               'ICL_R': ['ICL(R)'],
+               'LAL_R': ['LAL(R)'],
+               'LH_R': ['LH(R)'],
+               'MB_CA_R': ['CA(R)'],
+               'MB_ML_R': ["b'L(R)", 'bL(R)', 'gL(R)'],
+               'MB_ML_L': ["b'L(L)", 'bL(L)', 'gL(L)'],
+               'MB_PED_R': ['PED(R)'],
+               'MB_VL_R': ["a'L(R)", 'aL(R)'],
+               'NO': ['NO'],
+               'PB': ['PB'],
+               'PLP_R': ['PLP(R)'],
+               'PVLP_R': ['PVLP(R)'],
+               'SCL_R': ['SCL(R)'],
+               'SIP_R': ['SIP(R)'],
+               'SLP_R': ['SLP(R)'],
+               'SMP_R': ['SMP(R)'],
+               'SMP_L': ['SMP(L)'],
+               'SPS_R': ['SPS(R)'],
+               'VES_R': ['VES(R)'],
+               'WED_R': ['WED(R)']
+               }
+
+    return mapping[ito_name]
+
+
 def getRoiMapping():
     """
     Return region mapping dictionary.

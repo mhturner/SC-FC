@@ -9,8 +9,8 @@ options(warn=1)
 
 cell_type <- commandArgs(trailingOnly = TRUE)
 
-# data_dir = '/home/mhturner/Dropbox/ClandininLab/Analysis/SC-FC/data'
-data_dir = '/oak/stanford/groups/trc/data/Max/flynet/data'
+data_dir = '/home/mhturner/Dropbox/ClandininLab/Analysis/SC-FC/data'
+# data_dir = '/oak/stanford/groups/trc/data/Max/flynet/data'
 
 # load atlas in JRC2018 space
 res = 0.38 # um/voxel of atlas
@@ -23,7 +23,7 @@ if (cell_type == 'LC'){
 } else if (cell_type == 'OPN') {
   neur = neuprint_search(".*vPN.*", field = "type", meta=TRUE)
 } else if (cell_type == 'KC') {
-  neur = neuprint_search(".*KCa'b'.*", field = "type", meta=TRUE)
+  neur = neuprint_search("KCab-c", field = "type", meta=TRUE)
 } else if (cell_type == 'ER') {
   neur = neuprint_search("ER.*", field = "type", meta=TRUE)
 } else if (cell_type == 'LNO') {
@@ -44,6 +44,7 @@ syn_data[,c("x", "y", "z")] = syn_data[,c("x", "y", "z")] * 8/1000 # vox -> um
 syn_data[,c("x", "y", "z")] = xform_brain(syn_data[,c("x", "y", "z")], sample = JRCFIB2018F, reference = JRC2018F) / res # x,y,z um -> atlas voxels
 # get output synapses (Tbars)
 output_synapses = as.data.frame(syn_data[syn_data$prepost==0, c("x", "y", "z", "bodyid")])
+output_synapses = output_synapses[!duplicated(output_synapses[1:3]),] # remove duplicate T-bar locations (single t-bar -> multiple postsynapses)
 
 cols = unique(types)
 ito_tbar <- data.frame(matrix(0, ncol = length(cols), nrow = max(ito_atlas)))
