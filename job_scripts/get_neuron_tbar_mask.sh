@@ -14,4 +14,4 @@ module load cmtk
 module load hdf5/1.10.6
 module load fftw/3.3.8
 
-Rscript /home/users/mhturner/SC-FC/get_neuron_tbar_mask.r LC
+Rscript /home/users/mhturner/SC-FC/get_neuron_tbar_mask.r ER
