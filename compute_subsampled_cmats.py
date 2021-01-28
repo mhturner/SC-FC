@@ -24,7 +24,7 @@ data_dir = bridge.getUserConfiguration()['data_dir']
 analysis_dir = bridge.getUserConfiguration()['analysis_dir']
 
 brain_filepaths = glob.glob(os.path.join(data_dir, 'brain_files', 'func_volreg') + '*')
-
+include_inds_ito, name_list_ito = bridge.getItoNames()
 
 # Get full cmat, avg across flies
 t0 = time.time()
@@ -50,8 +50,11 @@ for brain_fp in brain_filepaths:
     region_responses_full = functional_connectivity.filterRegionResponse(region_responses_full, cutoff=cutoff, fs=fs)
     region_responses_full = functional_connectivity.trimRegionResponse(file_id, region_responses_full)
 
+    # Trim down to included ito regions
+    resp_included = region_responses_full.reindex(include_inds_ito).to_numpy()
+
     # compute cmat
-    correlation_matrix = np.corrcoef(region_responses_full)
+    correlation_matrix = np.corrcoef(resp_included)
     # set diag to 0
     np.fill_diagonal(correlation_matrix, 0)
     # fischer z transform (arctanh) and append
