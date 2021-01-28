@@ -581,46 +581,38 @@ figS2_6.savefig(os.path.join(analysis_dir, 'figpanels', 'figS2_3.svg'), format='
 
 # %% Supp: subsampled region cmats and SC-FC corr
 
-# TODO: fix for new atlas comp
+# Load SC mat:
+include_inds_ito, name_list_ito = bridge.getItoNames()
+Structural_Matrix = anatomical_connectivity.getAtlasConnectivity(include_inds_ito, name_list_ito, 'ito')
 
+# Load Ito atlas geometry
+atlas_path = os.path.join(data_dir, 'atlas_data', 'vfb_68_Original.nii.gz')
+coms, roi_size, DistanceMatrix, SizeMatrix = functional_connectivity.getRegionGeometry(atlas_path, include_inds_ito, name_list_ito)
+
+# Comp structural adjacency
+Structural_Matrix = (Structural_Matrix + Structural_Matrix.T) / 2
+keep_inds = np.where(Structural_Matrix.to_numpy()[np.triu_indices(len(name_list_ito), k=1)] > 0)
+anatomical_adjacency = np.log10(Structural_Matrix.to_numpy()[np.triu_indices(len(name_list_ito), k=1)][keep_inds])
+
+# Load precomputed subsampled Cmats for each brain
 CorrelationMatrix_Full = pd.read_pickle(os.path.join(data_dir, 'subsample', 'subsample_CorrelationMatrix_Full.pkl'))
 cmats_full = np.load(os.path.join(data_dir, 'subsample', 'subsample_cmats_full.npy'))
+cmats_subsampled, subsampled_sizes = np.load(os.path.join(data_dir, 'subsample', 'subsample_cmats_sub.npy'), allow_pickle=True)
 
-token = bridge.getUserConfiguration()['token']
+functional_adjacency_full = CorrelationMatrix_Full.to_numpy()[np.triu_indices(len(name_list_ito), k=1)][keep_inds]
+r_full, _ = pearsonr(anatomical_adjacency, functional_adjacency_full)
 
-# start client
-neuprint_client = Client('neuprint.janelia.org', dataset='hemibrain:v1.2', token=token)
-AC = anatomical_connectivity.AnatomicalConnectivity(data_dir=data_dir, neuprint_client=neuprint_client, mapping=bridge.getRoiMapping())
-FC = functional_connectivity.FunctionalConnectivity(data_dir=data_dir, fs=1.2, cutoff=0.01, mapping=bridge.getRoiMapping())
-
-atlas_fns = glob.glob(os.path.join(data_dir, 'ito_68_atlas', 'vfb_68_2*'))
-sizes = []
-for fn in atlas_fns:
-    _, roi_size = FC.loadAtlasData(atlas_path=fn)
-    sizes.append(roi_size)
-
-sizes = np.vstack(sizes)
-roi_size = np.mean(sizes, axis=0)
-
-np.sort(roi_size)
-
-anatomical_adjacency, keep_inds = AC.getAdjacency('CellCount', do_log=True)
 
 bins = np.arange(np.floor(np.min(roi_size)), np.ceil(np.max(roi_size)))
 values, base = np.histogram(roi_size, bins=bins, density=True)
 cumulative = np.cumsum(values)
 
-
-# Load precomputed subsampled Cmats for each brain
-load_fn = os.path.join(data_dir, 'functional_connectivity', 'subsampled_cmats_20200626.npy')
-(cmats_pop, CorrelationMatrix_Full, subsampled_sizes) = np.load(load_fn, allow_pickle=True)
-
 # mean cmat over brains for each subsampledsize and iteration
-cmats_popmean = np.mean(cmats_pop, axis=4) # roi x roi x iterations x sizes
+cmats_popmean = np.mean(cmats_subsampled, axis=4) # roi x roi x iterations x sizes
 scfc_r = np.zeros(shape=(cmats_popmean.shape[2], cmats_popmean.shape[3])) # iterations x sizes
 for s_ind, sz in enumerate(subsampled_sizes):
     for it in range(cmats_popmean.shape[2]):
-        functional_adjacency_tmp = cmats_popmean[:, :, it, s_ind][FC.upper_inds][keep_inds]
+        functional_adjacency_tmp = cmats_popmean[:, :, it, s_ind][np.triu_indices(len(name_list_ito), k=1)][keep_inds]
         new_r, _ = pearsonr(anatomical_adjacency, functional_adjacency_tmp)
         scfc_r[it, s_ind] = new_r
 
@@ -631,7 +623,7 @@ mean_y = np.mean(scfc_r, axis=0)
 figS2_7, ax1 = plt.subplots(1, 1, figsize=(4, 4))
 ax1.plot(subsampled_sizes, mean_y, 'ko')
 ax1.errorbar(subsampled_sizes, mean_y, yerr=err_y, color='k')
-ax1.hlines(mean_y[-1], subsampled_sizes.min(), subsampled_sizes.max(), color='k', linestyle='--')
+ax1.hlines(r_full, subsampled_sizes.min(), subsampled_sizes.max(), color='k', linestyle='--')
 ax1.set_xlabel('Region size (voxels)')
 ax1.set_ylabel('Correlation with anatomical connectivity')
 ax1.set_xscale('log')
