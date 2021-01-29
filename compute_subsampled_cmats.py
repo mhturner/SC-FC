@@ -75,7 +75,6 @@ for brain_fp in brain_filepaths:
 
             # get region responses and filter, trim
             region_responses_subsampled = functional_connectivity.filterRegionResponse(np.vstack(region_responses_subsampled), cutoff=cutoff, fs=fs)
-            region_responses_subsampled = functional_connectivity.trimRegionResponse(file_id, region_responses_subsampled)
             RegionResponses = pd.DataFrame(data=functional_connectivity.trimRegionResponse(file_id, region_responses_subsampled), index=rois)
 
             # Trim down to included ito regions
