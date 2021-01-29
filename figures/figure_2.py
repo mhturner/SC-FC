@@ -305,11 +305,10 @@ include_inds_branson, name_list_branson = bridge.getBransonNames()
 CorrelationMatrix_branson, cmats_branson = functional_connectivity.getCmat(response_filepaths, include_inds_branson, name_list_branson)
 Branson_JRC2018 = anatomical_connectivity.getAtlasConnectivity(include_inds_branson, name_list_branson, 'branson')
 
-
 names, inds_unique = np.unique(name_list_branson, return_index=True)
 inds_unique = np.append(inds_unique, len(name_list_branson))
 cmap = plt.get_cmap('tab20')(np.arange(len(names))/len(names))
-np.random.seed(1)
+np.random.seed(0)
 np.random.shuffle(cmap)
 
 inds = [np.where(names==name)[0][0] for name in name_list_branson]
@@ -322,13 +321,16 @@ g_fxn = sns.clustermap(CorrelationMatrix_branson, cmap='cividis',
                        row_cluster=False, col_cluster=False,
                        row_colors=atlas_colors, col_colors=atlas_colors,
                        linewidths=0, xticklabels=False, yticklabels=False,
-                       figsize=(6, 6),
+                       figsize=(4, 4),
                        cbar_pos=(0, 0, 0.0, 0.0))
+
+
+
 g_fxn.cax.set_visible(False)
 for l_ind, label in enumerate(names):
     loc = (inds_unique[l_ind] + inds_unique[l_ind+1]) / 2
-    g_fxn.ax_heatmap.annotate(text=bridge.displayName(label), xy=(loc, 0), rotation=90, fontsize=8, color='k', fontweight='bold')
-    g_fxn.ax_heatmap.annotate(text=bridge.displayName(label), xy=(0, loc), rotation=0, fontsize=8, color='k', fontweight='bold')
+    # g_fxn.ax_heatmap.annotate(bridge.displayName(label), xy=(loc, 0), rotation=90, fontsize=4, color=cmap[l_ind], fontweight='bold')
+    # g_fxn.ax_heatmap.annotate(bridge.displayName(label), xy=(0, loc), rotation=0, fontsize=4, color=cmap[l_ind], fontweight='bold', ha='right')
 
 position=g_fxn.fig.add_axes([1.0, 0.1, 0.025, 0.6])
 cb = g_fxn.fig.colorbar(matplotlib.cm.ScalarMappable(norm=matplotlib.colors.Normalize(vmin=np.nanmin(CorrelationMatrix_branson.to_numpy()), vmax=np.nanmax(CorrelationMatrix_branson.to_numpy())), cmap="cividis"),
@@ -346,22 +348,21 @@ g_struct = sns.clustermap(np.log10(conn_mat).replace([np.inf, -np.inf], 0), cmap
                           row_cluster=False, col_cluster=False,
                           row_colors=atlas_colors, col_colors=atlas_colors,
                           linewidths=0, xticklabels=False, yticklabels=False,
-                          figsize=(6, 6),
+                          figsize=(4, 4),
                           cbar_pos=(0, 0, 0.0, 0.0))
 g_struct.cax.set_visible(False)
 for l_ind, label in enumerate(names):
     loc = (inds_unique[l_ind] + inds_unique[l_ind+1]) / 2
-    g_struct.ax_heatmap.annotate(text=bridge.displayName(label), xy=(loc, 0), rotation=90, fontsize=8, color='k', fontweight='bold')
-    g_struct.ax_heatmap.annotate(text=bridge.displayName(label), xy=(0, loc), rotation=0, fontsize=8, color='k', fontweight='bold')
+    g_struct.ax_heatmap.annotate(bridge.displayName(label), xy=(loc, 0), rotation=90, fontsize=4, color=cmap[l_ind], fontweight='bold')
+    g_struct.ax_heatmap.annotate(bridge.displayName(label), xy=(0, loc), rotation=0, fontsize=4, color=cmap[l_ind], fontweight='bold', ha='right')
 
 position=g_struct.fig.add_axes([1.0, 0.1, 0.025, 0.6])
 cb = g_struct.fig.colorbar(matplotlib.cm.ScalarMappable(norm=matplotlib.colors.SymLogNorm(vmin=1, vmax=np.nanmax(conn_mat.to_numpy()), base=10, linthresh=0.1, linscale=1), cmap="cividis"),
                            ax=g_struct.ax_row_dendrogram, label='Connecting cells',
                            cax=position)
 
-
 # corr: branson
-figS2_2, ax = plt.subplots(1, 1, figsize=(6, 5))
+figS2_2, ax = plt.subplots(1, 1, figsize=(2.5, 3.5))
 x = Branson_JRC2018.to_numpy()[np.triu_indices(len(name_list_branson), k=1)]
 keep_inds = np.where(x > 0)
 x = np.log10(x[keep_inds])
@@ -383,7 +384,7 @@ ax.tick_params(axis='x', labelsize=10)
 ax.tick_params(axis='y', labelsize=10)
 ax.set_xticks([0, 1, 2, 3])
 ax.set_xticklabels(['$10^0$', '$10^1$', '$10^2$', '$10^3$'])
-cb = figS2_2.colorbar(hb, ax=ax, shrink=0.75, label='Connections')
+cb = figS2_2.colorbar(hb, ax=ax, shrink=0.75, label='Connections', orientation='horizontal')
 
 g_fxn.savefig(os.path.join(analysis_dir, 'figpanels', 'figS2_0.svg'), format='svg', transparent=True, dpi=save_dpi)
 g_struct.savefig(os.path.join(analysis_dir, 'figpanels', 'figS2_1.svg'), format='svg', transparent=True, dpi=save_dpi)
@@ -440,16 +441,21 @@ for r_ind, r_region in enumerate(unique_regions):
         ito_matched_sc[r_ind, c_ind] = np.mean(np.mean(Ito_JRC2018.loc[ito_row, ito_col]))
         ito_matched_fc[r_ind, c_ind] = np.mean(np.mean(CorrelationMatrix_ito.loc[ito_row, ito_col]))
 
+np.fill_diagonal(branson_matched_sc, np.nan)
+np.fill_diagonal(branson_matched_fc, np.nan)
+np.fill_diagonal(ito_matched_sc, np.nan)
+np.fill_diagonal(ito_matched_fc, np.nan)
+
 branson_matched_sc = pd.DataFrame(data=branson_matched_sc, index=unique_regions, columns=unique_regions).dropna(axis=0, how='all').dropna(axis=1, how='all')
 branson_matched_fc = pd.DataFrame(data=branson_matched_fc, index=unique_regions, columns=unique_regions).dropna(axis=0, how='all').dropna(axis=1, how='all')
 
 ito_matched_sc = pd.DataFrame(data=ito_matched_sc, index=unique_regions, columns=unique_regions).dropna(axis=0, how='all').dropna(axis=1, how='all')
 ito_matched_fc = pd.DataFrame(data=ito_matched_fc, index=unique_regions, columns=unique_regions).dropna(axis=0, how='all').dropna(axis=1, how='all')
 
-figS2_3, ax = plt.subplots(1, 2, figsize=(7, 3))
+figS2_3, ax = plt.subplots(1, 2, figsize=(6.5, 2.75))
 sns.heatmap(np.log10(branson_matched_sc).replace([np.inf, -np.inf], 0), ax=ax[0],
-            yticklabels=True,
-            xticklabels=True,
+            yticklabels=[bridge.displayName(x) for x in branson_matched_sc.index],
+            xticklabels=[bridge.displayName(x) for x in branson_matched_sc.index],
             cmap="cividis", rasterized=True, cbar=False, vmin=0)
 cb = figS2_3.colorbar(matplotlib.cm.ScalarMappable(norm=matplotlib.colors.SymLogNorm(vmin=1, vmax=np.nanmax(branson_matched_sc.to_numpy()), base=10, linthresh=0.1, linscale=1), cmap="cividis"),
                       ax=ax[0], shrink=0.75)
@@ -459,32 +465,36 @@ ax[0].set_aspect('equal')
 ax[0].tick_params(axis='both', which='major', labelsize=6)
 
 sns.heatmap(np.log10(ito_matched_sc).replace([np.inf, -np.inf], 0), ax=ax[1],
-            yticklabels=True,
-            xticklabels=True,
+            yticklabels=[bridge.displayName(x) for x in ito_matched_sc.index],
+            xticklabels=[bridge.displayName(x) for x in ito_matched_sc.index],
             cmap="cividis", rasterized=True, cbar=False, vmin=0)
 cb = figS2_3.colorbar(matplotlib.cm.ScalarMappable(norm=matplotlib.colors.SymLogNorm(vmin=1, vmax=np.nanmax(ito_matched_sc.to_numpy()), base=10, linthresh=0.1, linscale=1), cmap="cividis"),
                       ax=ax[1], shrink=0.75, label='Connecting cells')
 cb.outline.set_linewidth(0)
-cb.ax.tick_params(labelsize=8)
+cb.ax.tick_params(labelsize=6)
 ax[1].set_aspect('equal')
 ax[1].tick_params(axis='both', which='major', labelsize=6)
 
-figS2_4, ax = plt.subplots(1, 2, figsize=(7, 3))
-sns.heatmap(branson_matched_fc, ax=ax[0], cmap='cividis', xticklabels=True, yticklabels=True, vmin=0, cbar=False)
+figS2_4, ax = plt.subplots(1, 2, figsize=(6.5, 2.75))
+sns.heatmap(branson_matched_fc, ax=ax[0], cmap='cividis',
+            xticklabels=[bridge.displayName(x) for x in branson_matched_fc.index], yticklabels=[bridge.displayName(x) for x in branson_matched_fc.index],
+            vmin=0, cbar=False, rasterized=True)
 cb = figS2_4.colorbar(matplotlib.cm.ScalarMappable(norm=matplotlib.colors.Normalize(vmin=np.nanmin(branson_matched_fc.to_numpy()), vmax=np.nanmax(branson_matched_fc.to_numpy())), cmap="cividis"),
                       ax=ax[0], shrink=0.75)
 cb.ax.tick_params(labelsize=8)
 ax[0].set_aspect('equal')
-ax[0].tick_params(axis='both', which='major', labelsize=6)
+ax[0].tick_params(axis='both', which='major', labelsize=5)
 
-sns.heatmap(ito_matched_fc, ax=ax[1], cmap='cividis', xticklabels=True, yticklabels=True, vmin=0, cbar=False)
+sns.heatmap(ito_matched_fc, ax=ax[1], cmap='cividis',
+            xticklabels=[bridge.displayName(x) for x in ito_matched_fc.index], yticklabels=[bridge.displayName(x) for x in ito_matched_fc.index],
+            vmin=0, cbar=False, rasterized=True)
 cb = figS2_4.colorbar(matplotlib.cm.ScalarMappable(norm=matplotlib.colors.Normalize(vmin=np.nanmin(ito_matched_fc.to_numpy()), vmax=np.nanmax(ito_matched_fc.to_numpy())), cmap="cividis"),
                       ax=ax[1], label='Functional Corr. (z)', shrink=0.75)
-cb.ax.tick_params(labelsize=8)
+cb.ax.tick_params(labelsize=6)
 ax[1].set_aspect('equal')
-ax[1].tick_params(axis='both', which='major', labelsize=6)
+ax[1].tick_params(axis='both', which='major', labelsize=5)
 
-figS2_5, ax = plt.subplots(1, 2, figsize=(6, 3))
+figS2_5, ax = plt.subplots(1, 2, figsize=(5.5, 2.5))
 x = ito_matched_sc.to_numpy().ravel()
 y = branson_matched_sc.to_numpy().ravel()
 keep_inds = np.where(np.logical_and(x>0, y>0))
@@ -540,7 +550,7 @@ DistanceMatrix = pd.DataFrame(data=dist_mat, index=name_list_branson, columns=na
 
 unique_regions = np.unique(name_list_branson)
 
-figS2_6, ax = plt.subplots(4, 5, figsize=(10, 8))
+figS2_6, ax = plt.subplots(4, 5, figsize=(6.5, 4))
 ax = ax.ravel()
 ct = 0
 dists = []
@@ -558,9 +568,9 @@ for ind, ur in enumerate(unique_regions):
         y = intra_fc.to_numpy()[np.triu_indices(n_roi, k=1)]
         d = dist.to_numpy()[np.triu_indices(n_roi, k=1)]
 
-        ax[ct].scatter(x, y, c=d, marker='.', vmin=0, vmax=123)
+        ax[ct].scatter(x, y, c=d, marker='.', vmin=0, vmax=123, rasterized=True)
         r, p = pearsonr(np.log10(x[x>0]), y[x>0])
-        ax[ct].annotate('{}\nr={:.2f}'.format(bridge.displayName(ur), r), xy=(1.3, 0.8), fontsize=10)
+        ax[ct].annotate('{}\nr={:.2f}'.format(bridge.displayName(ur), r), xy=(1.5, 0.75), fontsize=8)
         ax[ct].set_ylim([0, 1])
         ax[ct].set_xlim([1, 2000])
         ax[ct].set_xscale('log')
@@ -573,10 +583,10 @@ for ind, ur in enumerate(unique_regions):
 dists = np.hstack(dists)
 np.max(dists)
 cb = figS2_6.colorbar(matplotlib.cm.ScalarMappable(norm=matplotlib.colors.Normalize(vmin=0, vmax=123)), ax=ax, shrink=0.75, label='Distance (um)')
-figS2_6.text(0.5, 0.08, 'Structural connectivity (cell count)', ha='center', fontsize=16)
-figS2_6.text(0.08, 0.5, 'Functional correlation (z)', va='center', rotation='vertical', fontsize=16)
+figS2_6.text(0.5, 0.08, 'Structural connectivity (cell count)', ha='center', fontsize=12)
+figS2_6.text(0.08, 0.5, 'Functional correlation (z)', va='center', rotation='vertical', fontsize=12)
 
-figS2_6.savefig(os.path.join(analysis_dir, 'figpanels', 'figS2_3.svg'), format='svg', transparent=True, dpi=save_dpi)
+figS2_6.savefig(os.path.join(analysis_dir, 'figpanels', 'figS2_6.svg'), format='svg', transparent=True, dpi=save_dpi)
 
 
 # %% Supp: subsampled region cmats and SC-FC corr
@@ -620,7 +630,7 @@ for s_ind, sz in enumerate(subsampled_sizes):
 err_y = np.std(scfc_r, axis=0)
 mean_y = np.mean(scfc_r, axis=0)
 
-figS2_7, ax1 = plt.subplots(1, 1, figsize=(4, 4))
+figS2_7, ax1 = plt.subplots(1, 1, figsize=(3, 3))
 ax1.plot(subsampled_sizes, mean_y, 'ko')
 ax1.errorbar(subsampled_sizes, mean_y, yerr=err_y, color='k')
 ax1.hlines(r_full, subsampled_sizes.min(), subsampled_sizes.max(), color='k', linestyle='--')
