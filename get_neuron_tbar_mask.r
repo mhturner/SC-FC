@@ -1,3 +1,7 @@
+# Get T-Bar locations for select cell types. To test alignment to atlas space.
+# Turner, Mann, Clandinin.
+# https://github.com/mhturner/SC-FC
+
 library(nat.flybrains)
 library(nat.jrcbrains)
 library(nat.h5reg)
@@ -7,15 +11,16 @@ library(bioimagetools)
 
 options(warn=1)
 
+# Input arg Cell type: LC, MBON, OPN, KC, ER, LNO (see below)
 cell_type <- commandArgs(trailingOnly = TRUE)
 
-# data_dir = '/home/mhturner/Dropbox/ClandininLab/Analysis/SC-FC/data'
 data_dir = '/oak/stanford/groups/trc/data/Max/flynet/data'
 
 # load atlas in JRC2018 space
 res = 0.38 # um/voxel of atlas
 ito_atlas <- bioimagetools::readTIF(file.path(data_dir, 'template_brains', 'ito_2018.tif'), as.is=TRUE)
 
+# Craft neuprint cell search based on cell type
 if (cell_type == 'LC'){
   neur = neuprint_search("LC[0-9].*", field = "type", meta=TRUE)
 } else if (cell_type == 'MBON') {
@@ -50,8 +55,6 @@ cols = unique(types)
 ito_tbar <- data.frame(matrix(0, ncol = length(cols), nrow = max(ito_atlas)))
 colnames(ito_tbar) <- cols
 
-# syn_mask <- array(0, dim=dim(ito_atlas))
-
 for (i in seq_along(body_ids)){
   body_id = body_ids[i]
   type = types[i]
@@ -68,18 +71,8 @@ for (i in seq_along(body_ids)){
   if (length(output_regions) > 0){
     ito_tbar[output_regions, type] = ito_tbar[output_regions, type] + output_counts
   }
-  
-  # if (length(output_yxz) > 0){
-  #   # Append output synapse counts to synapse mask
-  #   ct_by_vox = aggregate(data.frame(output_yxz)$x, by=data.frame(output_yxz), length)
-  #   syn_mask[data.matrix(ct_by_vox)[,1:3]] = syn_mask[data.matrix(ct_by_vox)[,1:3]] + data.matrix(ct_by_vox)[,4]
-  # }
-  
+
 } # end body_ids
 
-
 write.csv(ito_tbar, file.path(data_dir, 'hemi_2_atlas', paste(cell_type, 'ito_tbar.csv', sep='_')))
-
-# print(sprintf('Syn_mask max. = %s', max(syn_mask)))
-# writeTIF(syn_mask, file.path(data_dir, 'hemi_2_atlas', paste(cell_type, 'synmask.tif', sep='_')))
 

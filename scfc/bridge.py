@@ -29,7 +29,7 @@ def getUserConfiguration():
 
 
 def ito_to_neuprint(ito_name):
-    """."""
+    """Map Ito region name to equivalent hemibrain neuprint region(s)."""
     mapping = {'AL_R': ['AL(R)'],
                'AOTU_R': ['AOTU(R)'],
                'ATL_R': ['ATL(R)'],
@@ -74,7 +74,7 @@ def ito_to_neuprint(ito_name):
 
 def getRoiMapping():
     """
-    Return region mapping dictionary.
+    Return region mapping dictionary: map from Ito to Neuprint regions.
 
     Include ROIs that are at least 50% in the EM dataset
     Toss stuff in the optic lobes since those aren't in the functional dataset
@@ -82,8 +82,7 @@ def getRoiMapping():
     """
     # keys of mapping are roi names to use in analysis, based on functional data atlas
     #   values are lists of corresponding roi names in neuprint data
-    mapping = {
-               'AL(R)': ['AL(R)'], # 83% in EM volume
+    mapping = {'AL(R)': ['AL(R)'], # 83% in EM volume
                'AOTU(R)': ['AOTU(R)'],
                'ATL(R)': ['ATL(R)'],
                'ATL(L)': ['ATL(L)'],
@@ -125,12 +124,12 @@ def getRoiMapping():
 
 
 def displayName(name):
-    """."""
+    """Atlas name to display name."""
     return name.replace('_R', '(R)').replace('_L', '(L)').replace('_', '')
 
 
 def getBransonNames():
-    """."""
+    """Select region names to include in Branson Atlas."""
     data_dir = getUserConfiguration()['data_dir']
     decoder_ring = pd.read_csv(os.path.join(data_dir, 'branson_999_atlas') + '/atlas_roi_values', header=None)
     # Branson regions to include. Do some matching to Ito atlas naming. Sort alphabetically.
@@ -163,7 +162,7 @@ def getBransonNames():
 
 
 def getItoNames():
-    """."""
+    """Select region names to include in Ito Atlas."""
     data_dir = getUserConfiguration()['data_dir']
     include_regions_ito = ['AL_R', 'AOTU_R', 'ATL_R', 'ATL_L', 'AVLP_R', 'BU_R', 'BU_L', 'CAN_R', 'CRE_R', 'CRE_L', 'EB', 'EPA_R', 'FB', 'GOR_R', 'GOR_L',
                            'IB_R', 'IB_L', 'ICL_R', 'LAL_R', 'LH_R', 'MB_CA_R', 'MB_ML_R', 'MB_ML_L', 'MB_PED_R', 'MB_VL_R', 'NO', 'PB', 'PLP_R', 'PVLP_R', 'SCL_R', 'SIP_R', 'SLP_R', 'SMP_R',

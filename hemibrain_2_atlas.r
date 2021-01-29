@@ -1,3 +1,23 @@
+# Compute region-to-region connectivity using pre-computed list of body_ids
+# Turner, Mann, Clandinin.
+# https://github.com/mhturner/SC-FC
+
+# For each body/neuron:
+#   1) Find input/output synapse locations
+#   2) convert locations from hemibrain raw space to desired comparison space (JRC2018 or JFRC2)
+#   3) Find atlas regions of each synapse (for Ito atlas or Branson atlas), and compute connectivity stats
+# 
+# Saves:
+#   Connectivity matrices (region x region) for: each atlas; each connectivity metric
+#   Synapse mask: T-Bar density image in comparison space
+# 
+# # References: 
+#   http://natverse.org/neuprintr/
+#   https://groups.google.com/forum/embed/?place=forum%2Fnat-user&pli=1#!topic/nat-user/zNaCyQnZeVg
+#   http://natverse.org/nat.templatebrains/reference/xform_brain.html
+# # NOTE: something is off about the Hemibrain -> JFRC2 conversion. Seems to be restricted to JRC2018<->JFRC2
+# #       Do comparison in JRC2018 space
+
 library(nat.flybrains)
 library(nat.jrcbrains)
 library(nat.h5reg)
@@ -7,9 +27,9 @@ library(bioimagetools)
 
 options(warn=1)
 
+# Input arg Brain template comparison space: JFRC2, JRC2018
 comparison_space <- commandArgs(trailingOnly = TRUE)
 
-# data_dir = '/home/mhturner/Dropbox/ClandininLab/Analysis/SC-FC/data'
 data_dir = '/oak/stanford/groups/trc/data/Max/flynet/data'
 
 t0 = Sys.time()
@@ -82,16 +102,17 @@ for (c_ind in 1:length(chunks)){
     mode(output_yxz) = 'integer' # floor to int to index
     
     # # # # # # BRANSON ATLAS # # # # # # # # # # # #
-    input_regions = branson_atlas[input_yxz] # subset atlas matrix with integer array
+    # Get regions + counts for cell inputs
+    input_regions = branson_atlas[input_yxz] # index atlas matrix with integer array
     input_regions = input_regions[input_regions!=0] # remove 0 regions (non-brain)
-    input_tab = table(input_regions)
+    input_tab = table(input_regions) # https://www.rdocumentation.org/packages/base/versions/3.6.2/topics/table
     input_regions = as.numeric(names(input_tab)) # now unique regions
     input_counts = as.vector(input_tab)
-    
+    # Same for cell outputs
     output_regions = branson_atlas[output_yxz]
     output_regions = output_regions[output_regions!=0]
     output_tab = table(output_regions)
-    output_regions = as.numeric(names(output_tab))  # now unique regions
+    output_regions = as.numeric(names(output_tab))
     output_counts = as.vector(output_tab)
     
     if (length(input_regions) > 0 && length(output_regions) > 0){
@@ -111,12 +132,13 @@ for (c_ind in 1:length(chunks)){
     }
     
     # # # # # # ITO ATLAS # # # # # # # # # # # #
-    input_regions = ito_atlas[input_yxz] # subset atlas matrix with integer array
+    # Get regions + counts for cell inputs
+    input_regions = ito_atlas[input_yxz] # index atlas matrix with integer array
     input_regions = input_regions[input_regions!=0] # remove 0 regions (non-brain)
-    input_tab = table(input_regions)
+    input_tab = table(input_regions) # https://www.rdocumentation.org/packages/base/versions/3.6.2/topics/table
     input_regions = as.numeric(names(input_tab)) # now unique regions
     input_counts = as.vector(input_tab)
-    
+    # Same for cell outputs
     output_regions = ito_atlas[output_yxz]
     output_regions = output_regions[output_regions!=0]
     output_tab = table(output_regions) 
@@ -160,7 +182,7 @@ write.csv(ito_count_matrix, file.path(data_dir, 'hemi_2_atlas', paste(comparison
 write.csv(ito_tbar_matrix, file.path(data_dir, 'hemi_2_atlas', paste(comparison_space, 'ito_tbar_matrix.csv', sep='_')))
 write.csv(ito_weighted_tbar_matrix, file.path(data_dir, 'hemi_2_atlas', paste(comparison_space, 'ito_weighted_tbar_matrix.csv', sep='_')))
 
-print(sprintf('Syn_mask max. = %s', max(syn_mask)))
+print(sprintf('Syn_mask max. = %s', max(syn_mask))) # Print max Tbar count in synmask. writeTIF auto scales it to 16bit range. Annoying.
 writeTIF(syn_mask, file.path(data_dir, 'hemi_2_atlas', paste(comparison_space, 'synmask.tif', sep='_')))
 
 Sys.time() - t0

@@ -6,14 +6,10 @@ https://github.com/mhturner/SC-FC
 
 import numpy as np
 import pandas as pd
-import os
 import nibabel as nib
 from scipy import signal
 from scipy.ndimage.measurements import center_of_mass
 from scipy.spatial.distance import pdist
-import glob
-
-from scfc import bridge
 
 
 def filterRegionResponse(region_response, cutoff=None, fs=None):
@@ -101,7 +97,12 @@ def computeRegionResponses(brain, region_masks):
 
 
 def getCmat(response_filepaths, include_inds, name_list):
-    """."""
+    """Compute fxnal corrmat from response files.
+
+    :response_filepaths: list of filepaths where responses live as .pkl files
+    :include_inds: list of ROI number IDs to select
+    :name_list: associated list of ROI names
+    """
     cmats_z = []
     for resp_fp in response_filepaths:
         tmp = getProcessedRegionResponse(resp_fp, cutoff=0.01, fs=1.2)
@@ -129,7 +130,13 @@ def getMeanBrain(filepath):
 
 
 def loadAtlasData(atlas_path, include_inds, name_list):
-    """."""
+    """
+    Load region atlas data.
+
+    :atlas_path: fp to atlas brain
+    :include_inds: list of ROI number IDs to select
+    :name_list: associated list of ROI names
+    """
     mask_brain = np.asarray(np.squeeze(nib.load(atlas_path).get_fdata()), 'uint16')
 
     roi_mask = []
@@ -142,7 +149,13 @@ def loadAtlasData(atlas_path, include_inds, name_list):
 
 
 def getRegionGeometry(atlas_path, include_inds, name_list):
-    """."""
+    """
+    Return atlas region geometry, size etc.
+
+    :atlas_path: fp to atlas brain
+    :include_inds: list of ROI number IDs to select
+    :name_list: associated list of ROI names
+    """
     roi_mask = loadAtlasData(atlas_path, include_inds, name_list)
 
     roi_size = [x.sum() for x in roi_mask]
@@ -161,172 +174,3 @@ def getRegionGeometry(atlas_path, include_inds, name_list):
     SizeMatrix = pd.DataFrame(data=sz_mat, index=name_list, columns=name_list)
 
     return coms, roi_size, DistanceMatrix, SizeMatrix
-
-
-
-class FunctionalConnectivity():
-    """FunctionalConnectivity class."""
-
-    def __init__(self, data_dir=None, fs=1.2, cutoff=0.01, mapping=None):
-        """
-        Init FunctionalConnectivity object.
-
-        :data_dir: 'path/to/functional_and_atlas/data'
-        :fs: sampling frequency of functional data (Hz)
-        :cutoff: Cutoff value (Hz) for high-pass filter to apply to responses
-        """
-        if data_dir is None:
-            data_dir = '/home/mhturner/Dropbox/ClandininLab/Analysis/SC-FC/data'
-        if mapping is None:
-            mapping = bridge.getRoiMapping()
-
-        self.data_dir = data_dir
-        self.fs = fs
-        self.cutoff = cutoff
-        self.mapping = mapping
-
-        self.roinames_path = os.path.join(data_dir, 'ito_68_atlas', 'Original_Index_panda_full.csv')
-        self.atlas_path = os.path.join(data_dir, 'atlas_data', 'vfb_68_Original.nii.gz')
-        self.response_filepaths = glob.glob(os.path.join(data_dir, 'region_responses') + '/' + '*.pkl')
-
-        self.rois = list(self.mapping.keys())
-        self.rois.sort()
-        self.upper_inds = np.triu_indices(len(self.rois), k=1) # k=1 excludes main diagonal
-        self.lower_inds = np.tril_indices(len(self.rois), k=-1) # k=-1 excludes main diagonal
-
-        # # # #
-        self.CorrelationMatrix, self.cmats = self.getFunctionalConnectivity(cutoff=self.cutoff, fs=self.fs)
-
-        self.roi_mask, self.roi_size = self.loadAtlasData()
-        self.coms, self.DistanceMatrix, self.SizeMatrix = self.getRegionGeometry()
-
-    def getFunctionalConnectivity(self, cutoff=None, fs=None):
-        """
-        Compute functional connectivity matrix.
-
-        :cutoff: Highpass cutoff (Hz)
-        :fs: sampling frequency (Hz)
-
-        Return:
-            :CorrelationMatrix: DataFrame. Avg across animals, fischer z transformed correlation values
-            :cmats: List of individual animal correlation matrices, each is np array
-        """
-        cmats_z = []
-        for resp_fp in self.response_filepaths:
-            region_responses_processed = getProcessedRegionResponse(resp_fp, cutoff=cutoff, fs=fs)
-
-            correlation_matrix = np.corrcoef(region_responses_processed)
-            # set diag to 0
-            np.fill_diagonal(correlation_matrix, 0)
-            # fischer z transform (arctanh) and append
-            new_cmat_z = np.arctanh(correlation_matrix)
-            cmats_z.append(new_cmat_z)
-
-        cmats = np.stack(cmats_z, axis=2) # population cmats, z transformed
-
-        # Make mean pd Dataframe
-        mean_cmat = np.mean(cmats, axis=2)
-        np.fill_diagonal(mean_cmat, np.nan)
-        CorrelationMatrix = pd.DataFrame(data=mean_cmat, index=region_responses_processed.index, columns=region_responses_processed.index)
-
-        return CorrelationMatrix, cmats
-
-    def loadAtlasData(self, atlas_path=None):
-        """
-        Get brain atlas data.
-
-        :atlas_path: 'path/to/functional_and_atlas/data.nii'
-
-
-        Return
-            :roi_mask: list of masks (each an np array)
-            :roi_size: list of mask sizes
-            If self.mapping is defined, returns each according to that mapping
-        """
-        if atlas_path is None:
-            atlas_path = self.atlas_path
-        roi_names = pd.read_csv(self.roinames_path, sep=',', header=0).name.to_numpy()
-        mask_brain = np.asarray(np.squeeze(nib.load(atlas_path).get_fdata()), 'uint8')
-
-        # cut out nan regions (tracts))
-        pull_inds = np.where([type(x) is str for x in roi_names])[0]
-
-        # filter region names
-        roi_names = np.array([x for x in roi_names if type(x) is str]) # cut out nan regions from roi names
-
-        # convert names to match display format
-        roi_names = [x.replace('_R', '(R)') for x in roi_names]
-        roi_names = [x.replace('_L', '(L)') for x in roi_names]
-        roi_names = [x.replace('_', '') for x in roi_names]
-
-        # filter mask brain regions
-        roi_mask = []
-        roi_size = []
-        for r_ind, r in enumerate(roi_names):
-            new_roi_mask = np.zeros_like(mask_brain)
-            new_roi_mask = mask_brain == (pull_inds[r_ind] + 1) # mask values start at 1, not 0
-            roi_mask.append(new_roi_mask) # bool
-            roi_size.append(np.sum(new_roi_mask>0))
-
-        # combine IB(R) and IB(L) in fxnal atlas
-        ibr_ind = np.where(np.array(roi_names)=='IB(R)')[0][0]
-        ibl_ind = np.where(np.array(roi_names)=='IB(L)')[0][0]
-        # merge into IB(R) slot
-        roi_mask[ibr_ind] = np.logical_or(roi_mask[ibr_ind], roi_mask[ibl_ind])
-        roi_size[ibr_ind] = roi_size[ibr_ind] + roi_size[ibl_ind]
-        roi_names[ibr_ind] = 'IB'
-        # remove IB(L) slot
-        roi_mask.pop(ibl_ind)
-        roi_size.pop(ibl_ind)
-        roi_names.pop(ibl_ind)
-
-        if self.mapping is not None: # filter atlas data to only include rois in mapping, sort by sorted mapping rois
-            rois = list(self.mapping.keys())
-            rois.sort()
-            pull_inds = []
-            for r_ind, r in enumerate(rois):
-                pull_inds.append(np.where(np.array(roi_names) == r)[0][0])
-
-            roi_mask = [roi_mask[x] for x in pull_inds]
-            roi_size = [roi_size[x] for x in pull_inds]
-
-        return roi_mask, roi_size
-
-    def getRegionGeometry(self):
-        """
-        Get geometric measures of brain regions in mapping.
-
-        Return
-            :coms: center of mass for each region, in voxel space
-            :DistanceMatrix: distance between centers of mass for each pair of ROIs, in voxel space
-            :SizeMatrix: geometric mean of the sizes for each pair of ROIs, in voxels
-        """
-        coms = np.vstack([center_of_mass(x) for x in self.roi_mask])
-
-        # calulcate euclidean distance matrix between roi centers of mass
-        dist_mat = np.zeros((len(self.rois), len(self.rois)))
-        dist_mat[self.upper_inds] = pdist(coms)
-        dist_mat += dist_mat.T # symmetrize to fill in below diagonal
-
-        DistanceMatrix = pd.DataFrame(data=dist_mat, index=self.rois, columns=self.rois)
-
-        # geometric mean of the sizes for each pair of ROIs
-        sz_mat = np.sqrt(np.outer(np.array(self.roi_size), np.array(self.roi_size)))
-        SizeMatrix = pd.DataFrame(data=sz_mat, index=self.rois, columns=self.rois)
-
-        return coms, DistanceMatrix, SizeMatrix
-
-    def getRegionMap(self, colors):
-        """Util: Get a brain region map according to some color scheme for each region."""
-        x, y, z = self.roi_mask[0].shape
-        region_map = np.zeros(shape=(x, y, z, 4))
-        region_map[:] = 0
-        for r_ind, roi in enumerate(self.roi_mask):
-            region_map[roi, :] = colors[r_ind, :]
-
-        return region_map
-
-    def getMeanBrain(self, filepath):
-        """Return time-average brain as np array."""
-        meanbrain = np.asanyarray(nib.load(filepath).dataobj).astype('uint16')
-        return meanbrain

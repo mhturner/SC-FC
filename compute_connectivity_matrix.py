@@ -1,4 +1,4 @@
-"""Compute connectivity matrices from hemibrain data."""
+"""Compute connectivity matrices from Neuprint hemibrain data."""
 from neuprint import (Client)
 import os
 from scfc import anatomical_connectivity, bridge

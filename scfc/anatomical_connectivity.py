@@ -17,9 +17,12 @@ from . import bridge
 
 def getAtlasConnectivity(include_inds, name_list, atlas_id, metric='cellcount'):
     """
-    .
+    Load .csv of region-to-region structural connectivity, from hemibrain_2_atlas.r.
 
-    metric: 'cellcount', 'tbar', 'weighted_tbar'
+    :include_inds: list of ROI number IDs to select
+    :name_list: associated list of ROI names
+    :atlas_id:
+    :metric: 'cellcount', 'tbar', 'weighted_tbar'
     """
     data_dir = bridge.getUserConfiguration()['data_dir']
     if atlas_id == 'branson':
@@ -62,97 +65,75 @@ def getRoiCompleteness(neuprint_client, name_list):
     return roi_completeness
 
 
-class AnatomicalConnectivity():
-    """Anatomical Connectivity class."""
+def computeConnectivityMatrix(neuprint_client, mapping):
+    """
+    Compute region connectivity matrix from neuprint tags, for various metrics.
 
-    def __init__(self, data_dir, neuprint_client=None, mapping=None):
-        """
-        Initialize AnatomicalConnectivity object.
+    neuprint_client
+    mapping: mapping dict to bridge hemibrain regions to atlas regions
+    """
+    rois = list(mapping.keys())
+    rois.sort()
 
-        :data_dir:
-        :neuprint_client:
-        :mapping:
-        """
-        self.data_dir = data_dir
-        self.mapping = mapping
+    WeakConnections = pd.DataFrame(data=np.zeros((len(rois), len(rois))), index=rois, columns=rois)
+    MediumConnections = pd.DataFrame(data=np.zeros((len(rois), len(rois))), index=rois, columns=rois)
+    StrongConnections = pd.DataFrame(data=np.zeros((len(rois), len(rois))), index=rois, columns=rois)
+    Connectivity = pd.DataFrame(data=np.zeros((len(rois), len(rois))), index=rois, columns=rois)
+    WeightedSynapseNumber = pd.DataFrame(data=np.zeros((len(rois), len(rois))), index=rois, columns=rois)
+    TBars = pd.DataFrame(data=np.zeros((len(rois), len(rois))), index=rois, columns=rois)
 
-        self.rois = list(self.mapping.keys())
-        self.rois.sort()
-        self.upper_inds = np.triu_indices(len(self.rois), k=1) # k=1 excludes main diagonal
-        self.lower_inds = np.tril_indices(len(self.rois), k=-1) # k=-1 excludes main diagonal
+    body_ids = [] # keep list of all cells connecting among regions
 
-    def getConnectivityMatrix(self, type, symmetrize=False, diag=None, computed_date=None):
-        """
-        Retrieve computed connectivity matrix.
+    for roi_source in rois:
+        for roi_target in rois:
+            sources = mapping[roi_source]
+            targets = mapping[roi_target]
 
-        Computed using compute_connectivity_matrix.py
+            weak_neurons = 0
+            medium_neurons = 0
+            strong_neurons = 0
+            summed_connectivity = 0
+            weighted_synapse_number = 0
+            tbars = 0
+            for s_ind, sour in enumerate(sources): # this multiple sources/targets is necessary for collapsing rois based on mapping
+                for targ in targets:
+                    Neur, Syn = fetch_neurons(NeuronCriteria(inputRois=sour, outputRois=targ, status='Traced', cropped=False)) # only take uncropped neurons
 
-        :type: str, one of ['CellCount', 'ConnectivityWeight', 'WeightedSynapseCount', 'TBars', 'CommonInputFraction']
-        :symmetrize: bool, symmetrize connectivity matrix?
-        :diag: value to fill diagonal with, if None, then fills with measured value
-        :computed_date: str, specifies precomputed connectivity file to pull
+                    outputs_in_targ = np.array([x[targ]['pre'] for x in Neur.roiInfo]) # neurons with Tbar output in target
+                    inputs_in_sour = np.array([x[sour]['post'] for x in Neur.roiInfo]) # neuron with PSD input in source
 
-        Return square dataframe connectivity matrix
-        """
-        if computed_date is None:
-            computed_date = '20210114'
+                    n_weak = np.sum(np.logical_and(outputs_in_targ>0, inputs_in_sour<3))
+                    n_medium = np.sum(np.logical_and(outputs_in_targ>0, np.logical_and(inputs_in_sour>=3, inputs_in_sour<10)))
+                    n_strong = np.sum(np.logical_and(outputs_in_targ>0, inputs_in_sour>=10))
 
-        if type == 'CellCount':
-            """
-            """
-            WeakConnections = pd.read_pickle(os.path.join(self.data_dir, 'connectome_connectivity', 'WeakConnections_computed_{}.pkl'.format(computed_date)))
-            MediumConnections = pd.read_pickle(os.path.join(self.data_dir, 'connectome_connectivity', 'MediumConnections_computed_{}.pkl'.format(computed_date)))
-            StrongConnections = pd.read_pickle(os.path.join(self.data_dir, 'connectome_connectivity', 'StrongConnections_computed_{}.pkl'.format(computed_date)))
-            conn_mat = WeakConnections + MediumConnections + StrongConnections
+                    # Connection strength for each cell := sqrt(input PSDs in source x output tbars in target)
+                    conn_strengths = [np.sqrt(x[targ]['pre'] * x[sour]['post']) for x in Neur.roiInfo]
 
-        elif type == 'ConnectivityWeight':
-            """
-            """
-            conn_mat = pd.read_pickle(os.path.join(self.data_dir, 'connectome_connectivity', 'Connectivity_computed_{}.pkl'.format(computed_date)))
+                    # weighted synapses, for each cell going from sour -> targ:
+                    #       := output tbars (presynapses) in targ * (input (post)synapses in sour)/(total (post)synapses onto that cell)
+                    weighted_synapses = [Neur.roiInfo[x][targ]['pre'] * (Neur.roiInfo[x][sour]['post'] / Neur.loc[x, 'post']) for x in range(len(Neur))]
 
-        elif type == 'WeightedSynapseCount':
-            """
-            """
-            conn_mat = pd.read_pickle(os.path.join(self.data_dir, 'connectome_connectivity', 'WeightedSynapseNumber_computed_{}.pkl'.format(computed_date)))
+                    new_tbars = [Neur.roiInfo[x][targ]['pre'] for x in range(len(Neur))]
 
-        elif type == 'TBars':
-            """
-            """
-            conn_mat = pd.read_pickle(os.path.join(self.data_dir, 'connectome_connectivity', 'TBars_computed_{}.pkl'.format(computed_date)))
+                    # body_ids
+                    body_ids.append(Neur.bodyId.values)
 
-        tmp_mat = conn_mat.to_numpy().copy()
-        # set diagonal value
-        if diag is not None:
-            np.fill_diagonal(tmp_mat, diag)
+                    if Neur.roiInfo.shape[0] > 0:
+                        summed_connectivity += np.sum(conn_strengths)
+                        weighted_synapse_number += np.sum(weighted_synapses)
+                        weak_neurons += n_weak
+                        medium_neurons += n_medium
+                        strong_neurons += n_strong
+                        tbars += np.sum(new_tbars)
 
-        if symmetrize:
-            return pd.DataFrame(data=(tmp_mat + tmp_mat.T)/2, index=conn_mat.index, columns=conn_mat.index)
-        else:
-            return pd.DataFrame(data=tmp_mat, index=conn_mat.index, columns=conn_mat.index)
+            WeakConnections.loc[[roi_source], [roi_target]] = weak_neurons
+            MediumConnections.loc[[roi_source], [roi_target]] = medium_neurons
+            StrongConnections.loc[[roi_source], [roi_target]] = strong_neurons
 
-    def getAdjacency(self, type, do_log=False, thresh=None):
-        """
-        Retrieve adjacency data.
+            Connectivity.loc[[roi_source], [roi_target]] = summed_connectivity
+            WeightedSynapseNumber.loc[[roi_source], [roi_target]] = weighted_synapse_number
+            TBars.loc[[roi_source], [roi_target]] = tbars
 
-        :type: connectivity metric, as in getConnectivityMatrix()
-        :do_log: bool, do log transform on connectivity data
-        :thresh: as quantile of connection strength, minimum value before log transforming, default (None) is 0
+    body_ids = np.unique(np.hstack(body_ids)) # don't double count cells that contribute to multiple connections
 
-        Returns:
-            adjacency: array
-            keep_inds: subset of upper_inds (i.e. those that are above threshold)
-        """
-        ConnectivityMatrix = self.getConnectivityMatrix(type=type, symmetrize=True)
-        if thresh is None:
-            thresh_value = 0
-        else: # thresh as a quantile of all anatomical connections
-            thresh_value = np.quantile(ConnectivityMatrix.to_numpy()[self.upper_inds], thresh)
-
-        if do_log:
-            keep_inds = np.where(ConnectivityMatrix.to_numpy()[self.upper_inds] > thresh_value) # for log-transforming anatomical connectivity, toss zero values
-            adjacency = np.log10(ConnectivityMatrix.to_numpy().copy()[self.upper_inds][keep_inds])
-        else:
-            keep_inds = None
-            adjacency = ConnectivityMatrix.to_numpy().copy()[self.upper_inds]
-
-        return adjacency, keep_inds
+    return WeakConnections, MediumConnections, StrongConnections, Connectivity, WeightedSynapseNumber, TBars, body_ids
