@@ -41,7 +41,7 @@ ito_weighted_tbar_matrix <- matrix(0, max(ito_atlas), max(ito_atlas))
 syn_mask <- array(0, dim=dim(ito_atlas))
 
 # Load neuron / body IDs
-all_body_ids =  read.csv(file.path(data_dir, 'connectome_connectivity', 'body_ids.csv'), header = FALSE)
+all_body_ids =  read.csv(file.path(data_dir, 'body_ids.csv'), header = FALSE)
 # all_body_ids = sample_n(all_body_ids, 350) # testing
 
 # split into chunks for less gigantic neuprint calls

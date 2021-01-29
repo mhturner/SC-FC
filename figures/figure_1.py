@@ -121,7 +121,7 @@ for p_ind, pr in enumerate(ConnectivityCount.index):
         ax[1].tick_params(axis='both', which='major', labelsize=10)
         ax[1].set_xticklabels([bridge.displayName(x) for x in ct.index])
         ax[1].set_yscale('log')
-        ax[1].set_ylim([10, 2e7])
+        ax[1].set_ylim([10, 8e6])
         ax[1].tick_params(axis='y', which='minor')
         for tick in ax[1].get_xticklabels():
             tick.set_rotation(90)
@@ -132,16 +132,6 @@ figS1_0.text(-0.01, 0.5, 'Connections from source region (cells)', va='center', 
 
 fig1_0.savefig(os.path.join(analysis_dir, 'figpanels', 'fig1_0.svg'), format='svg', transparent=True, dpi=save_dpi)
 figS1_0.savefig(os.path.join(analysis_dir, 'figpanels', 'figS1_0.svg'), format='svg', transparent=True, dpi=save_dpi)
-
-# %%
-token = bridge.getUserConfiguration()['token']
-
-# start client
-neuprint_client = Client('neuprint.janelia.org', dataset='hemibrain:v1.2', token=token)
-AC = anatomical_connectivity.AnatomicalConnectivity(data_dir=data_dir, neuprint_client=neuprint_client, mapping=bridge.getRoiMapping())
-old_t = AC.getConnectivityMatrix('TBars')
-old_t.sum().sum()
-ConnectivityTBars.sum().sum()
 
 # %% Summary across all regions: zscore within each outgoing and compare to lognorm
 # CELL COUNT:
@@ -245,10 +235,10 @@ fig1_1.savefig(os.path.join(analysis_dir, 'figpanels', 'fig1_1.svg'), format='sv
 # %%
 # load synmask tifs and atlases
 synmask_jrc2018 = io.imread(os.path.join(data_dir, 'hemi_2_atlas', 'JRC2018_synmask.tif'))
-# scale synmask by max synapse per. voxel density from script (=64).
+# scale synmask by max synapse per. voxel density from script (=8).
 #       writeTIF in R script auto scales to 2**16 max for some reason
 synmask_jrc2018 = (synmask_jrc2018 / np.max(synmask_jrc2018))
-synmask_jrc2018 = 64 * synmask_jrc2018
+synmask_jrc2018 = 8 * synmask_jrc2018
 
 branson_jrc2018 = io.imread(os.path.join(data_dir, 'template_brains', '2018_999_atlas.tif'))
 ito_jrc2018 = io.imread(os.path.join(data_dir, 'template_brains', 'ito_2018.tif'))

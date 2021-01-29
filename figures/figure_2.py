@@ -48,8 +48,8 @@ voxel_size = [3, 3, 3]  # um, xyz
 brain_str = '2018-11-03_5'
 brain_fn = 'func_volreg_{}_meanbrain.nii'.format(brain_str)
 atlas_fn = 'vfb_68_{}.nii.gz'.format(brain_str)
-brain_fp = os.path.join(data_dir, 'region_responses', brain_fn)
-atlas_fp = os.path.join(data_dir, 'region_responses', atlas_fn)
+brain_fp = os.path.join(data_dir, 'ito_responses', brain_fn)
+atlas_fp = os.path.join(data_dir, 'ito_responses', atlas_fn)
 
 # load eg meanbrain and region masks
 meanbrain = functional_connectivity.getMeanBrain(brain_fp)
@@ -238,7 +238,7 @@ ax.plot(10**xx, linfit(xx), color='k', linewidth=2, marker=None)
 ax.set_xscale('log')
 ax.set_xlabel('Norm. Cell Count\n(cells/voxel)')
 ax.set_ylabel('Functional corr. (z)')
-ax.annotate('r = {:.2f}'.format(r), xy=(4e-4, 1.05))
+ax.annotate('r = {:.2f}'.format(r), xy=(1e-3, 1.0))
 ax.tick_params(axis='x', labelsize=10)
 ax.tick_params(axis='y', labelsize=10)
 
@@ -389,7 +389,7 @@ g_fxn.savefig(os.path.join(analysis_dir, 'figpanels', 'figS2_0.svg'), format='sv
 g_struct.savefig(os.path.join(analysis_dir, 'figpanels', 'figS2_1.svg'), format='svg', transparent=True, dpi=save_dpi)
 figS2_2.savefig(os.path.join(analysis_dir, 'figpanels', 'figS2_2.svg'), format='svg', transparent=True, dpi=save_dpi)
 
-# %% Branson avg vs Ito
+# %% Branson avg vs Ito - load
 
 response_filepaths = glob.glob(os.path.join(data_dir, 'branson_responses') + '/' + '*.pkl')
 include_inds_branson, name_list_branson = bridge.getBransonNames()
@@ -401,7 +401,7 @@ include_inds_ito, name_list_ito = bridge.getItoNames()
 CorrelationMatrix_ito, cmats_ito = functional_connectivity.getCmat(response_filepaths, include_inds_ito, name_list_ito)
 Ito_JRC2018 = anatomical_connectivity.getAtlasConnectivity(include_inds_ito, name_list_ito, 'ito')
 
-# %%
+# %% Branson avg vs Ito - figs
 unique_regions = np.unique(name_list_branson)
 
 branson_matched_sc = np.zeros((len(unique_regions), len(unique_regions)))

@@ -286,7 +286,7 @@ for ind in range(2):
     direct_connect = np.log10(Structural_Matrix[np.triu_indices(len(name_list_ito), k=1)][keep_inds])
 
     # shortest path
-    anat_connect = anatomical_connectivity.getAtlasConnectivity(include_inds_ito, name_list_ito, 'ito')
+    anat_connect = anatomical_connectivity.getAtlasConnectivity(include_inds_ito, name_list_ito, 'ito', metric=metric)
     measured_sp, measured_steps, _, measured_hub = bridge.getShortestPathStats(anat_connect)
     shortest_path = np.log10(((measured_sp.T + measured_sp.T)/2).to_numpy()[np.triu_indices(len(name_list_ito), k=1)][keep_inds])
 
