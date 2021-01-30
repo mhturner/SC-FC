@@ -214,7 +214,6 @@ ax.annotate('r = {:.2f}'.format(r), xy=(0.8, 1.05))
 ax.tick_params(axis='x', labelsize=10)
 ax.tick_params(axis='y', labelsize=10)
 
-
 # %% # # # volume-normalized SC vs FC scatter plot and linear corr # # #
 atlas_path = os.path.join(data_dir, 'atlas_data', 'vfb_68_Original.nii.gz')
 include_inds_ito, name_list_ito = bridge.getItoNames()
@@ -684,3 +683,56 @@ ax[1].set_xlim([0, 1])
 ax[1].annotate('r={:.2f}'.format(r), (0.05, 1.02))
 figS2_8.subplots_adjust(wspace=0.5)
 figS2_8.savefig(os.path.join(analysis_dir, 'figpanels', 'figS2_8.svg'), format='svg', transparent=True, dpi=save_dpi)
+
+# %% CALC: SC-FC corr for subsets of brain regions
+include_inds_ito, name_list_ito = bridge.getItoNames()
+
+atlas_path = os.path.join(data_dir, 'atlas_data', 'vfb_68_Original.nii.gz')
+coms, roi_size, DistanceMatrix, SizeMatrix = functional_connectivity.getRegionGeometry(atlas_path, include_inds_ito, name_list_ito)
+
+xx = coms[:, 0]
+
+
+
+remove_inds = np.where(xx < np.quantile(yy, 0.1))[0]
+name_list_ito = np.delete(name_list_ito, remove_inds)
+include_inds_ito = np.delete(include_inds_ito, remove_inds)
+name_list_ito
+
+Structural_Matrix = anatomical_connectivity.getAtlasConnectivity(include_inds_ito, name_list_ito, 'ito').to_numpy().copy()
+
+response_filepaths = glob.glob(os.path.join(data_dir, 'ito_responses') + '/' + '*.pkl')
+Functional_Matrix, _ = functional_connectivity.getCmat(response_filepaths, include_inds_ito, name_list_ito)
+
+keep_inds = np.where(Structural_Matrix[np.triu_indices(len(name_list_ito), k=1)] > 0)
+anatomical_adjacency = np.log10(Structural_Matrix[np.triu_indices(len(name_list_ito), k=1)][keep_inds])
+
+functional_adjacency = Functional_Matrix.to_numpy()[np.triu_indices(len(name_list_ito), k=1)][keep_inds]
+
+r, p = pearsonr(anatomical_adjacency, functional_adjacency)
+print(r)
+# %%
+remove_regions = ['MB_CA_R', 'MB_ML_R', 'MB_ML_L', 'MB_PED_R', 'MB_VL_R', 'AL_R', 'LH_R', 'FB', 'EB', 'PB', 'NO']
+include_inds_ito, name_list_ito = bridge.getItoNames()
+
+remove_inds = [np.where(x == np.array(name_list_ito))[0][0] for x in remove_regions]
+
+name_list_ito = np.delete(name_list_ito, remove_inds)
+include_inds_ito = np.delete(include_inds_ito, remove_inds)
+
+
+Structural_Matrix = anatomical_connectivity.getAtlasConnectivity(include_inds_ito, name_list_ito, 'ito').to_numpy().copy()
+
+response_filepaths = glob.glob(os.path.join(data_dir, 'ito_responses') + '/' + '*.pkl')
+Functional_Matrix, _ = functional_connectivity.getCmat(response_filepaths, include_inds_ito, name_list_ito)
+
+keep_inds = np.where(Structural_Matrix[np.triu_indices(len(name_list_ito), k=1)] > 0)
+anatomical_adjacency = np.log10(Structural_Matrix[np.triu_indices(len(name_list_ito), k=1)][keep_inds])
+
+functional_adjacency = Functional_Matrix.to_numpy()[np.triu_indices(len(name_list_ito), k=1)][keep_inds]
+
+r, p = pearsonr(anatomical_adjacency, functional_adjacency)
+print(r)
+
+
+name_list_ito
