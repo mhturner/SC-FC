@@ -641,6 +641,7 @@ ax2 = ax1.twinx()
 ax2.plot(bins[:-1], cumulative)
 ax2.set_ylabel('Cumulative fraction')
 ax2.set_ylim([0, 1.05])
+ax1.set_ylim([0, 0.8])
 ax2.set_xscale('log')
 ax2.spines['right'].set_visible(True)
 
