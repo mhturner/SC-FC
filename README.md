@@ -15,7 +15,11 @@ Before you can run the Python code, you need to define a config.yaml file. See c
 
 ------------
 To run the R code, you should install the natverse (http://natverse.org/) and define the following environment variables in your .Renviron file:
+
 -GITHUB_PAT
+
 -neuprint_server (e.g. "https://neuprint.janelia.org")
+
 -neuprint_token
+
 -neuprint_dataset (e.g. "hemibrain:v1.2")
