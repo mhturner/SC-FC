@@ -2,6 +2,7 @@
 Turner, Mann, Clandinin: functional connectivity utils and functions.
 
 https://github.com/mhturner/SC-FC
+mhturner@stanford.edu
 """
 
 import numpy as np
@@ -16,9 +17,9 @@ def filterRegionResponse(region_response, cutoff=None, fs=None):
     """
     Low pass filter region response trace.
 
-    region_response: np array
-    cutoff: Hz
-    fs: Hz
+    :region_response: np array
+    :cutoff: Hz
+    :fs: Hz
     """
     if fs is not None:
         sos = signal.butter(1, cutoff, 'hp', fs=fs, output='sos')

@@ -2,6 +2,7 @@
 Turner, Mann, Clandinin: structural connectivity utils and functions.
 
 https://github.com/mhturner/SC-FC
+mhturner@stanford.edu
 
 References:
 https://connectome-neuprint.github.io/neuprint-python/docs/index.html
@@ -11,13 +12,14 @@ https://github.com/connectome-neuprint/neuprint-python
 import numpy as np
 import pandas as pd
 import os
+from neuprint import (fetch_neurons, NeuronCriteria)
 
 from . import bridge
 
 
 def getAtlasConnectivity(include_inds, name_list, atlas_id, metric='cellcount'):
     """
-    Load .csv of region-to-region structural connectivity, from hemibrain_2_atlas.r.
+    Load .csv of region-to-region structural connectivity, computed from hemibrain_2_atlas.r.
 
     :include_inds: list of ROI number IDs to select
     :name_list: associated list of ROI names

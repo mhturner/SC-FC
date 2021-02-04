@@ -1,6 +1,7 @@
 # Get T-Bar locations for select cell types. To test alignment to atlas space.
 # Turner, Mann, Clandinin.
 # https://github.com/mhturner/SC-FC
+# mhturner@stanford.edu
 
 library(nat.flybrains)
 library(nat.jrcbrains)
@@ -60,14 +61,14 @@ for (i in seq_along(body_ids)){
   type = types[i]
   output_yxz = data.matrix(output_synapses[output_synapses$bodyid==body_id, c("y", "x", "z")])
   mode(output_yxz) = 'integer' # floor to int to index
-  
+
   # Find ito regions where tbars are
   output_regions = ito_atlas[output_yxz]
   output_regions = output_regions[output_regions!=0]
-  output_tab = table(output_regions) 
+  output_tab = table(output_regions)
   output_regions = as.numeric(names(output_tab))  # now unique regions
   output_counts = as.vector(output_tab)
-  
+
   if (length(output_regions) > 0){
     ito_tbar[output_regions, type] = ito_tbar[output_regions, type] + output_counts
   }
@@ -75,4 +76,3 @@ for (i in seq_along(body_ids)){
 } # end body_ids
 
 write.csv(ito_tbar, file.path(data_dir, 'hemi_2_atlas', paste(cell_type, 'ito_tbar.csv', sep='_')))
-

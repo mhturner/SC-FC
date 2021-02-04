@@ -1,6 +1,7 @@
 # Display neuron skeletons, region, for alignment testing.
 # Turner, Mann, Clandinin.
 # https://github.com/mhturner/SC-FC
+# mhturner@stanford.edu
 
 # References:
 #   http://natverse.org/neuprintr/articles/hemibrain_opns.html

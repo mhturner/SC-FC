@@ -2,6 +2,7 @@
 Turner, Mann, Clandinin: Plotting utils.
 
 https://github.com/mhturner/SC-FC
+mhturner@stanford.edu
 """
 import numpy as np
 from scipy.stats import pearsonr

@@ -1,6 +1,12 @@
-#!/usr/bin/env python
+"""
+Turner, Mann, Clandinin: Compute Atlas region responses from registered brain volume data.
 
-"""Compute Atlas region responses from registered brain volume data."""
+*Requires raw brain files (large) - contact Max Turner for these data.
+
+https://github.com/mhturner/SC-FC
+mhturner@stanford.edu
+"""
+
 import os
 import glob
 import nibabel as nib

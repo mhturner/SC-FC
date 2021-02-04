@@ -1,4 +1,12 @@
-"""Calculate functional cmats for subsampled regions."""
+"""
+Turner, Mann, Clandinin: Calculate functional cmats for subsampled regions.
+
+*Requires raw brain files (large) - contact Max Turner for these data.
+
+https://github.com/mhturner/SC-FC
+mhturner@stanford.edu
+"""
+
 import os
 import nibabel as nib
 import numpy as np

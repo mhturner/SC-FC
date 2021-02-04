@@ -2,6 +2,7 @@
 Turner, Mann, Clandinin: utils and functions to bridge SC and FC.
 
 https://github.com/mhturner/SC-FC
+mhturner@stanford.edu
 """
 import networkx as nx
 import numpy as np

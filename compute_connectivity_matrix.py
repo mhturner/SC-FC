@@ -1,4 +1,9 @@
-"""Compute connectivity matrices from Neuprint hemibrain data."""
+"""
+Turner, Mann, Clandinin: Compute connectivity matrices from Neuprint hemibrain data.
+
+https://github.com/mhturner/SC-FC
+mhturner@stanford.edu
+"""
 from neuprint import (Client)
 import os
 from scfc import anatomical_connectivity, bridge
@@ -13,7 +18,7 @@ analysis_dir = bridge.getUserConfiguration()['analysis_dir']
 token = bridge.getUserConfiguration()['token']
 
 # start client
-neuprint_client = Client('neuprint.janelia.org', dataset='hemibrain:v1.1', token=token)
+neuprint_client = Client('neuprint.janelia.org', dataset='hemibrain:v1.2', token=token)
 
 # get rois of interest
 mapping = bridge.getRoiMapping()
