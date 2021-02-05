@@ -693,9 +693,7 @@ coms, roi_size, DistanceMatrix, SizeMatrix = functional_connectivity.getRegionGe
 
 xx = coms[:, 0]
 
-
-
-remove_inds = np.where(xx < np.quantile(yy, 0.1))[0]
+remove_inds = np.where(xx < np.quantile(xx, 0.1))[0]
 name_list_ito = np.delete(name_list_ito, remove_inds)
 include_inds_ito = np.delete(include_inds_ito, remove_inds)
 name_list_ito
