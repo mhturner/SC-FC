@@ -132,7 +132,7 @@ for r_ind, r in enumerate(name_list_ito):
 
 ax[0].set_xlabel('Structural degree')
 ax[0].set_ylabel('Functional degree')
-ax[0].set_ylim([0, 37])
+ax[0].set_ylim([0, 39])
 
 clust_fxn = np.real(np.array(list(nx.clustering(G_fxn, weight='weight').values())))
 clust_anat = np.array(list(nx.clustering(G_anat, weight='weight').values()))
@@ -144,8 +144,8 @@ for r_ind, r in enumerate(name_list_ito):
         ax[1].annotate(bridge.displayName(r), (clust_anat[r_ind]+0.002, clust_fxn[r_ind]-0.003), fontsize=8, fontweight='bold')
 ax[1].set_xlabel('Structural clustering')
 ax[1].set_ylabel('Functional clustering')
-ax[1].set_ylim([0, 0.445])
-ax[1].set_xlim([0, 0.124])
+ax[1].set_ylim([0, 0.46])
+
 
 fig3_1.subplots_adjust(wspace=0.5, hspace=0.1)
 fig3_1.savefig(os.path.join(analysis_dir, 'figpanels', 'fig3_1.svg'), format='svg', transparent=True, dpi=save_dpi)

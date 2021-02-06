@@ -248,8 +248,7 @@ synmask_jrc2018 = io.imread(os.path.join(data_dir, 'hemi_2_atlas', 'JRC2018_synm
 synmask_jrc2018 = (synmask_jrc2018 / np.max(synmask_jrc2018)) * 8 # T-bars / voxel
 # convert from T-bar / voxel to tbar / um^-3
 voxel_size = 0.38  # um
-synmask_jrc2018 = synmask_jrc2018 / (voxel_size ** 3)
-mean_density = np.mean(synmask_jrc2018[ito_jrc2018>0]) # tbars / um^-3
+synmask_jrc2018 = synmask_jrc2018 / (voxel_size ** 3) # T-bars / um^3
 
 # Most voxels don't have any T-bars. Low pass filter to de-speckle a bit
 synmask_jrc2018 = gaussian(synmask_jrc2018, sigma=4)
@@ -275,7 +274,6 @@ cmap = matplotlib.colors.ListedColormap(tmp)
 ax[0].imshow(ito_jrc2018[250, :, :], cmap=cmap, interpolation='None')
 
 # syn density mask
-print('Mean Tbar density in brain = {:.3f} Tbars / um^-3'.format(mean_density))
 im = ax[2].imshow(np.mean(synmask_jrc2018[240:260, :, :], axis=0), interpolation='None', cmap='gray', vmin=0, vmax=8) # n.b. clip top a bit for visualization of edges
 cb = figS1_2.colorbar(im, ax=ax[2], shrink=1.0, orientation="horizontal", pad=0.2, label='Synapse density (Tbars/$um^{3}$)')
 figS1_2.tight_layout()
