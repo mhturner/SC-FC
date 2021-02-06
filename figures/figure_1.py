@@ -13,6 +13,7 @@ import pandas as pd
 from skimage import io
 import seaborn as sns
 from neuprint import (fetch_neurons, NeuronCriteria, Client)
+from skimage.filters import gaussian
 
 from scfc import bridge, anatomical_connectivity
 from matplotlib import rcParams
@@ -234,17 +235,24 @@ fig1_1.savefig(os.path.join(analysis_dir, 'figpanels', 'fig1_1.svg'), format='sv
 
 # %%
 # load synmask tifs and atlases
-synmask_jrc2018 = io.imread(os.path.join(data_dir, 'hemi_2_atlas', 'JRC2018_synmask.tif'))
-# scale synmask by max synapse per. voxel density from script (=8).
-#       writeTIF in R script auto scales to 2**16 max for some reason
-synmask_jrc2018 = (synmask_jrc2018 / np.max(synmask_jrc2018))
-synmask_jrc2018 = 8 * synmask_jrc2018
-
 branson_jrc2018 = io.imread(os.path.join(data_dir, 'template_brains', '2018_999_atlas.tif'))
 ito_jrc2018 = io.imread(os.path.join(data_dir, 'template_brains', 'ito_2018.tif'))
 
 include_inds_ito, name_list_ito = bridge.getItoNames()
 include_inds_branson, name_list_branson = bridge.getBransonNames()
+
+
+synmask_jrc2018 = io.imread(os.path.join(data_dir, 'hemi_2_atlas', 'JRC2018_synmask.tif'))
+# scale synmask by max synapse per. voxel density from script (=8).
+#       writeTIF in R script auto scales to 2**16 max for some reason
+synmask_jrc2018 = (synmask_jrc2018 / np.max(synmask_jrc2018)) * 8 # T-bars / voxel
+# convert from T-bar / voxel to tbar / um^-3
+voxel_size = 0.38  # um
+synmask_jrc2018 = synmask_jrc2018 / (voxel_size ** 3)
+mean_density = np.mean(synmask_jrc2018[ito_jrc2018>0]) # tbars / um^-3
+
+# Most voxels don't have any T-bars. Low pass filter to de-speckle a bit
+synmask_jrc2018 = gaussian(synmask_jrc2018, sigma=4)
 
 # %% atlas alignment images
 # branson atlas
@@ -267,8 +275,9 @@ cmap = matplotlib.colors.ListedColormap(tmp)
 ax[0].imshow(ito_jrc2018[250, :, :], cmap=cmap, interpolation='None')
 
 # syn density mask
-im = ax[2].imshow(synmask_jrc2018[240:260, :, :].mean(axis=0), interpolation='None')
-cb = figS1_2.colorbar(im, ax=ax[2], shrink=1.0, orientation="horizontal", pad=0.2, label='Synapse density (Tbars/voxel)')
+print('Mean Tbar density in brain = {:.3f} Tbars / um^-3'.format(mean_density))
+im = ax[2].imshow(np.mean(synmask_jrc2018[240:260, :, :], axis=0), interpolation='None', cmap='gray', vmin=0, vmax=8) # n.b. clip top a bit for visualization of edges
+cb = figS1_2.colorbar(im, ax=ax[2], shrink=1.0, orientation="horizontal", pad=0.2, label='Synapse density (Tbars/$um^{3}$)')
 figS1_2.tight_layout()
 figS1_2.savefig(os.path.join(analysis_dir, 'figpanels', 'figS1_2.svg'), format='svg', transparent=True, dpi=save_dpi)
 
@@ -333,3 +342,34 @@ figS1_3.savefig(os.path.join(analysis_dir, 'figpanels', 'figS1_3.svg'), format='
 
 figS1_4 = doAlignmentTest(cell_type='LNO', neuprint_search="LNO.*")
 figS1_4.savefig(os.path.join(analysis_dir, 'figpanels', 'figS1_4.svg'), format='svg', transparent=True, dpi=save_dpi)
+
+# %%
+synmask_jrc2018.max()
+plt.hist(synmask_jrc2018[synmask_jrc2018 > 0])
+np.sum(synmask_jrc2018)
+
+
+
+voxel_size = 0.38 # um
+voxel_volume = voxel_size ** 3 # cubic um
+voxel_volume
+
+1 / voxel_volume * 1e9
+
+# %% Calc: TBar vs Cell count corr
+
+include_inds_ito, name_list_ito = bridge.getItoNames()
+ConnectivityCount = anatomical_connectivity.getAtlasConnectivity(include_inds_ito, name_list_ito, 'ito', metric='cellcount')
+ConnectivityTBars = anatomical_connectivity.getAtlasConnectivity(include_inds_ito, name_list_ito, 'ito', metric='tbar')
+
+ct = ConnectivityCount.to_numpy()[~np.eye(ConnectivityCount.shape[0], dtype=bool)]
+tbar = ConnectivityTBars.to_numpy()[~np.eye(ConnectivityCount.shape[0], dtype=bool)]
+
+keep_inds = np.where(np.logical_and(ct > 0, tbar > 0))
+
+r, h = pearsonr(ct[keep_inds], tbar[keep_inds])
+print(r)
+fh, ax = plt.subplots(1, 1, figsize=(4, 4))
+ax.plot(ct, tbar, 'ko')
+ax.set_xscale('log')
+ax.set_yscale('log')
