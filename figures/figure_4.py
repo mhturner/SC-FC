@@ -341,3 +341,75 @@ for ind in range(2):
     ax[2].set_title('Direct + shortest path')
 
     figS4_0.savefig(os.path.join(analysis_dir, 'figpanels', 'figS4_{}.svg'.format(ind)), format='svg', transparent=True, dpi=save_dpi)
+
+# %%
+
+response_filepaths = glob.glob(os.path.join(data_dir, 'branson_responses') + '/' + '*.pkl')
+
+include_inds_branson, name_list_branson = bridge.getBransonNames()
+
+CorrelationMatrix_branson, cmats_branson = functional_connectivity.getCmat(response_filepaths, include_inds_branson, name_list_branson)
+Branson_JRC2018 = anatomical_connectivity.getAtlasConnectivity(include_inds_branson, name_list_branson, 'branson')
+
+# %%
+# Shortest path distance:
+shortest_path_dist = bridge.getShortestPathStats(Branson_JRC2018)
+
+# %%
+shortest_path_dist = shortest_path_dist.to_numpy()[~np.eye(len(name_list_ito), dtype=bool)]
+
+# Direct distance:
+tmp = anatomical_connectivity.getAtlasConnectivity(include_inds_ito, name_list_ito, 'ito').to_numpy().copy()
+np.fill_diagonal(tmp, 0)
+direct_dist = (1/tmp)[~np.eye(len(name_list_ito), dtype=bool)]
+direct_dist[np.isinf(direct_dist)] = np.nan
+
+# FC-SC difference:
+diff = DifferenceMatrix.to_numpy()[~np.eye(len(name_list_ito), dtype=bool)]
+
+figS4_1, ax = plt.subplots(1, 2, figsize=(6, 3))
+lim = np.nanmax(np.abs(DifferenceMatrix.to_numpy().ravel()))
+sc = ax[0].scatter(direct_dist, shortest_path_dist, c=diff, s=12, alpha=1.0, cmap='RdBu_r', marker='.', vmin=-lim, vmax=lim, rasterized=True)
+ax[0].set_xscale('log')
+ax[0].set_yscale('log')
+ax[0].set_xlabel('Direct distance')
+ax[0].set_ylabel('Shortest path distance')
+ax[0].plot([2e-4, 1], [2e-4, 1], color='k', linewidth=2, alpha=1.0, linestyle='-', zorder=0)
+ax[0].set_ylim([2e-4, 6e-2])
+fig4_4.colorbar(sc, ax=ax[0])
+
+shortest_path_factor = direct_dist / shortest_path_dist
+x = shortest_path_factor
+y = diff
+keep_inds = np.where(x>1)
+
+x = x[keep_inds]
+y = y[keep_inds]
+
+ax[1].scatter(x, y, c=diff[keep_inds], marker='.', s=12, alpha=1.0, linestyle='None', cmap='RdBu_r', vmin=-lim, vmax=lim, rasterized=True)
+ax[1].axhline(color='k', linestyle='--')
+ax[1].set_xscale('log')
+ax[1].set_xlabel('Indirect path factor')
+ax[1].set_ylabel('Diff. (FC-SC)')
+r, p = spearmanr(x, y)
+ax[1].annotate(r'$\rho$={:.2f}'.format(r), (90, 2.5))
+ax[1].set_xticks([1, 10, 100])
+
+bins = np.logspace(np.log10(x.min()), np.log10(x.max()), 7)
+num_bins = len(bins)-1
+
+for b_ind in range(num_bins):
+    b_start = bins[b_ind]
+    b_end = bins[b_ind+1]
+    inds = np.where(np.logical_and(x > b_start, x < b_end))
+    bin_mean_x = x[inds].mean()
+    bin_mean_y = y[inds].mean()
+    ax[1].plot(bin_mean_x, bin_mean_y, color='k', marker='s', alpha=1, linestyle='none')
+
+    err_x = x[inds].std()/np.sqrt(len(inds))
+    ax[1].plot([bin_mean_x - err_x, bin_mean_x + err_x], [bin_mean_y, bin_mean_y], linestyle='-', marker='None', color='k', alpha=1, linewidth=2)
+
+    err_y = y[inds].std()/np.sqrt(len(inds))
+    ax[1].plot([bin_mean_x, bin_mean_x], [bin_mean_y - err_y, bin_mean_y + err_y], linestyle='-', marker='None', color='k', alpha=1, linewidth=2)
+
+# figS4_1.savefig(os.path.join(analysis_dir, 'figpanels', 'figS4_1.svg'), format='svg', transparent=True, dpi=save_dpi)
