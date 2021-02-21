@@ -192,7 +192,7 @@ for r in regions:
 
 # Shortest path distance:
 anat_connect = anatomical_connectivity.getAtlasConnectivity(include_inds_ito, name_list_ito, 'ito')
-shortest_path_dist, shortest_path_steps, shortest_path_weight, hub_count = bridge.getShortestPathStats(anat_connect)
+shortest_path_dist = bridge.getShortestPathStats(anat_connect)
 
 shortest_path_dist = shortest_path_dist.to_numpy()[~np.eye(len(name_list_ito), dtype=bool)]
 
@@ -287,7 +287,7 @@ for ind in range(2):
 
     # shortest path
     anat_connect = anatomical_connectivity.getAtlasConnectivity(include_inds_ito, name_list_ito, 'ito', metric=metric)
-    measured_sp, measured_steps, _, measured_hub = bridge.getShortestPathStats(anat_connect)
+    measured_sp = bridge.getShortestPathStats(anat_connect)
     shortest_path = np.log10(((measured_sp.T + measured_sp.T)/2).to_numpy()[np.triu_indices(len(name_list_ito), k=1)][keep_inds])
 
     # Predicted: FC

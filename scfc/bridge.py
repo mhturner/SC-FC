@@ -11,7 +11,6 @@ import yaml
 import os
 import inspect
 from scfc import bridge
-import time
 
 
 def getUserConfiguration():
@@ -186,9 +185,6 @@ def getShortestPathStats(adjacency, alg='dijkstra'):
 
     Returns:
         shortest_path_distance: DataFrame, shorts path distance for each connection
-        shortest_path_steps: DataFrame, number of steps (nodes traversed) along each shortest path
-        shortest_path_weight: DataFrame, sum of weights along each step of the shortest path
-        hub_count: DataFrame, for each region, the total number of times each region is traversed in one of the shortest paths
     """
     roi_names = adjacency.index
 
@@ -198,40 +194,17 @@ def getShortestPathStats(adjacency, alg='dijkstra'):
         graph.edges[e]['distance'] = 1/graph.edges[e]['weight']
 
     shortest_path_distance = pd.DataFrame(data=np.zeros_like(adjacency), index=roi_names, columns=roi_names)
-    # shortest_path_steps = pd.DataFrame(data=np.zeros_like(adjacency), index=roi_names, columns=roi_names)
-    # shortest_path_weight = pd.DataFrame(data=np.zeros_like(adjacency), index=roi_names, columns=roi_names)
-    # hub_count = pd.DataFrame(data=np.zeros(len(roi_names)), index=roi_names, columns=['count'])
 
     for r_ind, row in enumerate(roi_names):
-        t0 = time.time()
         for c_ind, col in enumerate(roi_names):
             if alg == 'dijkstra':
                 try:
-                    # path = nx.algorithms.dijkstra_path(graph, source=r_ind, target=c_ind, weight='distance')
                     path_length = nx.algorithms.dijkstra_path_length(graph, source=r_ind, target=c_ind, weight='distance')
                 except:
-                    # path = []
                     path_length = np.nan
             elif alg == 'bellman_ford':
-                # path = nx.algorithms.bellman_ford_path(graph, source=r_ind, target=c_ind, weight='distance')
                 path_length = nx.algorithms.bellman_ford_path_length(graph, source=r_ind, target=c_ind, weight='distance')
 
             shortest_path_distance.loc[row, col] = path_length
-            # shortest_path_steps.loc[row, col] = len(path)
-            #
-            # new_path_weight = 0
-            # for p_ind in range(len(path)-1):
-            #     a = path[p_ind]
-            #     b = path[p_ind+1]
-            #     new_path_weight += adjacency.to_numpy()[a, b]
-            #
-            # shortest_path_weight.loc[row, col] = new_path_weight
-            #
-            # if len(path) > 2:
-            #     intermediate_nodes = path[1:-1]
-            #     hub_count.iloc[intermediate_nodes] += 1
 
-        print('Finished {} ({} sec)'.format(row, time.time()-t0))
-
-    # return shortest_path_distance, shortest_path_steps, shortest_path_weight, hub_count
     return shortest_path_distance
