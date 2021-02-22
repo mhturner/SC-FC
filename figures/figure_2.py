@@ -14,6 +14,8 @@ import seaborn as sns
 import glob
 import nibabel as nib
 from scipy.ndimage.measurements import center_of_mass
+from matplotlib.patches import Patch
+import matplotlib.colors
 
 from scipy.spatial.distance import pdist
 from seriate import seriate
@@ -241,9 +243,8 @@ ax.annotate('r = {:.2f}'.format(r), xy=(1e-3, 1.0))
 ax.tick_params(axis='x', labelsize=10)
 ax.tick_params(axis='y', labelsize=10)
 
+
 # %%
-
-
 metrics = ['cellcount', 'weighted_tbar', 'tbar', 'Size', 'Nearness']
 R_by_metric = pd.DataFrame(data=np.zeros((len(cmats_z), len(metrics))), columns=metrics)
 pop_r = []
@@ -304,17 +305,32 @@ include_inds_branson, name_list_branson = bridge.getBransonNames()
 CorrelationMatrix_branson, cmats_branson = functional_connectivity.getCmat(response_filepaths, include_inds_branson, name_list_branson)
 Branson_JRC2018 = anatomical_connectivity.getAtlasConnectivity(include_inds_branson, name_list_branson, 'branson')
 
-names, inds_unique = np.unique(name_list_branson, return_index=True)
-inds_unique = np.append(inds_unique, len(name_list_branson))
-cmap = plt.get_cmap('tab20')(np.arange(len(names))/len(names))
+# Do TSP seriation ordering
+sort_inds = seriate(pdist(Branson_JRC2018))
+sorted_branson_names = np.array(name_list_branson)[sort_inds]
+np.fill_diagonal(Branson_JRC2018.to_numpy(), np.nan)
+
+Branson_SC_ordered = pd.DataFrame(data=np.zeros_like(Branson_JRC2018), columns=sorted_branson_names, index=sorted_branson_names)
+Branson_FC_ordered = pd.DataFrame(data=np.zeros_like(CorrelationMatrix_branson), columns=sorted_branson_names, index=sorted_branson_names)
+for r_ind, r_key in enumerate(sorted_branson_names):
+    for c_ind, c_key in enumerate(sorted_branson_names):
+        Branson_SC_ordered.iloc[r_ind, c_ind]=Branson_JRC2018.iloc[sort_inds[r_ind], sort_inds[c_ind]]
+        Branson_FC_ordered.iloc[r_ind, c_ind]=CorrelationMatrix_branson.iloc[sort_inds[r_ind], sort_inds[c_ind]]
+
+
+# %%
+names, inds_unique = np.unique(sorted_branson_names, return_index=True)
+inds_unique = np.append(inds_unique, len(sorted_branson_names))
+cmap = plotting.categorical_cmap(10, 4, cmap="tab10", continuous=False)(np.arange(len(names))/len(names))
+
 np.random.seed(0)
 np.random.shuffle(cmap)
 
-inds = [np.where(names==name)[0][0] for name in name_list_branson]
+inds = [np.where(names==name)[0][0] for name in sorted_branson_names]
 atlas_colors = [cmap[i] for i in inds]
 
 # Functional corr
-g_fxn = sns.clustermap(CorrelationMatrix_branson, cmap='cividis',
+g_fxn = sns.clustermap(Branson_FC_ordered, cmap='cividis',
                        cbar_kws={},
                        rasterized=True,
                        row_cluster=False, col_cluster=False,
@@ -322,23 +338,17 @@ g_fxn = sns.clustermap(CorrelationMatrix_branson, cmap='cividis',
                        linewidths=0, xticklabels=False, yticklabels=False,
                        figsize=(4, 4),
                        cbar_pos=(0, 0, 0.0, 0.0))
-
-
-
-g_fxn.cax.set_visible(False)
-for l_ind, label in enumerate(names):
-    loc = (inds_unique[l_ind] + inds_unique[l_ind+1]) / 2
-    # g_fxn.ax_heatmap.annotate(bridge.displayName(label), xy=(loc, 0), rotation=90, fontsize=4, color=cmap[l_ind], fontweight='bold')
-    # g_fxn.ax_heatmap.annotate(bridge.displayName(label), xy=(0, loc), rotation=0, fontsize=4, color=cmap[l_ind], fontweight='bold', ha='right')
+handles = [Patch(facecolor=color) for color in cmap]
+plt.legend(handles, [bridge.displayName(label) for label in names], fontsize=6, ncol=8, handleheight=2.0, labelspacing=0.05, bbox_to_anchor=(1, 1), bbox_transform=plt.gcf().transFigure)
 
 position=g_fxn.fig.add_axes([1.0, 0.1, 0.025, 0.6])
 cb = g_fxn.fig.colorbar(matplotlib.cm.ScalarMappable(norm=matplotlib.colors.Normalize(vmin=np.nanmin(CorrelationMatrix_branson.to_numpy()), vmax=np.nanmax(CorrelationMatrix_branson.to_numpy())), cmap="cividis"),
                         ax=g_fxn.ax_row_dendrogram, label='Functional Correlation (z)',
                         cax=position)
 
-
+# %%
 # Structural conn
-tmp = Branson_JRC2018.to_numpy()
+tmp = Branson_SC_ordered.to_numpy()
 np.fill_diagonal(tmp, np.nan)
 conn_mat = pd.DataFrame(data=tmp, index=name_list_branson, columns=name_list_branson)
 g_struct = sns.clustermap(np.log10(conn_mat).replace([np.inf, -np.inf], 0), cmap='cividis',

@@ -351,21 +351,42 @@ include_inds_branson, name_list_branson = bridge.getBransonNames()
 CorrelationMatrix_branson, cmats_branson = functional_connectivity.getCmat(response_filepaths, include_inds_branson, name_list_branson)
 Branson_JRC2018 = anatomical_connectivity.getAtlasConnectivity(include_inds_branson, name_list_branson, 'branson')
 
-# %%
-# Shortest path distance:
-shortest_path_dist = bridge.getShortestPathStats(Branson_JRC2018)
+# %% Difference matrix - Branson
+
+# # compute difference matrix using original, asymmetric anatomical connectivity matrix
+anatomical_mat = Branson_JRC2018.to_numpy().copy()
+np.fill_diagonal(anatomical_mat, 0)
+
+functional_mat = CorrelationMatrix_branson.to_numpy().copy()
+np.fill_diagonal(functional_mat, 0)
+
+
+# log transform anatomical connectivity values
+keep_inds_diff = np.where(anatomical_mat > 0)
+functional_adjacency_diff = functional_mat[keep_inds_diff]
+anatomical_adjacency_diff = np.log10(anatomical_mat[keep_inds_diff])
+
+F_zscore = zscore(functional_adjacency_diff)
+A_zscore = zscore(anatomical_adjacency_diff)
+diff = F_zscore - A_zscore
+
+diff_m = np.zeros_like(anatomical_mat)
+diff_m[keep_inds_diff] = diff
+DifferenceMatrix = pd.DataFrame(data=diff_m, index=name_list_branson, columns=name_list_branson)
 
 # %%
-shortest_path_dist = shortest_path_dist.to_numpy()[~np.eye(len(name_list_ito), dtype=bool)]
+# load pre-computed Shortest path distance:
+shortest_path_dist = pd.read_pickle(os.path.join(data_dir, 'Branson_ShortestPathDistance.pkl'))
+shortest_path_dist = shortest_path_dist.to_numpy()[~np.eye(len(name_list_branson), dtype=bool)]
 
 # Direct distance:
-tmp = anatomical_connectivity.getAtlasConnectivity(include_inds_ito, name_list_ito, 'ito').to_numpy().copy()
+tmp = Branson_JRC2018.to_numpy().copy()
 np.fill_diagonal(tmp, 0)
-direct_dist = (1/tmp)[~np.eye(len(name_list_ito), dtype=bool)]
+direct_dist = (1/tmp)[~np.eye(len(name_list_branson), dtype=bool)]
 direct_dist[np.isinf(direct_dist)] = np.nan
 
 # FC-SC difference:
-diff = DifferenceMatrix.to_numpy()[~np.eye(len(name_list_ito), dtype=bool)]
+diff = DifferenceMatrix.to_numpy()[~np.eye(len(name_list_branson), dtype=bool)]
 
 figS4_1, ax = plt.subplots(1, 2, figsize=(6, 3))
 lim = np.nanmax(np.abs(DifferenceMatrix.to_numpy().ravel()))
@@ -376,7 +397,7 @@ ax[0].set_xlabel('Direct distance')
 ax[0].set_ylabel('Shortest path distance')
 ax[0].plot([2e-4, 1], [2e-4, 1], color='k', linewidth=2, alpha=1.0, linestyle='-', zorder=0)
 ax[0].set_ylim([2e-4, 6e-2])
-fig4_4.colorbar(sc, ax=ax[0])
+figS4_1.colorbar(sc, ax=ax[0])
 
 shortest_path_factor = direct_dist / shortest_path_dist
 x = shortest_path_factor
@@ -413,3 +434,7 @@ for b_ind in range(num_bins):
     ax[1].plot([bin_mean_x, bin_mean_x], [bin_mean_y - err_y, bin_mean_y + err_y], linestyle='-', marker='None', color='k', alpha=1, linewidth=2)
 
 # figS4_1.savefig(os.path.join(analysis_dir, 'figpanels', 'figS4_1.svg'), format='svg', transparent=True, dpi=save_dpi)
+
+# %%
+
+DifferenceMatrix.groupby(DifferenceMatrix.columns).mean().mean(axis=1).sort_values()
