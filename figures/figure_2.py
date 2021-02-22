@@ -304,6 +304,9 @@ include_inds_branson, name_list_branson = bridge.getBransonNames()
 
 CorrelationMatrix_branson, cmats_branson = functional_connectivity.getCmat(response_filepaths, include_inds_branson, name_list_branson)
 Branson_JRC2018 = anatomical_connectivity.getAtlasConnectivity(include_inds_branson, name_list_branson, 'branson')
+# Save SC + FC matrices as .csv for sharing
+CorrelationMatrix_branson.to_csv(os.path.join(data_dir, 'CorrelationMatrix_branson.csv'))
+Branson_JRC2018.to_csv(os.path.join(data_dir, 'StructuralMatrix_branson.csv'))
 
 # Do TSP seriation ordering
 sort_inds = seriate(pdist(Branson_JRC2018))
@@ -345,6 +348,8 @@ position=g_fxn.fig.add_axes([1.0, 0.1, 0.025, 0.6])
 cb = g_fxn.fig.colorbar(matplotlib.cm.ScalarMappable(norm=matplotlib.colors.Normalize(vmin=np.nanmin(CorrelationMatrix_branson.to_numpy()), vmax=np.nanmax(CorrelationMatrix_branson.to_numpy())), cmap="cividis"),
                         ax=g_fxn.ax_row_dendrogram, label='Functional Correlation (z)',
                         cax=position)
+
+
 
 # %%
 # Structural conn
